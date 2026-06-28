@@ -1,0 +1,14 @@
+<div class="error-page">
+  <div class="error-box">
+    <div class="error-code">500</div>
+    <h2 class="error-title">Lỗi máy chủ</h2>
+    <p class="error-msg">Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau.</p>
+    <% if (error && process.env.NODE_ENV === 'development') { %>
+    <div style="margin:20px 0;padding:16px;background:#f8fafc;border-radius:8px;text-align:left;font-size:12px;color:var(--danger);font-family:monospace;overflow-x:auto">
+      <strong><%= error.message %></strong><br>
+      <pre style="margin-top:8px;font-size:11px;color:var(--text-3)"><%= error.stack %></pre>
+    </div>
+    <% } %>
+    <a href="/dashboard" class="btn btn-primary btn-lg"><i class="fas fa-home"></i> Về trang chủ</a>
+  </div>
+</div>

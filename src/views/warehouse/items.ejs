@@ -1,0 +1,263 @@
+<style>
+.type-tabs { display:flex; gap:4px; margin-bottom:16px; flex-wrap:wrap; }
+.type-tab { padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:var(--card); color:var(--text-3); font-size:13px; cursor:pointer; text-decoration:none; transition:all .15s; }
+.type-tab.active, .type-tab:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+.status-chip { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:500; }
+.chip-available { background:#E8F5E9; color:#388E3C; }
+.chip-in_use { background:#E3F2FD; color:#1565C0; }
+.chip-maintenance { background:#FFF3E0; color:#E65100; }
+.chip-lost { background:#FFEBEE; color:#C62828; }
+.holder-pill { display:inline-flex; align-items:center; gap:5px; }
+.holder-avatar { width:22px; height:22px; border-radius:50%; object-fit:cover; }
+.holder-initials { width:22px; height:22px; border-radius:50%; background:var(--primary); color:#fff; font-size:10px; display:inline-flex; align-items:center; justify-content:center; font-weight:600; }
+.alert-bar { background:#FFF3E0; border:1px solid #FFB74D; border-radius:8px; padding:10px 16px; margin-bottom:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.item-type-badge { padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+.badge-consumable { background:#E3F2FD; color:#1565C0; }
+.badge-tool { background:#FFF3E0; color:#E65100; }
+.badge-asset { background:#F3E5F5; color:#6A1B9A; }
+</style>
+
+<div class="page-header">
+  <div class="page-header-title">
+    <h2>Danh sách Vật tư</h2>
+    <p><%= items.length %> vật tư</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="/warehouse" class="btn btn-outline"><i class="fas fa-th-large"></i> Tổng quan</a>
+    <a href="/warehouse/assignments" class="btn btn-outline"><i class="fas fa-clipboard-list"></i> Phiếu giao</a>
+    <% if (['admin','warehouse'].includes(locals.userRole)) { %>
+    <a href="/warehouse/items/create" class="btn btn-primary"><i class="fas fa-plus"></i> Thêm vật tư</a>
+    <% } %>
+  </div>
+</div>
+
+<% const lowStockItems = items.filter(i => i.quantity <= i.min_quantity); %>
+<% if (lowStockItems.length > 0) { %>
+<div class="alert-bar">
+  <i class="fas fa-exclamation-triangle" style="color:#E65100"></i>
+  <strong style="color:#E65100"><%= lowStockItems.length %> mặt hàng sắp hết / hết hàng:</strong>
+  <% lowStockItems.slice(0,6).forEach(i => { %>
+  <a href="/warehouse/items/<%= i.id %>" style="font-size:12px;color:<%= i.quantity===0 ? 'var(--danger)' : '#E65100' %>"><%= i.name %> (<%= i.quantity %>)</a>
+  <% }) %>
+  <% if (lowStockItems.length > 6) { %><span style="font-size:12px;color:var(--text-3)">+<%= lowStockItems.length-6 %> khác</span><% } %>
+</div>
+<% } %>
+
+<!-- Type Tabs -->
+<div class="type-tabs">
+  <a href="/warehouse/items?<%= new URLSearchParams({...filters, item_type:''}).toString() %>" class="type-tab <%= !filters.item_type ? 'active' : '' %>">Tất cả (<%= items.length %>)</a>
+  <a href="/warehouse/items?<%= new URLSearchParams({...filters, item_type:'tool'}).toString() %>" class="type-tab <%= filters.item_type==='tool' ? 'active' : '' %>">🔧 Dụng cụ</a>
+  <a href="/warehouse/items?<%= new URLSearchParams({...filters, item_type:'consumable'}).toString() %>" class="type-tab <%= filters.item_type==='consumable' ? 'active' : '' %>">📦 Vật tư phụ</a>
+  <a href="/warehouse/items?<%= new URLSearchParams({...filters, item_type:'asset'}).toString() %>" class="type-tab <%= filters.item_type==='asset' ? 'active' : '' %>">🏗️ Hàng dự án</a>
+</div>
+
+<!-- Filters -->
+<form method="GET" class="filter-bar" style="margin-bottom:16px">
+  <input type="hidden" name="item_type" value="<%= filters.item_type || '' %>">
+  <input type="text" name="search" class="form-control" placeholder="Tìm tên, mã vật tư..." value="<%= filters.search || '' %>" style="flex:1;max-width:280px">
+  <select name="category" class="form-control" style="max-width:200px">
+    <option value="">Tất cả danh mục</option>
+    <% categories.forEach(c => { %>
+    <option value="<%= c.id %>" <%= filters.category==c.id?'selected':'' %>><%= c.name %></option>
+    <% }) %>
+  </select>
+  <select name="stock_status" class="form-control" style="max-width:160px">
+    <option value="">Tất cả tồn kho</option>
+    <option value="low" <%= filters.stock_status==='low'?'selected':'' %>>Sắp hết hàng</option>
+    <option value="out" <%= filters.stock_status==='out'?'selected':'' %>>Hết hàng</option>
+  </select>
+  <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+  <a href="/warehouse/items" class="btn btn-outline">Reset</a>
+</form>
+
+<div class="card">
+  <% if (items.length === 0) { %>
+  <div class="empty-state" style="padding:48px">
+    <div class="empty-state-icon"><i class="fas fa-boxes"></i></div>
+    <h3>Không tìm thấy vật tư nào</h3>
+  </div>
+  <% } else { %>
+  <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Mã / Tên</th>
+          <th>Danh mục</th>
+          <th>Loại</th>
+          <th>Tồn kho</th>
+          <th>Trạng thái / Người giữ</th>
+          <th>Vị trí</th>
+          <th style="width:90px"></th>
+        </tr>
+      </thead>
+      <tbody>
+      <% items.forEach(item => { %>
+      <tr>
+        <td>
+          <div style="font-weight:600"><a href="/warehouse/items/<%= item.id %>" style="color:var(--text)"><%= item.name %></a></div>
+          <div style="font-size:11px;color:var(--text-3);font-weight:700"><%= item.code %></div>
+        </td>
+        <td style="font-size:12px"><%= item.category_name || '—' %></td>
+        <td>
+          <% const typeLabel = item.item_type==='tool' ? 'Dụng cụ' : item.item_type==='asset' ? 'Tài sản' : 'Vật tư'; %>
+          <span class="item-type-badge badge-<%= item.item_type || 'consumable' %>"><%= typeLabel %></span>
+        </td>
+        <td>
+          <% if (item.item_type === 'consumable' || !item.item_type) { %>
+          <span style="font-weight:700;color:<%= item.quantity===0 ? 'var(--danger)' : item.quantity<=item.min_quantity ? 'var(--warning)' : 'var(--success)' %>">
+            <%= Number(item.quantity).toLocaleString('vi-VN') %> <%= item.unit %>
+          </span>
+          <% if (item.quantity<=item.min_quantity && item.quantity>0) { %><div style="font-size:10px;color:var(--warning)">Sắp hết</div><% } %>
+          <% if (item.quantity===0) { %><div style="font-size:10px;color:var(--danger)">Hết hàng</div><% } %>
+          <% } else { %>
+          <span style="color:var(--text-3);font-size:12px"><%= Number(item.quantity).toLocaleString('vi-VN') %> <%= item.unit %></span>
+          <% } %>
+        </td>
+        <td>
+          <% const statusLabel = {available:'Sẵn sàng',in_use:'Đang dùng',maintenance:'Bảo trì',lost:'Mất'}; %>
+          <% const statusClass = {available:'chip-available',in_use:'chip-in_use',maintenance:'chip-maintenance',lost:'chip-lost'}; %>
+          <% if (item.item_type === 'tool' || item.item_type === 'asset') { %>
+          <span class="status-chip <%= statusClass[item.item_status] || 'chip-available' %>">
+            <i class="fas fa-circle" style="font-size:7px"></i>
+            <%= statusLabel[item.item_status] || 'Sẵn sàng' %>
+          </span>
+          <% if (item.item_status === 'in_use' && item.holder_name) { %>
+          <div class="holder-pill" style="margin-top:4px">
+            <% if (item.holder_avatar) { %>
+            <img src="<%= item.holder_avatar %>" class="holder-avatar" alt="">
+            <% } else { %>
+            <span class="holder-initials"><%= item.holder_name.charAt(0).toUpperCase() %></span>
+            <% } %>
+            <span style="font-size:11px;color:var(--text-3)"><%= item.holder_name %></span>
+          </div>
+          <% } %>
+          <% } else { %>
+          <span style="font-size:12px;color:var(--text-3)">—</span>
+          <% } %>
+        </td>
+        <td style="font-size:12px;color:var(--text-3)"><%= item.location || '—' %></td>
+        <td style="white-space:nowrap">
+          <a href="/warehouse/items/<%= item.id %>" class="btn btn-sm btn-outline" title="Xem"><i class="fas fa-eye"></i></a>
+          <% if (['admin','warehouse','director'].includes(locals.userRole)) { %>
+          <button onclick="openAssignModal('<%= item.id %>','<%= item.name.replace(/'/g, \"&#39;\") %>','<%= item.item_type || \"consumable\" %>','<%= item.item_status || \"available\" %>',<%= item.quantity %>,'<%= item.unit %>')" class="btn btn-sm btn-primary" title="Xuất / Gán"><i class="fas fa-share"></i></button>
+          <% } %>
+        </td>
+      </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+
+<!-- Assignment Modal -->
+<div class="modal-overlay" id="assignModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title">Xuất / Gán vật tư</span>
+      <button class="modal-close" onclick="document.getElementById('assignModal').classList.remove('open')"><i class="fas fa-times"></i></button>
+    </div>
+    <form action="/warehouse/assignments" method="POST" id="assignForm">
+      <input type="hidden" name="item_id" id="assignItemId">
+      <div class="modal-body">
+        <div id="assignItemInfo" style="padding:10px;background:var(--bg);border-radius:8px;margin-bottom:16px;border:1px solid var(--border)">
+          <div style="font-weight:600" id="assignItemName"></div>
+          <div style="font-size:12px;color:var(--text-3)" id="assignItemMeta"></div>
+        </div>
+
+        <!-- Toggle -->
+        <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <button type="button" id="togglePersonal" onclick="setAssignType('personal')"
+            style="flex:1;padding:8px;border:none;cursor:pointer;font-size:13px;background:var(--primary);color:#fff">
+            <i class="fas fa-user"></i> Gán cá nhân
+          </button>
+          <button type="button" id="toggleProject" onclick="setAssignType('project')"
+            style="flex:1;padding:8px;border:none;cursor:pointer;font-size:13px;background:var(--card);color:var(--text)">
+            <i class="fas fa-project-diagram"></i> Xuất dự án
+          </button>
+        </div>
+        <input type="hidden" name="assignment_type" id="assignmentType" value="personal">
+
+        <!-- Personal section -->
+        <div id="sectionPersonal">
+          <div class="form-group">
+            <label class="form-label">Người nhận <span class="req">*</span></label>
+            <select name="assigned_to_user" id="assignToUser" class="form-control">
+              <option value="">— Chọn người nhận —</option>
+              <% if (typeof users !== 'undefined') { users.forEach(u => { %>
+              <option value="<%= u.id %>"><%= u.full_name %></option>
+              <% }) } %>
+            </select>
+          </div>
+        </div>
+
+        <!-- Project section -->
+        <div id="sectionProject" style="display:none">
+          <div class="form-group">
+            <label class="form-label">Dự án <span class="req">*</span></label>
+            <select name="assigned_to_project" class="form-control">
+              <option value="">— Chọn dự án —</option>
+              <% if (typeof projects !== 'undefined') { projects.forEach(p => { %>
+              <option value="<%= p.id %>"><%= p.name %></option>
+              <% }) } %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Người nhận tại dự án</label>
+            <select name="assigned_to_user" class="form-control">
+              <option value="">— Chọn người —</option>
+              <% if (typeof users !== 'undefined') { users.forEach(u => { %>
+              <option value="<%= u.id %>"><%= u.full_name %></option>
+              <% }) } %>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" id="qtyGroup">
+          <label class="form-label">Số lượng</label>
+          <input type="number" name="quantity" id="assignQty" class="form-control" min="1" step="0.01" value="1">
+          <span style="font-size:12px;color:var(--text-3)" id="assignQtyHint"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ghi chú</label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="Ghi chú bàn giao..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('assignModal').classList.remove('open')">Hủy</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Xác nhận giao</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function setAssignType(type) {
+  document.getElementById('assignmentType').value = type;
+  document.getElementById('sectionPersonal').style.display = type==='personal' ? '' : 'none';
+  document.getElementById('sectionProject').style.display = type==='project' ? '' : 'none';
+  document.getElementById('togglePersonal').style.background = type==='personal' ? 'var(--primary)' : 'var(--card)';
+  document.getElementById('togglePersonal').style.color = type==='personal' ? '#fff' : 'var(--text)';
+  document.getElementById('toggleProject').style.background = type==='project' ? 'var(--primary)' : 'var(--card)';
+  document.getElementById('toggleProject').style.color = type==='project' ? '#fff' : 'var(--text)';
+}
+
+function openAssignModal(id, name, itemType, itemStatus, qty, unit) {
+  document.getElementById('assignItemId').value = id;
+  document.getElementById('assignItemName').textContent = name;
+  const isToolOrAsset = itemType === 'tool' || itemType === 'asset';
+  const statusLabel = {available:'Sẵn sàng',in_use:'Đang dùng',maintenance:'Bảo trì',lost:'Mất'};
+  if (isToolOrAsset) {
+    document.getElementById('assignItemMeta').textContent = 'Loại: ' + (itemType==='tool'?'Dụng cụ':'Tài sản') + ' · Trạng thái: ' + (statusLabel[itemStatus]||itemStatus);
+    document.getElementById('assignQty').value = 1;
+    document.getElementById('assignQty').setAttribute('max', qty);
+    document.getElementById('assignQtyHint').textContent = '';
+  } else {
+    document.getElementById('assignItemMeta').textContent = 'Tồn kho: ' + qty + ' ' + unit;
+    document.getElementById('assignQty').value = 1;
+    document.getElementById('assignQty').setAttribute('max', qty);
+    document.getElementById('assignQtyHint').textContent = 'Tối đa: ' + qty + ' ' + unit;
+  }
+  document.getElementById('assignModal').classList.add('open');
+}
+</script>

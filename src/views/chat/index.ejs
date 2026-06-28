@@ -1,0 +1,1460 @@
+<style>
+/* ── FULL-WINDOW CHAT SHELL ── */
+.chat-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr 260px;
+  height: calc(100vh - 60px);
+  background: var(--card);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin: 0 -4px;
+}
+
+/* ── COL 1: SIDEBAR ── */
+.chat-sidebar {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  overflow: hidden;
+}
+.chat-sidebar-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.chat-sidebar-header h3 { font-size: 15px; font-weight: 700; margin: 0; }
+.chat-sidebar-search {
+  padding: 10px 12px;
+  flex-shrink: 0;
+}
+.chat-sidebar-search input {
+  width: 100%;
+  padding: 7px 12px 7px 32px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  font-size: 12px;
+  color: var(--text-1);
+  outline: none;
+  box-sizing: border-box;
+}
+.chat-sidebar-search { position: relative; }
+.chat-sidebar-search::before {
+  content: '\f002';
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  font-size: 11px;
+  pointer-events: none;
+}
+.chat-room-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
+.chat-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  padding: 8px 8px 4px;
+}
+.chat-room-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: background .15s;
+  position: relative;
+}
+.chat-room-item:hover { background: var(--border-light); }
+.chat-room-item.active { background: var(--primary-soft, #e8f0fe); }
+.chat-room-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.chat-room-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.online-dot {
+  position: absolute;
+  bottom: 1px; right: 1px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  background: #ccc;
+}
+.online-dot.online { background: #22c55e; }
+.chat-room-info { flex: 1; min-width: 0; }
+.chat-room-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-room-preview { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.chat-room-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+.chat-room-time { font-size: 10px; color: var(--text-3); }
+.chat-unread-badge {
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px; height: 18px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+}
+
+/* ── COL 2: MAIN CHAT ── */
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--card);
+}
+.chat-main-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.chat-main-header-info { flex: 1; min-width: 0; }
+.chat-main-header-name { font-size: 15px; font-weight: 700; }
+.chat-main-header-sub { font-size: 11px; color: var(--text-3); }
+.chat-main-header-actions { display: flex; gap: 6px; }
+.chat-main-header-actions button {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-3); font-size: 14px; padding: 6px;
+  border-radius: 6px; transition: background .15s, color .15s;
+}
+.chat-main-header-actions button:hover { background: var(--border-light); color: var(--primary); }
+
+.chat-messages-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.load-more-btn {
+  display: block;
+  margin: 0 auto 12px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 12px;
+  padding: 5px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.load-more-btn:hover { background: var(--border-light); }
+
+/* Date separator */
+.chat-date-sep {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-3);
+  margin: 10px 0 6px;
+  position: relative;
+}
+.chat-date-sep::before, .chat-date-sep::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 35%;
+  height: 1px;
+  background: var(--border);
+}
+.chat-date-sep::before { left: 0; }
+.chat-date-sep::after { right: 0; }
+
+/* Message bubble */
+.chat-msg {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  max-width: 75%;
+  padding: 1px 0;
+}
+.chat-msg.mine { flex-direction: row-reverse; margin-left: auto; }
+.chat-msg.other { margin-right: auto; }
+.chat-msg-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  flex-shrink: 0;
+  align-self: flex-end;
+  overflow: hidden;
+}
+.chat-msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.chat-msg-col { display: flex; flex-direction: column; gap: 2px; max-width: 100%; }
+.chat-msg.mine .chat-msg-col { align-items: flex-end; }
+.chat-msg-name { font-size: 10px; color: var(--text-3); padding: 0 4px; }
+
+.chat-bubble-wrap { display: flex; align-items: flex-end; gap: 4px; }
+.chat-msg.mine .chat-bubble-wrap { flex-direction: row-reverse; }
+
+.chat-bubble {
+  padding: 8px 12px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+  position: relative;
+  max-width: 340px;
+}
+.chat-msg.other .chat-bubble {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  border-bottom-left-radius: 4px;
+}
+.chat-msg.mine .chat-bubble {
+  background: var(--primary);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble-time { font-size: 10px; color: var(--text-3); flex-shrink: 0; padding-bottom: 2px; }
+.chat-msg.mine .chat-bubble-time { color: rgba(255,255,255,.65); }
+
+/* Reply preview inside bubble */
+.chat-reply-bar {
+  background: rgba(0,0,0,.07);
+  border-left: 3px solid rgba(255,255,255,.5);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.chat-msg.other .chat-reply-bar { background: var(--border-light); border-left-color: var(--primary); }
+.chat-reply-author { font-weight: 700; }
+
+/* Deleted bubble */
+.chat-bubble.deleted { opacity: .5; font-style: italic; font-size: 12px; }
+
+/* Image bubble */
+.chat-bubble.img-bubble { padding: 4px; overflow: hidden; }
+.chat-bubble.img-bubble img {
+  max-width: 220px; max-height: 200px;
+  border-radius: 12px;
+  display: block;
+  cursor: zoom-in;
+}
+
+/* Audio bubble */
+.chat-bubble.audio-bubble { min-width: 200px; }
+.audio-player-row { display: flex; align-items: center; gap: 8px; }
+.audio-play-btn {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,.25);
+  color: #fff;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.chat-msg.other .audio-play-btn { background: var(--primary); }
+.audio-waveform {
+  flex: 1;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.audio-waveform span {
+  display: inline-block;
+  width: 3px;
+  background: rgba(255,255,255,.6);
+  border-radius: 2px;
+  transition: height .1s;
+}
+.chat-msg.other .audio-waveform span { background: var(--primary-light, #93b4f8); }
+
+/* File bubble */
+.chat-bubble.file-bubble { min-width: 180px; }
+.file-attach-row { display: flex; align-items: center; gap: 8px; }
+.file-icon-wrap {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.chat-msg.other .file-icon-wrap { background: var(--border-light); color: var(--primary); }
+.file-attach-info { flex: 1; min-width: 0; }
+.file-attach-name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-attach-size { font-size: 10px; opacity: .75; }
+
+/* Msg actions (hover) */
+.chat-bubble-wrap { position: relative; }
+.chat-msg-actions {
+  display: none;
+  position: absolute;
+  top: -28px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  display: none;
+  gap: 2px;
+  padding: 3px 6px;
+  z-index: 5;
+}
+.chat-msg.other .chat-msg-actions { right: 0; }
+.chat-msg.mine .chat-msg-actions { left: 0; }
+.chat-bubble-wrap:hover .chat-msg-actions { display: flex; }
+.msg-action-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-3); font-size: 12px;
+  padding: 3px 5px; border-radius: 4px;
+  transition: background .1s, color .1s;
+}
+.msg-action-btn:hover { background: var(--border-light); color: var(--primary); }
+
+/* Typing indicator */
+.chat-typing {
+  padding: 4px 16px 0;
+  font-size: 11px;
+  color: var(--text-3);
+  min-height: 18px;
+  flex-shrink: 0;
+}
+.typing-dots span { display: inline-block; animation: typingDot 1.2s infinite; }
+.typing-dots span:nth-child(2) { animation-delay: .2s; }
+.typing-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes typingDot { 0%,60%,100% { transform:translateY(0); } 30% { transform:translateY(-4px); } }
+
+/* Reply preview bar (above input) */
+.chat-reply-preview {
+  display: none;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--text-2);
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.chat-reply-preview.visible { display: flex; }
+.chat-reply-preview-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-reply-cancel { background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 14px; padding: 2px; }
+
+/* Input area */
+.chat-input-area {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.chat-input-row { display: flex; align-items: flex-end; gap: 8px; }
+.chat-input-wrap {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  display: flex;
+  align-items: flex-end;
+  padding: 6px 12px;
+  gap: 6px;
+  transition: border-color .2s;
+}
+.chat-input-wrap:focus-within { border-color: var(--primary); }
+#chatInput {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-1);
+  resize: none;
+  max-height: 100px;
+  line-height: 1.5;
+  padding: 0;
+  font-family: inherit;
+}
+.chat-input-icon {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-3); font-size: 14px;
+  padding: 2px 4px; border-radius: 4px;
+  flex-shrink: 0;
+  transition: color .15s;
+}
+.chat-input-icon:hover { color: var(--primary); }
+.chat-send-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: background .15s, transform .1s;
+}
+.chat-send-btn:hover { background: var(--primary-dark, #1a56db); }
+.chat-send-btn:active { transform: scale(.92); }
+
+/* File preview queue */
+.chat-file-queue {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 4px;
+}
+.chat-file-preview-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+.chat-file-preview-item img { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; }
+.chat-file-preview-item .remove-file {
+  position: absolute; top: -6px; right: -6px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Drop overlay */
+.chat-drop-overlay {
+  position: absolute; inset: 0;
+  background: rgba(var(--primary-rgb, 37,99,235), .12);
+  border: 3px dashed var(--primary);
+  border-radius: 12px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+  z-index: 20;
+  pointer-events: none;
+}
+.chat-drop-overlay.visible { display: flex; }
+
+/* Voice recording */
+.chat-recording-bar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: #fee2e2;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #dc2626;
+}
+.chat-recording-bar.active { display: flex; }
+.rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #dc2626; animation: recPulse 1s infinite; }
+@keyframes recPulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+#recTimer { font-weight: 700; min-width: 36px; }
+.rec-cancel { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 12px; text-decoration: underline; }
+
+/* ── COL 3: INFO PANEL ── */
+.chat-info-col {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  overflow: hidden;
+}
+.chat-info-header {
+  padding: 14px 14px 0;
+  flex-shrink: 0;
+}
+.chat-info-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-top: 10px;
+}
+.chat-info-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color .15s;
+}
+.chat-info-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.chat-info-body { flex: 1; overflow-y: auto; padding: 10px 12px; }
+
+/* Members list */
+.chat-member-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 4px;
+  border-radius: 6px;
+  transition: background .15s;
+}
+.chat-member-item:hover { background: var(--border-light); }
+.chat-member-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.chat-member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.chat-member-online {
+  position: absolute; bottom: 0; right: 0;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  border: 1.5px solid var(--bg);
+}
+.chat-member-online.online { background: #22c55e; }
+.chat-member-info { flex: 1; min-width: 0; }
+.chat-member-name { font-size: 12px; font-weight: 600; }
+.chat-member-role { font-size: 10px; color: var(--text-3); }
+
+/* Files list */
+.chat-file-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 4px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+  transition: background .15s;
+}
+.chat-file-item:hover { background: var(--border-light); }
+.chat-file-thumb {
+  width: 40px; height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--border-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  overflow: hidden;
+}
+.chat-file-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.chat-file-fname { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-file-meta { font-size: 10px; color: var(--text-3); }
+
+/* Add member section */
+.chat-add-member { margin-top: 10px; }
+.chat-add-member select { width: 100%; font-size: 12px; }
+
+/* Empty / no room state */
+.chat-empty-state {
+  grid-column: 2 / 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-3);
+}
+.chat-empty-state i { font-size: 48px; opacity: .3; }
+.chat-empty-state p { font-size: 15px; margin: 0; }
+
+/* Lightbox */
+.img-lightbox {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.85);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+.img-lightbox.open { display: flex; }
+.img-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+.img-lightbox-close {
+  position: absolute; top: 20px; right: 24px;
+  background: none; border: none;
+  color: #fff; font-size: 28px; cursor: pointer;
+}
+
+/* Responsive: hide info col on narrow screens */
+@media (max-width: 1100px) {
+  .chat-shell { grid-template-columns: 260px 1fr; }
+  .chat-info-col { display: none; }
+}
+@media (max-width: 768px) {
+  .chat-shell { grid-template-columns: 1fr; height: calc(100vh - 60px); }
+  .chat-sidebar { display: none; }
+  .chat-shell.sidebar-open .chat-sidebar { display: flex; position: absolute; z-index: 10; width: 280px; height: 100%; box-shadow: 4px 0 12px rgba(0,0,0,.15); }
+}
+</style>
+
+<!-- OUTER WRAPPER (fills layout) -->
+<div style="position: relative;" id="chatApp">
+
+  <!-- Drop overlay -->
+  <div class="chat-drop-overlay" id="dropOverlay"><i class="fas fa-cloud-upload-alt" style="margin-right:8px"></i> Thả file vào đây</div>
+
+  <div class="chat-shell">
+
+    <!-- ═══ COL 1: SIDEBAR ═══ -->
+    <div class="chat-sidebar">
+      <div class="chat-sidebar-header">
+        <h3><i class="fas fa-comments" style="color:var(--primary);margin-right:6px"></i>Chat</h3>
+        <button onclick="openNewRoom()" style="background:none;border:none;cursor:pointer;color:var(--primary);font-size:16px" title="Tạo nhóm chat"><i class="fas fa-edit"></i></button>
+      </div>
+      <div class="chat-sidebar-search">
+        <input type="text" id="roomSearch" placeholder="Tìm kiếm..." oninput="filterRooms(this.value)">
+      </div>
+      <div class="chat-room-list" id="roomList">
+        <% const dms = rooms.filter(r=>r.type==='direct'); %>
+        <% const groups = rooms.filter(r=>r.type!=='direct'); %>
+
+        <% if (dms.length) { %>
+        <div class="chat-section-label">Trực tiếp</div>
+        <% dms.forEach(r => {
+          const isActive = activeRoom && activeRoom.id === r.id;
+          const isOnline = r.other_seen_at && (new Date() - new Date(r.other_seen_at)) < 5*60*1000;
+          const initial = (r.other_name || r.name || '?').charAt(0).toUpperCase();
+        %>
+        <a href="/chat/<%= r.id %>" class="chat-room-item <%= isActive?'active':'' %>" data-room-name="<%= (r.other_name||r.name).toLowerCase() %>">
+          <div class="chat-room-avatar" style="<%= r.other_avatar?'background:none':'' %>">
+            <% if (r.other_avatar) { %><img src="<%= r.other_avatar %>" alt=""><% } else { %><%= initial %><% } %>
+            <span class="online-dot <%= isOnline?'online':'' %>" data-uid-dot="<%= r.id %>"></span>
+          </div>
+          <div class="chat-room-info">
+            <div class="chat-room-name"><%= r.other_name || r.name %></div>
+            <div class="chat-room-preview">
+              <% if (r.last_type === 'image') { %><i class="fas fa-image"></i> Hình ảnh
+              <% } else if (r.last_type === 'audio') { %><i class="fas fa-microphone"></i> Tin nhắn thoại
+              <% } else if (r.last_type === 'file') { %><i class="fas fa-paperclip"></i> Tệp đính kèm
+              <% } else { %><%= r.last_message || 'Chưa có tin nhắn' %><% } %>
+            </div>
+          </div>
+          <div class="chat-room-meta">
+            <% if (r.last_at) { %><div class="chat-room-time"><%= new Date(r.last_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) %></div><% } %>
+            <% if (r.unread_count > 0) { %><div class="chat-unread-badge"><%= r.unread_count %></div><% } %>
+          </div>
+        </a>
+        <% }) %>
+        <% } %>
+
+        <% if (groups.length) { %>
+        <div class="chat-section-label">Nhóm</div>
+        <% groups.forEach(r => {
+          const isActive = activeRoom && activeRoom.id === r.id;
+          const initial = (r.name||'?').charAt(0).toUpperCase();
+        %>
+        <a href="/chat/<%= r.id %>" class="chat-room-item <%= isActive?'active':'' %>" data-room-name="<%= r.name.toLowerCase() %>">
+          <div class="chat-room-avatar" style="background:var(--success,#16a34a)">
+            <% if (r.avatar_url) { %><img src="<%= r.avatar_url %>" alt=""><% } else { %><i class="fas fa-users" style="font-size:14px"></i><% } %>
+          </div>
+          <div class="chat-room-info">
+            <div class="chat-room-name"><%= r.name %></div>
+            <div class="chat-room-preview">
+              <% if (r.last_type === 'image') { %><i class="fas fa-image"></i> Hình ảnh
+              <% } else if (r.last_type === 'audio') { %><i class="fas fa-microphone"></i> Tin nhắn thoại
+              <% } else if (r.last_type === 'file') { %><i class="fas fa-paperclip"></i> Tệp đính kèm
+              <% } else { %><%= r.last_message || 'Chưa có tin nhắn' %><% } %>
+            </div>
+          </div>
+          <div class="chat-room-meta">
+            <% if (r.last_at) { %><div class="chat-room-time"><%= new Date(r.last_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) %></div><% } %>
+            <% if (r.unread_count > 0) { %><div class="chat-unread-badge"><%= r.unread_count %></div><% } %>
+          </div>
+        </a>
+        <% }) %>
+        <% } %>
+
+        <% if (!rooms.length) { %>
+        <div style="padding:24px;text-align:center;color:var(--text-3);font-size:13px">
+          <i class="fas fa-comments" style="font-size:28px;opacity:.3;display:block;margin-bottom:8px"></i>
+          Chưa có cuộc hội thoại nào
+        </div>
+        <% } %>
+
+        <!-- New DM list -->
+        <% if (users.length) { %>
+        <div class="chat-section-label" style="margin-top:8px">Mọi người</div>
+        <% users.forEach(u => {
+          const isOnline = u.last_seen_at && (new Date() - new Date(u.last_seen_at)) < 5*60*1000;
+        %>
+        <form action="/chat/rooms" method="POST" style="margin:0">
+          <input type="hidden" name="type" value="direct">
+          <input type="hidden" name="user_id" value="<%= u.id %>">
+          <input type="hidden" name="name" value="<%= u.full_name %>">
+          <button type="submit" class="chat-room-item" style="width:100%;text-align:left;border:none;cursor:pointer;background:none" data-room-name="<%= u.full_name.toLowerCase() %>">
+            <div class="chat-room-avatar" style="<%= u.avatar_url?'background:none':'' %>">
+              <% if (u.avatar_url) { %><img src="<%= u.avatar_url %>" alt=""><% } else { %><%= u.full_name.charAt(0).toUpperCase() %><% } %>
+              <span class="online-dot <%= isOnline?'online':'' %>" data-uid-dot-user="<%= u.id %>"></span>
+            </div>
+            <div class="chat-room-info">
+              <div class="chat-room-name"><%= u.full_name %></div>
+              <div class="chat-room-preview"><span class="badge badge-<%= u.role %>" style="font-size:10px"><%= u.role %></span></div>
+            </div>
+          </button>
+        </form>
+        <% }) %>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- ═══ COL 2: MAIN CHAT ═══ -->
+    <% if (activeRoom) { %>
+    <div class="chat-main" id="chatMain">
+      <!-- Header -->
+      <div class="chat-main-header">
+        <div class="chat-room-avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;<%= activeRoom.type!=='direct'?'background:var(--success,#16a34a)':'' %>">
+          <% if (activeRoom.avatar_url) { %><img src="<%= activeRoom.avatar_url %>" alt=""><% } else { %>
+          <i class="fas fa-<%= activeRoom.type==='direct'?'user':'users' %>"></i><% } %>
+        </div>
+        <div class="chat-main-header-info">
+          <div class="chat-main-header-name" id="activeRoomName"><%= activeRoom.name %></div>
+          <div class="chat-main-header-sub" id="activeRoomSub">
+            <%= activeRoom.type === 'direct' ? 'Trò chuyện trực tiếp' : members.length + ' thành viên' %>
+          </div>
+        </div>
+        <div class="chat-main-header-actions">
+          <button title="Tìm kiếm" onclick="alert('Tính năng sắp ra mắt')"><i class="fas fa-search"></i></button>
+          <button title="Thông tin nhóm" onclick="toggleInfoCol()"><i class="fas fa-info-circle"></i></button>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div class="chat-messages-wrap" id="msgWrap">
+        <% if (messages.length >= 60) { %>
+        <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()">Tải tin nhắn cũ hơn</button>
+        <% } %>
+
+        <%
+          let lastDate = null;
+        %>
+        <% messages.forEach(msg => {
+          const d = new Date(msg.created_at);
+          const dateStr = d.toLocaleDateString('vi-VN',{weekday:'long',day:'numeric',month:'long'});
+          const isMine = String(msg.user_id) === String(currentUserId);
+          const initial = (msg.full_name||'?').charAt(0).toUpperCase();
+          const timeStr = d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+        %>
+        <% if (dateStr !== lastDate) { lastDate = dateStr; %>
+        <div class="chat-date-sep"><%= dateStr %></div>
+        <% } %>
+
+        <div class="chat-msg <%= isMine?'mine':'other' %>" data-msg-id="<%= msg.id %>" data-created="<%= msg.created_at %>">
+          <% if (!isMine) { %>
+          <div class="chat-msg-avatar">
+            <% if (msg.avatar_url) { %><img src="<%= msg.avatar_url %>" alt=""><% } else { %><%= initial %><% } %>
+          </div>
+          <% } %>
+          <div class="chat-msg-col">
+            <% if (!isMine) { %><div class="chat-msg-name"><%= msg.full_name %></div><% } %>
+            <div class="chat-bubble-wrap">
+              <div class="chat-msg-actions">
+                <button class="msg-action-btn" title="Trả lời" onclick="replyTo('<%= msg.id %>','<%= msg.full_name %>',`<%= (msg.content||'').replace(/`/g,'\\`') %>`)"><i class="fas fa-reply"></i></button>
+                <% if (isMine) { %><button class="msg-action-btn" title="Xóa" onclick="deleteMsg('<%= msg.id %>','<%= activeRoom.id %>')"><i class="fas fa-trash"></i></button><% } %>
+              </div>
+              <% if (msg.is_deleted) { %>
+              <div class="chat-bubble deleted"><i class="fas fa-ban"></i> Tin nhắn đã bị xóa</div>
+              <% } else if (msg.message_type === 'image') { %>
+              <div class="chat-bubble img-bubble">
+                <% if (msg.reply_content) { %>
+                <div class="chat-reply-bar"><span class="chat-reply-author"><%= msg.reply_author %>:</span> <%= msg.reply_content %></div>
+                <% } %>
+                <img src="<%= msg.file_url %>" alt="<%= msg.file_name %>" onclick="openLightbox('<%= msg.file_url %>')">
+              </div>
+              <% } else if (msg.message_type === 'audio') { %>
+              <div class="chat-bubble audio-bubble">
+                <div class="audio-player-row">
+                  <button class="audio-play-btn" onclick="toggleAudio(this,'<%= msg.file_url %>')"><i class="fas fa-play"></i></button>
+                  <div class="audio-waveform" data-bars="20"></div>
+                  <span style="font-size:11px;opacity:.75" id="dur-<%= msg.id %>">0:00</span>
+                </div>
+              </div>
+              <% } else if (msg.message_type === 'file') { %>
+              <div class="chat-bubble file-bubble">
+                <div class="file-attach-row">
+                  <div class="file-icon-wrap"><%=
+                    /\.pdf$/i.test(msg.file_name||'') ? '📄' :
+                    /\.(doc|docx)$/i.test(msg.file_name||'') ? '📝' :
+                    /\.(xls|xlsx)$/i.test(msg.file_name||'') ? '📊' :
+                    /\.zip$/i.test(msg.file_name||'') ? '🗜️' : '📎'
+                  %></div>
+                  <div class="file-attach-info">
+                    <a href="<%= msg.file_url %>" download class="file-attach-name" style="color:inherit;text-decoration:none"><%= msg.file_name %></a>
+                    <div class="file-attach-size"><%= msg.file_size ? (msg.file_size/1024).toFixed(1)+' KB' : '' %></div>
+                  </div>
+                  <a href="<%= msg.file_url %>" download style="color:inherit;opacity:.7;font-size:14px"><i class="fas fa-download"></i></a>
+                </div>
+              </div>
+              <% } else { %>
+              <div class="chat-bubble">
+                <% if (msg.reply_content) { %>
+                <div class="chat-reply-bar"><span class="chat-reply-author"><%= msg.reply_author %>:</span> <%= msg.reply_content %></div>
+                <% } %>
+                <%= msg.content %>
+              </div>
+              <% } %>
+              <span class="chat-bubble-time"><%= timeStr %></span>
+            </div>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+
+      <!-- Typing indicator -->
+      <div class="chat-typing" id="typingArea"></div>
+
+      <!-- Reply preview -->
+      <div class="chat-reply-preview" id="replyPreview">
+        <i class="fas fa-reply" style="color:var(--primary)"></i>
+        <div class="chat-reply-preview-text" id="replyPreviewText"></div>
+        <button class="chat-reply-cancel" onclick="cancelReply()"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Recording bar -->
+      <div class="chat-recording-bar" id="recBar">
+        <div class="rec-dot"></div>
+        <span>Đang ghi âm</span>
+        <span id="recTimer">0:00</span>
+        <button class="rec-cancel" onclick="cancelRecording()">Hủy</button>
+      </div>
+
+      <!-- Input area -->
+      <div class="chat-input-area">
+        <div class="chat-file-queue" id="fileQueue"></div>
+        <div class="chat-input-row">
+          <div class="chat-input-wrap">
+            <button class="chat-input-icon" title="Đính kèm file" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
+            <input type="file" id="fileInput" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.mp3,.ogg,.wav,.webm" style="display:none" onchange="handleFiles(this.files)">
+            <textarea id="chatInput" placeholder="Nhập tin nhắn..." rows="1"
+              oninput="autoResize(this);onTyping()"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+            ></textarea>
+            <button class="chat-input-icon" title="Ghi âm" id="voiceBtn" onclick="toggleVoice()"><i class="fas fa-microphone"></i></button>
+          </div>
+          <button class="chat-send-btn" onclick="sendMessage()" title="Gửi"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ COL 3: INFO PANEL ═══ -->
+    <div class="chat-info-col" id="infoCol">
+      <div class="chat-info-header">
+        <div style="text-align:center;padding:8px 0">
+          <div class="chat-room-avatar" style="width:52px;height:52px;font-size:18px;margin:0 auto 6px;<%= activeRoom.type!=='direct'?'background:var(--success,#16a34a)':'' %>">
+            <i class="fas fa-<%= activeRoom.type==='direct'?'user':'users' %>"></i>
+          </div>
+          <div style="font-size:14px;font-weight:700"><%= activeRoom.name %></div>
+          <div style="font-size:11px;color:var(--text-3)"><%= activeRoom.type === 'direct' ? 'Trò chuyện trực tiếp' : activeRoom.type === 'group' ? 'Nhóm' : '' %></div>
+        </div>
+        <div class="chat-info-tabs">
+          <button class="chat-info-tab active" onclick="switchInfoTab('members',this)">Thành viên</button>
+          <button class="chat-info-tab" onclick="switchInfoTab('files',this)">File</button>
+        </div>
+      </div>
+
+      <div class="chat-info-body">
+        <!-- Members tab -->
+        <div id="tab-members">
+          <% members.forEach(m => {
+            const isOnline = m.last_seen_at && (new Date() - new Date(m.last_seen_at)) < 5*60*1000;
+            const mi = (m.full_name||'?').charAt(0).toUpperCase();
+          %>
+          <div class="chat-member-item" data-member-id="<%= m.id %>">
+            <div class="chat-member-avatar">
+              <% if (m.avatar_url) { %><img src="<%= m.avatar_url %>" alt=""><% } else { %><%= mi %><% } %>
+              <span class="chat-member-online <%= isOnline?'online':'' %>" data-online-uid="<%= m.id %>"></span>
+            </div>
+            <div class="chat-member-info">
+              <div class="chat-member-name"><%= m.full_name %></div>
+              <div class="chat-member-role"><%= m.room_role==='admin'?'Quản trị viên':m.department||m.role %></div>
+            </div>
+            <% if (m.room_role==='admin') { %><i class="fas fa-crown" style="color:#f59e0b;font-size:11px" title="Admin nhóm"></i><% } %>
+          </div>
+          <% }) %>
+
+          <% if (activeRoom.type === 'group') { %>
+          <div class="chat-add-member" style="margin-top:12px">
+            <div style="font-size:11px;font-weight:700;color:var(--text-3);margin-bottom:6px">Thêm thành viên</div>
+            <form action="/chat/<%= activeRoom.id %>/members" method="POST" style="display:flex;gap:6px">
+              <select name="user_id" class="form-control chat-add-member" style="flex:1;font-size:12px;padding:5px 8px">
+                <option value="">Chọn người dùng...</option>
+                <% users.forEach(u => { %>
+                <option value="<%= u.id %>"><%= u.full_name %></option>
+                <% }) %>
+              </select>
+              <button type="submit" class="btn btn-primary" style="padding:5px 10px;font-size:12px"><i class="fas fa-plus"></i></button>
+            </form>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- Files tab -->
+        <div id="tab-files" style="display:none">
+          <%
+            const fileMessages = messages.filter(m => m.message_type === 'image' || m.message_type === 'file' || m.message_type === 'audio');
+          %>
+          <% if (!fileMessages.length) { %>
+          <div style="text-align:center;padding:24px;color:var(--text-3);font-size:12px"><i class="fas fa-folder-open" style="font-size:24px;opacity:.3;display:block;margin-bottom:8px"></i>Chưa có file nào</div>
+          <% } %>
+          <% fileMessages.forEach(m => { %>
+          <a href="<%= m.file_url %>" download class="chat-file-item">
+            <div class="chat-file-thumb">
+              <% if (m.message_type === 'image') { %><img src="<%= m.file_url %>" alt="">
+              <% } else { %><%= /\.pdf$/i.test(m.file_name||'')?'📄':/\.(doc|docx)$/i.test(m.file_name||'')?'📝':/\.(xls|xlsx)$/i.test(m.file_name||'')?'📊':'📎' %><% } %>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="chat-file-fname"><%= m.file_name || 'File' %></div>
+              <div class="chat-file-meta"><%= new Date(m.created_at).toLocaleDateString('vi-VN') %> · <%= m.full_name %></div>
+            </div>
+          </a>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+
+    <% } else { %>
+    <!-- Empty state: no room selected -->
+    <div class="chat-empty-state">
+      <i class="fas fa-comments"></i>
+      <p>Chọn một cuộc hội thoại để bắt đầu</p>
+      <button onclick="openNewRoom()" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo nhóm chat</button>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<!-- Image Lightbox -->
+<div class="img-lightbox" id="imgLightbox" onclick="closeLightbox()">
+  <button class="img-lightbox-close" onclick="closeLightbox()"><i class="fas fa-times"></i></button>
+  <img id="lightboxImg" src="" alt="">
+</div>
+
+<!-- New Room Modal -->
+<div class="modal-overlay" id="newRoomModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <span class="modal-title">Tạo phòng chat nhóm</span>
+      <button class="modal-close" onclick="document.getElementById('newRoomModal').classList.remove('open')"><i class="fas fa-times"></i></button>
+    </div>
+    <form action="/chat/rooms" method="POST">
+      <input type="hidden" name="type" value="group">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Tên nhóm <span style="color:red">*</span></label>
+          <input type="text" name="name" class="form-control" required placeholder="VD: Dự án ABC, Team Marketing...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mô tả</label>
+          <input type="text" name="description" class="form-control" placeholder="Tuỳ chọn">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Thêm thành viên</label>
+          <select name="user_id" multiple class="form-control" style="height:120px">
+            <% users.forEach(u => { %><option value="<%= u.id %>"><%= u.full_name %> (<%= u.role %>)</option><% }) %>
+          </select>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px">Giữ Ctrl/Cmd để chọn nhiều người</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('newRoomModal').classList.remove('open')">Hủy</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Tạo nhóm</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const CURRENT_USER_ID = '<%= currentUserId %>';
+const CURRENT_USER_NAME = '<%= (currentUserName || "").replace(/\\/g,"\\\\").replace(/'/g,"\\'") %>';
+const ACTIVE_ROOM_ID = '<%= activeRoom ? activeRoom.id : "" %>';
+
+/* ─── SOCKET.IO ─────────────────────────────────────────────────── */
+let socket;
+const ROOM_IDS = <%- JSON.stringify(rooms.map(r=>r.id)) %>;
+
+if (typeof io !== 'undefined' && CURRENT_USER_ID) {
+  socket = io({
+    auth: { userId: CURRENT_USER_ID, userName: CURRENT_USER_NAME },
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
+  });
+
+  socket.on('connect', () => {
+    console.log('[chat] socket connected', socket.id);
+    if (ROOM_IDS.length) socket.emit('rooms:join', ROOM_IDS);
+    // Also join active room explicitly
+    if (ACTIVE_ROOM_ID) socket.join && socket.join('room:' + ACTIVE_ROOM_ID);
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.warn('[chat] socket disconnected:', reason);
+  });
+
+  socket.on('connect_error', (err) => {
+    console.warn('[chat] socket connect_error:', err.message);
+  });
+
+  socket.on('message:new', (msg) => {
+    if (msg.room_id !== ACTIVE_ROOM_ID) {
+      // Bump unread badge in sidebar
+      const item = document.querySelector('.chat-room-item[href="/chat/' + msg.room_id + '"] .chat-unread-badge');
+      if (item) { item.textContent = parseInt(item.textContent||0) + 1; }
+      else {
+        const link = document.querySelector('.chat-room-item[href="/chat/' + msg.room_id + '"] .chat-room-meta');
+        if (link) link.insertAdjacentHTML('beforeend','<div class="chat-unread-badge">1</div>');
+      }
+      return;
+    }
+    appendMessage(msg);
+    scrollToBottom();
+  });
+
+  socket.on('user:online', ({ userId, online }) => {
+    document.querySelectorAll('[data-online-uid="' + userId + '"]').forEach(el => {
+      el.classList.toggle('online', online);
+    });
+    document.querySelectorAll('[data-uid-dot-user="' + userId + '"]').forEach(el => {
+      el.classList.toggle('online', online);
+    });
+  });
+
+  const typingTimers = {};
+  socket.on('typing:update', ({ userId, userName, typing }) => {
+    const area = document.getElementById('typingArea');
+    if (!area) return;
+    clearTimeout(typingTimers[userId]);
+    if (typing) {
+      area.innerHTML = '<span class="typing-dots"><span>●</span><span>●</span><span>●</span></span> <strong>' + userName + '</strong> đang nhập...';
+      typingTimers[userId] = setTimeout(() => { area.innerHTML = ''; }, 4000);
+    } else {
+      area.innerHTML = '';
+    }
+  });
+}
+
+/* ─── SEND MESSAGE ──────────────────────────────────────────────── */
+let replyToId = null;
+let replyToContent = null;
+let replyToAuthor = null;
+const pendingFiles = [];
+
+async function sendMessage() {
+  const inp = document.getElementById('chatInput');
+  const text = inp.value.trim();
+  if (!text && !pendingFiles.length) return;
+
+  // Disable input while sending
+  inp.disabled = true;
+
+  try {
+    // Upload files first
+    if (pendingFiles.length) {
+      await uploadFiles();
+      pendingFiles.length = 0;
+      document.getElementById('fileQueue').innerHTML = '';
+    }
+
+    if (text) {
+      const savedReplyId = replyToId;
+      const savedReplyContent = replyToContent;
+      const savedReplyAuthor = replyToAuthor;
+
+      inp.value = '';
+      inp.style.height = 'auto';
+      cancelReply();
+
+      if (socket && socket.connected) {
+        // Real-time via Socket.io — server will broadcast back including to sender
+        socket.emit('message:send', { roomId: ACTIVE_ROOM_ID, content: text, replyTo: savedReplyId });
+      } else {
+        // REST fallback — must manually append to UI
+        try {
+          const res = await fetch('/chat/' + ACTIVE_ROOM_ID + '/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: text, reply_to: savedReplyId || undefined })
+          });
+          const data = await res.json();
+          if (data.message) {
+            // Enrich with current user info and reply data
+            const msg = {
+              ...data.message,
+              full_name: CURRENT_USER_NAME,
+              avatar_url: null,
+              reply_content: savedReplyContent,
+              reply_author: savedReplyAuthor
+            };
+            appendMessage(msg);
+            scrollToBottom(true);
+          }
+        } catch (err) {
+          console.error('[chat] REST send failed:', err);
+          // Restore text on failure
+          inp.value = text;
+        }
+      }
+    }
+  } finally {
+    inp.disabled = false;
+    inp.focus();
+  }
+  stopTyping();
+}
+
+function appendMessage(msg) {
+  const wrap = document.getElementById('msgWrap');
+  if (!wrap) return;
+  const isMine = String(msg.user_id) === String(CURRENT_USER_ID);
+  const d = new Date(msg.created_at || Date.now());
+  const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const initial = (msg.full_name || '?').charAt(0).toUpperCase();
+
+  let bubbleHtml = '';
+  if (msg.is_deleted) {
+    bubbleHtml = '<div class="chat-bubble deleted"><i class="fas fa-ban"></i> Tin nhắn đã bị xóa</div>';
+  } else if (msg.message_type === 'image') {
+    bubbleHtml = `<div class="chat-bubble img-bubble"><img src="${msg.file_url}" alt="" onclick="openLightbox('${msg.file_url}')"></div>`;
+  } else if (msg.message_type === 'audio') {
+    bubbleHtml = `<div class="chat-bubble audio-bubble"><div class="audio-player-row">
+      <button class="audio-play-btn" onclick="toggleAudio(this,'${msg.file_url}')"><i class="fas fa-play"></i></button>
+      <div class="audio-waveform" data-bars="20"></div>
+      <span style="font-size:11px;opacity:.75">0:00</span>
+    </div></div>`;
+  } else if (msg.message_type === 'file') {
+    bubbleHtml = `<div class="chat-bubble file-bubble"><div class="file-attach-row">
+      <div class="file-icon-wrap">📎</div>
+      <div class="file-attach-info">
+        <a href="${msg.file_url}" download class="file-attach-name" style="color:inherit;text-decoration:none">${msg.file_name}</a>
+        <div class="file-attach-size">${msg.file_size ? (msg.file_size/1024).toFixed(1)+' KB' : ''}</div>
+      </div>
+      <a href="${msg.file_url}" download style="color:inherit;opacity:.7;font-size:14px"><i class="fas fa-download"></i></a>
+    </div></div>`;
+  } else {
+    const replyHtml = msg.reply_content
+      ? `<div class="chat-reply-bar"><span class="chat-reply-author">${msg.reply_author}:</span> ${msg.reply_content}</div>` : '';
+    bubbleHtml = `<div class="chat-bubble">${replyHtml}${msg.content}</div>`;
+  }
+
+  const html = `
+  <div class="chat-msg ${isMine?'mine':'other'}" data-msg-id="${msg.id}" data-created="${d.toISOString()}">
+    ${!isMine ? `<div class="chat-msg-avatar">${msg.avatar_url?`<img src="${msg.avatar_url}" alt="">`:'<span>'+initial+'</span>'}</div>` : ''}
+    <div class="chat-msg-col">
+      ${!isMine ? `<div class="chat-msg-name">${msg.full_name}</div>` : ''}
+      <div class="chat-bubble-wrap">
+        <div class="chat-msg-actions">
+          <button class="msg-action-btn" onclick="replyTo('${msg.id}','${msg.full_name}',\`${(msg.content||'').replace(/`/g,'\\`')}\`)"><i class="fas fa-reply"></i></button>
+          ${isMine ? `<button class="msg-action-btn" onclick="deleteMsg('${msg.id}','${ACTIVE_ROOM_ID}')"><i class="fas fa-trash"></i></button>` : ''}
+        </div>
+        ${bubbleHtml}
+        <span class="chat-bubble-time">${timeStr}</span>
+      </div>
+    </div>
+  </div>`;
+  wrap.insertAdjacentHTML('beforeend', html);
+  renderWaveforms(wrap.lastElementChild);
+}
+
+function scrollToBottom(smooth) {
+  const w = document.getElementById('msgWrap');
+  if (w) w.scrollTo({ top: w.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+}
+scrollToBottom();
+
+/* ─── LOAD MORE ─────────────────────────────────────────────────── */
+let loadingMore = false;
+async function loadMore() {
+  if (loadingMore) return;
+  loadingMore = true;
+  const wrap = document.getElementById('msgWrap');
+  const oldest = wrap.querySelector('[data-created]');
+  const before = oldest ? oldest.dataset.created : new Date().toISOString();
+  try {
+    const r = await fetch(`/chat/${ACTIVE_ROOM_ID}/messages?before=${encodeURIComponent(before)}&limit=30`);
+    const data = await r.json();
+    if (!data.messages || !data.messages.length) {
+      document.getElementById('loadMoreBtn')?.remove();
+      loadingMore = false;
+      return;
+    }
+    const oldTop = wrap.scrollHeight - wrap.scrollTop;
+    data.messages.forEach(msg => prependMessage(msg, wrap));
+    wrap.scrollTop = wrap.scrollHeight - oldTop;
+  } catch(e) {}
+  loadingMore = false;
+}
+
+function prependMessage(msg, wrap) {
+  const isMine = String(msg.user_id) === String(CURRENT_USER_ID);
+  const d = new Date(msg.created_at);
+  const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const initial = (msg.full_name || '?').charAt(0).toUpperCase();
+  let bubbleHtml = msg.is_deleted
+    ? '<div class="chat-bubble deleted"><i class="fas fa-ban"></i> Tin nhắn đã bị xóa</div>'
+    : `<div class="chat-bubble">${msg.content || ''}</div>`;
+  if (msg.message_type === 'image') bubbleHtml = `<div class="chat-bubble img-bubble"><img src="${msg.file_url}" onclick="openLightbox('${msg.file_url}')"></div>`;
+
+  const html = `<div class="chat-msg ${isMine?'mine':'other'}" data-msg-id="${msg.id}" data-created="${d.toISOString()}">
+    ${!isMine?`<div class="chat-msg-avatar">${initial}</div>`:''}
+    <div class="chat-msg-col">
+      ${!isMine?`<div class="chat-msg-name">${msg.full_name}</div>`:''}
+      <div class="chat-bubble-wrap">${bubbleHtml}<span class="chat-bubble-time">${timeStr}</span></div>
+    </div>
+  </div>`;
+  const btn = document.getElementById('loadMoreBtn');
+  if (btn) btn.insertAdjacentHTML('afterend', html);
+  else wrap.insertAdjacentHTML('afterbegin', html);
+}
+
+/* ─── TYPING INDICATOR ──────────────────────────────────────────── */
+let typingTimeout = null;
+let isTyping = false;
+function onTyping() {
+  if (!socket) return;
+  if (!isTyping) { socket.emit('typing:start', { roomId: ACTIVE_ROOM_ID }); isTyping = true; }
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(stopTyping, 2500);
+}
+function stopTyping() {
+  if (socket && isTyping) { socket.emit('typing:stop', { roomId: ACTIVE_ROOM_ID }); isTyping = false; }
+}
+
+/* ─── REPLY ─────────────────────────────────────────────────────── */
+function replyTo(id, author, content) {
+  replyToId = id;
+  replyToAuthor = author;
+  replyToContent = content;
+  document.getElementById('replyPreviewText').textContent = author + ': ' + content.substring(0, 80);
+  document.getElementById('replyPreview').classList.add('visible');
+  document.getElementById('chatInput').focus();
+}
+function cancelReply() {
+  replyToId = null; replyToAuthor = null; replyToContent = null;
+  document.getElementById('replyPreview')?.classList.remove('visible');
+}
+
+/* ─── DELETE ────────────────────────────────────────────────────── */
+async function deleteMsg(msgId, roomId) {
+  if (!confirm('Xóa tin nhắn này?')) return;
+  await fetch(`/chat/${roomId}/messages/${msgId}`, { method: 'DELETE' });
+  const el = document.querySelector(`[data-msg-id="${msgId}"] .chat-bubble`);
+  if (el) { el.className = 'chat-bubble deleted'; el.innerHTML = '<i class="fas fa-ban"></i> Tin nhắn đã bị xóa'; }
+}
+
+/* ─── FILE HANDLING ─────────────────────────────────────────────── */
+function handleFiles(files) {
+  const queue = document.getElementById('fileQueue');
+  Array.from(files).forEach(f => {
+    pendingFiles.push(f);
+    const isImg = f.type.startsWith('image/');
+    const item = document.createElement('div');
+    item.className = 'chat-file-preview-item';
+    if (isImg) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      item.appendChild(img);
+    } else {
+      item.innerHTML = `<i class="fas fa-file" style="font-size:20px;color:var(--primary)"></i>`;
+    }
+    item.insertAdjacentHTML('beforeend', `<span style="font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>`);
+    const rm = document.createElement('button');
+    rm.className = 'remove-file';
+    rm.innerHTML = '×';
+    rm.onclick = () => { const idx = pendingFiles.indexOf(f); if (idx>-1) pendingFiles.splice(idx,1); item.remove(); };
+    item.appendChild(rm);
+    queue.appendChild(item);
+  });
+}
+
+async function uploadFiles() {
+  for (const f of pendingFiles) {
+    const fd = new FormData();
+    fd.append('file', f);
+    try {
+      const res = await fetch('/chat/' + ACTIVE_ROOM_ID + '/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.message && !(socket && socket.connected)) {
+        // Socket not connected — manually append file message to UI
+        appendMessage({ ...data.message, full_name: CURRENT_USER_NAME, avatar_url: null });
+        scrollToBottom(true);
+      }
+      // If socket connected, server will broadcast via message:new → appendMessage handled there
+    } catch(e) { console.error('Upload failed', e); }
+  }
+}
+
+/* Drag & drop */
+const chatApp = document.getElementById('chatApp');
+if (chatApp) {
+  chatApp.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('dropOverlay').classList.add('visible'); });
+  chatApp.addEventListener('dragleave', e => { if (!chatApp.contains(e.relatedTarget)) document.getElementById('dropOverlay').classList.remove('visible'); });
+  chatApp.addEventListener('drop', e => {
+    e.preventDefault();
+    document.getElementById('dropOverlay').classList.remove('visible');
+    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+  });
+}
+
+/* ─── VOICE RECORDING ───────────────────────────────────────────── */
+let mediaRecorder = null, recChunks = [], recInterval = null, recSeconds = 0;
+
+async function toggleVoice() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    recChunks = [];
+    recSeconds = 0;
+    document.getElementById('recBar').classList.add('active');
+    document.getElementById('voiceBtn').innerHTML = '<i class="fas fa-stop" style="color:#dc2626"></i>';
+    recInterval = setInterval(() => {
+      recSeconds++;
+      const m = Math.floor(recSeconds/60), s = recSeconds%60;
+      document.getElementById('recTimer').textContent = m + ':' + String(s).padStart(2,'0');
+    }, 1000);
+
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      clearInterval(recInterval);
+      document.getElementById('recBar').classList.remove('active');
+      document.getElementById('voiceBtn').innerHTML = '<i class="fas fa-microphone"></i>';
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(recChunks, { type: 'audio/webm' });
+      const fd = new FormData();
+      fd.append('file', blob, 'voice_' + Date.now() + '.webm');
+      try {
+        await fetch('/chat/' + ACTIVE_ROOM_ID + '/upload', { method: 'POST', body: fd });
+      } catch(e) { console.error('Voice upload failed'); }
+    };
+    mediaRecorder.start();
+  } catch(e) { alert('Không thể truy cập microphone: ' + e.message); }
+}
+
+function cancelRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.ondataavailable = null;
+    mediaRecorder.onstop = null;
+    mediaRecorder.stop();
+  }
+  clearInterval(recInterval);
+  document.getElementById('recBar').classList.remove('active');
+  document.getElementById('voiceBtn').innerHTML = '<i class="fas fa-microphone"></i>';
+}
+
+/* ─── AUDIO PLAYER ──────────────────────────────────────────────── */
+let currentAudio = null;
+function toggleAudio(btn, url) {
+  if (currentAudio && !currentAudio.paused) {
+    currentAudio.pause();
+    btn.innerHTML = '<i class="fas fa-play"></i>';
+    if (currentAudio._btn) currentAudio._btn.innerHTML = '<i class="fas fa-play"></i>';
+  }
+  if (currentAudio && currentAudio._url === url) { currentAudio = null; return; }
+  const a = new Audio(url);
+  a._url = url; a._btn = btn;
+  currentAudio = a;
+  btn.innerHTML = '<i class="fas fa-pause"></i>';
+  a.play();
+  a.onended = () => { btn.innerHTML = '<i class="fas fa-play"></i>'; currentAudio = null; };
+}
+
+/* ─── WAVEFORM RENDER ───────────────────────────────────────────── */
+function renderWaveforms(root) {
+  const container = root || document;
+  container.querySelectorAll('.audio-waveform[data-bars]').forEach(wf => {
+    if (wf.childElementCount > 0) return;
+    const n = parseInt(wf.dataset.bars) || 20;
+    for (let i = 0; i < n; i++) {
+      const span = document.createElement('span');
+      const h = 4 + Math.random() * 20;
+      span.style.height = h + 'px';
+      wf.appendChild(span);
+    }
+    delete wf.dataset.bars;
+  });
+}
+renderWaveforms();
+
+/* ─── LIGHTBOX ──────────────────────────────────────────────────── */
+function openLightbox(url) {
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('imgLightbox').classList.add('open');
+}
+function closeLightbox() { document.getElementById('imgLightbox').classList.remove('open'); }
+
+/* ─── UI HELPERS ────────────────────────────────────────────────── */
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function filterRooms(q) {
+  const lq = q.toLowerCase();
+  document.querySelectorAll('#roomList [data-room-name]').forEach(item => {
+    item.style.display = item.dataset.roomName.includes(lq) ? '' : 'none';
+  });
+}
+
+function openNewRoom() {
+  document.getElementById('newRoomModal').classList.add('open');
+}
+
+function switchInfoTab(tab, btn) {
+  document.querySelectorAll('.chat-info-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-members').style.display = tab === 'members' ? '' : 'none';
+  document.getElementById('tab-files').style.display  = tab === 'files'   ? '' : 'none';
+}
+
+function toggleInfoCol() {
+  const col = document.getElementById('infoCol');
+  if (col) col.style.display = col.style.display === 'none' ? '' : 'none';
+}
+
+/* ─── FIX PAGE-BODY PADDING FOR CHAT FULLSCREEN ── */
+(function() {
+  const pb = document.querySelector('.page-body');
+  if (!pb) return;
+  pb._oldPadding  = pb.style.padding;
+  pb._oldOverflow = pb.style.overflow;
+  pb.style.padding  = '0';
+  pb.style.overflow = 'hidden';
+  window.addEventListener('beforeunload', () => {
+    pb.style.padding  = pb._oldPadding;
+    pb.style.overflow = pb._oldOverflow;
+  });
+})();
+</script>

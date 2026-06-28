@@ -1,0 +1,230 @@
+<style>
+.new-req-wrap { max-width:720px; margin:0 auto; }
+.cat-header-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 14px; border-radius:20px; font-size:13px; font-weight:600; margin-bottom:16px; }
+.field-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px 24px; margin-bottom:16px; }
+.field-card-title { font-size:14px; font-weight:600; color:var(--text-1); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.form-group { margin-bottom:16px; }
+.form-label { display:block; font-size:13px; font-weight:500; color:var(--text-2); margin-bottom:6px; }
+.form-label .req-star { color:var(--danger); margin-left:2px; }
+.form-control { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; background:var(--bg); color:var(--text-1); box-sizing:border-box; outline:none; transition:border-color .15s; }
+.form-control:focus { border-color:var(--primary); }
+select.form-control { cursor:pointer; }
+textarea.form-control { resize:vertical; min-height:80px; }
+.priority-select-group { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.priority-opt { position:relative; }
+.priority-opt input { position:absolute; opacity:0; }
+.priority-opt label { display:block; text-align:center; padding:8px 4px; border:2px solid var(--border); border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; }
+.priority-opt input:checked + label { border-color:currentColor; }
+.priority-opt.urgent label  { color:#DC2626; }
+.priority-opt.high label    { color:#D97706; }
+.priority-opt.normal label  { color:#6B7280; }
+.priority-opt.low label     { color:#16A34A; }
+.priority-opt.urgent  input:checked + label { background:#FEE2E2; }
+.priority-opt.high    input:checked + label { background:#FEF3C7; }
+.priority-opt.normal  input:checked + label { background:#F3F4F6; }
+.priority-opt.low     input:checked + label { background:#F0FDF4; }
+/* Drag-drop upload zone */
+.upload-zone { border:2px dashed var(--border); border-radius:10px; padding:28px 20px; text-align:center; cursor:pointer; transition:all .2s; background:var(--bg); }
+.upload-zone.drag-over { border-color:var(--primary); background:#EFF6FF; }
+.upload-zone i { font-size:32px; color:var(--text-3); margin-bottom:8px; display:block; }
+.upload-zone p { font-size:13px; color:var(--text-2); margin:0 0 6px; }
+.upload-zone small { font-size:11px; color:var(--text-3); }
+.file-previews { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.file-preview-item { position:relative; width:80px; height:80px; border-radius:8px; overflow:hidden; border:1px solid var(--border); background:var(--bg); display:flex; align-items:center; justify-content:center; flex-direction:column; }
+.file-preview-item img { width:100%; height:100%; object-fit:cover; }
+.file-preview-item .file-icon { font-size:24px; color:var(--text-3); }
+.file-preview-item .file-name { font-size:9px; color:var(--text-3); text-align:center; padding:0 4px; word-break:break-all; margin-top:4px; max-width:76px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.file-preview-item .remove-btn { position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:50%; background:rgba(0,0,0,.5); color:#fff; border:none; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.approval-steps { display:flex; flex-direction:column; gap:10px; }
+.step-item { display:flex; align-items:center; gap:10px; }
+.step-num { width:28px; height:28px; border-radius:50%; background:#EFF6FF; color:#2563EB; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.step-info { font-size:13px; }
+.step-name { font-weight:500; color:var(--text-1); }
+.step-approver { font-size:11px; color:var(--text-3); }
+.form-footer { display:flex; gap:12px; justify-content:flex-end; padding-top:8px; }
+</style>
+
+<div class="new-req-wrap">
+  <%
+    const cat = form.category || 'other';
+    const catLabels = { admin:'Hành chính', finance:'Tài chính', project:'Dự án', other:'Khác' };
+    const catIcons  = { admin:'fa-user-clock', finance:'fa-coins', project:'fa-project-diagram', other:'fa-file-alt' };
+    const catColors = { admin:'#2563EB', finance:'#16A34A', project:'#7C3AED', other:'#6B7280' };
+    const catBgs    = { admin:'#EFF6FF', finance:'#F0FDF4', project:'#FAF5FF', other:'#F9FAFB' };
+  %>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <a href="/requests" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i></a>
+    <div>
+      <div class="cat-header-badge" style="background:<%= catBgs[cat] %>;color:<%= catColors[cat] %>">
+        <i class="fas <%= catIcons[cat] %>"></i> <%= catLabels[cat] %>
+      </div>
+      <h2 style="margin:0;font-size:20px"><%= form.name %></h2>
+      <% if (form.description) { %>
+      <p style="margin:4px 0 0;color:var(--text-3);font-size:13px"><%= form.description %></p>
+      <% } %>
+    </div>
+  </div>
+
+  <form action="/requests/submit" method="POST" enctype="multipart/form-data" id="submitForm">
+    <input type="hidden" name="form_id" value="<%= form.id %>">
+
+    <!-- Basic info -->
+    <div class="field-card">
+      <div class="field-card-title"><i class="fas fa-info-circle" style="color:var(--primary)"></i> Thông tin chung</div>
+
+      <div class="form-group">
+        <label class="form-label">Tiêu đề yêu cầu <span class="req-star">*</span></label>
+        <input type="text" name="title" class="form-control" placeholder="Nhập tiêu đề mô tả ngắn gọn..." required maxlength="200">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mức độ ưu tiên</label>
+        <div class="priority-select-group">
+          <div class="priority-opt low">
+            <input type="radio" name="priority" id="prio-low" value="low">
+            <label for="prio-low"><i class="fas fa-arrow-down"></i> Thấp</label>
+          </div>
+          <div class="priority-opt normal">
+            <input type="radio" name="priority" id="prio-normal" value="normal" checked>
+            <label for="prio-normal"><i class="fas fa-minus"></i> Bình thường</label>
+          </div>
+          <div class="priority-opt high">
+            <input type="radio" name="priority" id="prio-high" value="high">
+            <label for="prio-high"><i class="fas fa-arrow-up"></i> Cao</label>
+          </div>
+          <div class="priority-opt urgent">
+            <input type="radio" name="priority" id="prio-urgent" value="urgent">
+            <label for="prio-urgent"><i class="fas fa-exclamation"></i> Khẩn cấp</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dynamic fields -->
+    <% let fields; try { fields = Array.isArray(form.fields) ? form.fields : JSON.parse(form.fields || '[]'); } catch(e){ fields=[]; } %>
+    <% if (fields.length > 0) { %>
+    <div class="field-card">
+      <div class="field-card-title"><i class="fas fa-list-ul" style="color:var(--primary)"></i> Nội dung yêu cầu</div>
+      <% fields.forEach(function(field, idx) { %>
+      <div class="form-group">
+        <label class="form-label">
+          <%= field.label %>
+          <% if (field.required) { %><span class="req-star">*</span><% } %>
+        </label>
+        <% if (field.type === 'textarea') { %>
+          <textarea name="field_<%= idx %>" class="form-control" rows="3" <%= field.required ? 'required' : '' %> placeholder="<%= field.label %>..."></textarea>
+        <% } else if (field.type === 'select') { %>
+          <select name="field_<%= idx %>" class="form-control" <%= field.required ? 'required' : '' %>>
+            <option value="">-- Chọn --</option>
+            <% const opts = field.options || []; %>
+            <% opts.forEach(function(opt) { %>
+            <option value="<%= opt %>"><%= opt %></option>
+            <% }) %>
+          </select>
+        <% } else if (field.type === 'number') { %>
+          <input type="number" name="field_<%= idx %>" class="form-control" <%= field.required ? 'required' : '' %> placeholder="<%= field.label %>...">
+        <% } else if (field.type === 'date') { %>
+          <input type="date" name="field_<%= idx %>" class="form-control" <%= field.required ? 'required' : '' %>>
+        <% } else { %>
+          <input type="text" name="field_<%= idx %>" class="form-control" <%= field.required ? 'required' : '' %> placeholder="<%= field.label %>...">
+        <% } %>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
+
+    <!-- Attachments -->
+    <div class="field-card">
+      <div class="field-card-title"><i class="fas fa-paperclip" style="color:var(--primary)"></i> Tệp đính kèm (tối đa 5 file)</div>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('attachInput').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <i class="fas fa-cloud-upload-alt"></i>
+        <p>Kéo thả file vào đây hoặc <strong style="color:var(--primary)">nhấp để chọn</strong></p>
+        <small>JPG, PNG, PDF, DOC, DOCX, XLS, XLSX — tối đa 10MB mỗi file</small>
+      </div>
+      <input type="file" id="attachInput" name="attachments" multiple accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="handleFiles(this.files)">
+      <div class="file-previews" id="filePreviews"></div>
+    </div>
+
+    <!-- Approval steps -->
+    <% let steps; try { steps = Array.isArray(form.approval_steps) ? form.approval_steps : JSON.parse(form.approval_steps || '[]'); } catch(e){ steps=[]; } %>
+    <% if (steps.length > 0) { %>
+    <div class="field-card">
+      <div class="field-card-title"><i class="fas fa-route" style="color:var(--primary)"></i> Quy trình phê duyệt</div>
+      <div class="approval-steps">
+        <% steps.forEach(function(step, i) { %>
+        <div class="step-item">
+          <div class="step-num"><%= i + 1 %></div>
+          <div class="step-info">
+            <div class="step-name"><%= step.name || ('Bước ' + (i+1)) %></div>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+
+    <div class="form-footer">
+      <a href="/requests" class="btn btn-outline">Hủy</a>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Gửi yêu cầu</button>
+    </div>
+  </form>
+</div>
+
+<script>
+let selectedFiles = [];
+
+function handleFiles(files) {
+  const arr = Array.from(files);
+  const remaining = 5 - selectedFiles.length;
+  const toAdd = arr.slice(0, remaining);
+  selectedFiles = selectedFiles.concat(toAdd);
+  updateFileInput();
+  renderPreviews();
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.add('drag-over');
+}
+function handleDragLeave(e) {
+  document.getElementById('uploadZone').classList.remove('drag-over');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+}
+
+function updateFileInput() {
+  const dt = new DataTransfer();
+  selectedFiles.forEach(f => dt.items.add(f));
+  document.getElementById('attachInput').files = dt.files;
+}
+
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  updateFileInput();
+  renderPreviews();
+}
+
+function renderPreviews() {
+  const container = document.getElementById('filePreviews');
+  if (!selectedFiles.length) { container.innerHTML = ''; return; }
+  let html = '';
+  const imgExts = ['.jpg','.jpeg','.png','.webp'];
+  selectedFiles.forEach((f, i) => {
+    const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+    const isImg = imgExts.includes(ext);
+    if (isImg) {
+      const url = URL.createObjectURL(f);
+      html += `<div class="file-preview-item"><img src="${url}" alt="${f.name}"><button type="button" class="remove-btn" onclick="removeFile(${i})"><i class="fas fa-times"></i></button></div>`;
+    } else {
+      const icons = { '.pdf':'fa-file-pdf', '.doc':'fa-file-word', '.docx':'fa-file-word', '.xls':'fa-file-excel', '.xlsx':'fa-file-excel' };
+      const icon = icons[ext] || 'fa-file';
+      html += `<div class="file-preview-item"><i class="fas ${icon} file-icon"></i><div class="file-name">${f.name}</div><button type="button" class="remove-btn" onclick="removeFile(${i})"><i class="fas fa-times"></i></button></div>`;
+    }
+  });
+  container.innerHTML = html;
+}
+</script>

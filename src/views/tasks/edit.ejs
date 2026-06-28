@@ -1,0 +1,62 @@
+<div style="max-width:700px;margin:0 auto">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Chỉnh sửa Task</span>
+      <a href="/projects/<%= task.project_id %>" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Quay lại</a>
+    </div>
+    <div class="card-body">
+      <form action="/tasks/<%= task.id %>?_method=PUT" method="POST">
+        <input type="hidden" name="_method" value="PUT">
+        <div class="form-group mb-3">
+          <label class="form-label">Tiêu đề task <span class="req">*</span></label>
+          <input type="text" name="title" class="form-control" value="<%= task.title %>" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label">Mô tả</label>
+          <textarea name="description" class="form-control" rows="3"><%= task.description||'' %></textarea>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Giao cho</label>
+            <select name="assignee_id" class="form-control">
+              <option value="">— Chưa phân công —</option>
+              <% members.forEach(m => { %>
+              <option value="<%= m.id %>" <%= task.assignee_id===m.id ? 'selected' : '' %>><%= m.full_name %> (<%= m.role %>)</option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Trạng thái</label>
+            <select name="status" class="form-control">
+              <option value="todo" <%= task.status==='todo'?'selected':'' %>>Chưa làm</option>
+              <option value="in_progress" <%= task.status==='in_progress'?'selected':'' %>>Đang làm</option>
+              <option value="review" <%= task.status==='review'?'selected':'' %>>Đang review</option>
+              <option value="done" <%= task.status==='done'?'selected':'' %>>Hoàn thành</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Độ ưu tiên</label>
+            <select name="priority" class="form-control">
+              <option value="low" <%= task.priority==='low'?'selected':'' %>>Thấp</option>
+              <option value="medium" <%= task.priority==='medium'?'selected':'' %>>Trung bình</option>
+              <option value="high" <%= task.priority==='high'?'selected':'' %>>Cao</option>
+              <option value="urgent" <%= task.priority==='urgent'?'selected':'' %>>Khẩn cấp</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hạn chót</label>
+            <input type="date" name="due_date" class="form-control" value="<%= task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '' %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Giờ ước tính</label>
+            <input type="number" name="estimated_hours" class="form-control" value="<%= task.estimated_hours||'' %>" min="0" step="0.5">
+          </div>
+        </div>
+        <div style="margin-top:20px;display:flex;gap:10px">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu thay đổi</button>
+          <a href="/projects/<%= task.project_id %>" class="btn btn-outline">Hủy</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,228 @@
+<style>
+.forms-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+.form-card { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:box-shadow .15s; }
+.form-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.06); }
+.form-card-header { padding:16px 18px 12px; }
+.form-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.form-card-name { font-size:15px; font-weight:600; color:var(--text-1); }
+.form-card-desc { font-size:12px; color:var(--text-3); margin-top:4px; }
+.form-card-meta { display:flex; gap:12px; padding:10px 18px; border-top:1px solid var(--border); background:var(--bg); }
+.form-meta-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-3); }
+.form-card-actions { padding:10px 18px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; }
+.cat-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+/* Modal */
+.fm-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center; }
+.fm-modal-overlay.open { display:flex; }
+.fm-modal { background:var(--card); border-radius:12px; width:680px; max-width:95vw; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+.fm-modal-header { padding:18px 22px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.fm-modal-body { padding:20px 22px; overflow-y:auto; flex:1; }
+.fm-modal-footer { padding:14px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; flex-shrink:0; }
+.field-row { display:flex; gap:6px; margin-bottom:8px; align-items:flex-start; }
+.field-row-main { flex:1; }
+.options-row { margin-top:4px; }
+.options-textarea { width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:5px; font-size:12px; background:var(--bg); color:var(--text-1); resize:vertical; min-height:50px; display:none; box-sizing:border-box; }
+.section-header { font-weight:600; font-size:13px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+.section-header span { display:flex; align-items:center; gap:6px; }
+</style>
+
+<div class="page-header">
+  <div class="page-header-title"><h2><i class="fas fa-project-diagram" style="margin-right:8px;color:var(--primary)"></i>Quản lý Quy trình duyệt</h2></div>
+  <div class="page-header-actions">
+    <button onclick="document.getElementById('newFormModal').classList.add('open')" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo quy trình</button>
+    <a href="/requests" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Quay lại</a>
+  </div>
+</div>
+
+<%
+  const catLabels = { admin:'Hành chính', finance:'Tài chính', project:'Dự án', other:'Khác' };
+  const catIcons  = { admin:'fa-user-clock', finance:'fa-coins', project:'fa-project-diagram', other:'fa-file-alt' };
+  const catColors = { admin:'#2563EB', finance:'#16A34A', project:'#7C3AED', other:'#6B7280' };
+  const catBgs    = { admin:'#EFF6FF', finance:'#F0FDF4', project:'#FAF5FF', other:'#F9FAFB' };
+%>
+
+<% if (forms.length === 0) { %>
+<div class="card">
+  <div class="empty-state" style="padding:56px">
+    <div class="empty-state-icon"><i class="fas fa-project-diagram"></i></div>
+    <h3>Chưa có quy trình nào</h3>
+    <p>Tạo quy trình phê duyệt đầu tiên để bắt đầu</p>
+  </div>
+</div>
+<% } else { %>
+<div class="forms-grid">
+  <% forms.forEach(function(f) {
+    const cat = f.category || 'other';
+    let fieldCount = 0, stepCount = 0;
+    try { fieldCount = JSON.parse(f.fields || '[]').length; } catch(e){}
+    try { stepCount = JSON.parse(f.approval_steps || '[]').length; } catch(e){}
+  %>
+  <div class="form-card">
+    <div class="form-card-header">
+      <div class="form-card-top">
+        <div>
+          <div class="form-card-name"><%= f.name %></div>
+          <div class="form-card-desc"><%= f.description || 'Không có mô tả' %></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <span class="cat-badge" style="background:<%= catBgs[cat] %>;color:<%= catColors[cat] %>">
+            <i class="fas <%= catIcons[cat] %>"></i> <%= catLabels[cat] %>
+          </span>
+          <span class="badge" style="background:<%= f.is_active ? 'var(--success-bg,#DCFCE7)' : 'var(--border)' %>;color:<%= f.is_active ? 'var(--success,#15803D)' : 'var(--text-3)' %>">
+            <%= f.is_active ? 'Đang dùng' : 'Ẩn' %>
+          </span>
+        </div>
+      </div>
+      <% if (f.creator_name) { %>
+      <div style="font-size:11px;color:var(--text-3)"><i class="fas fa-user" style="margin-right:3px"></i>Tạo bởi: <%= f.creator_name %></div>
+      <% } %>
+    </div>
+    <div class="form-card-meta">
+      <span class="form-meta-item"><i class="fas fa-list"></i> <%= fieldCount %> trường</span>
+      <span class="form-meta-item"><i class="fas fa-check-double"></i> <%= stepCount %> bước</span>
+      <span class="form-meta-item"><i class="fas fa-file-alt"></i> <%= f.request_count %> yêu cầu</span>
+    </div>
+    <div class="form-card-actions">
+      <form action="/requests/forms/<%= f.id %>/delete" method="POST" style="display:inline">
+        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Ẩn quy trình này?')"><i class="fas fa-eye-slash"></i> Ẩn</button>
+      </form>
+    </div>
+  </div>
+  <% }) %>
+</div>
+<% } %>
+
+<!-- Create Form Modal -->
+<div class="fm-modal-overlay" id="newFormModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="fm-modal">
+    <div class="fm-modal-header">
+      <strong style="font-size:16px">Tạo Quy trình duyệt mới</strong>
+      <button class="btn-icon-sm" onclick="document.getElementById('newFormModal').classList.remove('open')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-2);cursor:pointer"><i class="fas fa-times"></i></button>
+    </div>
+    <form action="/requests/forms" method="POST">
+      <div class="fm-modal-body">
+
+        <div class="form-group mb-3">
+          <label class="form-label">Tên quy trình <span style="color:var(--danger)">*</span></label>
+          <input type="text" name="name" class="form-control" required placeholder="VD: Đề nghị mua hàng, Xin nghỉ phép...">
+        </div>
+
+        <div class="form-group mb-3">
+          <label class="form-label">Danh mục</label>
+          <select name="category" class="form-control">
+            <option value="admin">Hành chính</option>
+            <option value="finance">Tài chính</option>
+            <option value="project">Dự án</option>
+            <option value="other" selected>Khác</option>
+          </select>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label">Mô tả</label>
+          <textarea name="description" class="form-control" rows="2" placeholder="Mô tả ngắn về mục đích quy trình..."></textarea>
+        </div>
+
+        <div class="section-header">
+          <span><i class="fas fa-list" style="color:var(--primary)"></i> Các trường thông tin</span>
+          <button type="button" onclick="addField()" class="btn btn-sm btn-outline"><i class="fas fa-plus"></i> Thêm trường</button>
+        </div>
+        <div id="fieldsContainer" style="margin-bottom:20px">
+          <div class="field-row">
+            <div class="field-row-main">
+              <div style="display:flex;gap:6px;align-items:center">
+                <input type="text" name="fields[]" class="form-control" placeholder="Tên trường" style="flex:2" value="Lý do">
+                <select name="ftypes[]" class="form-control" style="flex:1" onchange="toggleOptions(this)">
+                  <option value="text">Văn bản</option>
+                  <option value="textarea">Đoạn văn</option>
+                  <option value="number">Số</option>
+                  <option value="date">Ngày</option>
+                  <option value="select">Lựa chọn</option>
+                </select>
+                <select name="freqs[]" class="form-control" style="flex:1">
+                  <option value="true">Bắt buộc</option>
+                  <option value="false">Tuỳ chọn</option>
+                </select>
+                <button type="button" onclick="this.closest('.field-row').remove()" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
+              </div>
+              <div class="options-row">
+                <textarea name="foptions[]" class="options-textarea" placeholder="Các lựa chọn, mỗi dòng một giá trị..."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <span><i class="fas fa-check-double" style="color:var(--success)"></i> Bước phê duyệt</span>
+          <button type="button" onclick="addStep()" class="btn btn-sm btn-outline"><i class="fas fa-plus"></i> Thêm bước</button>
+        </div>
+        <div id="stepsContainer">
+          <div style="font-size:12px;color:var(--text-3);padding:10px;border:1px dashed var(--border);border-radius:6px;text-align:center">Nhấn "Thêm bước" để thêm người phê duyệt</div>
+        </div>
+
+      </div>
+      <div class="fm-modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('newFormModal').classList.remove('open')">Hủy</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Tạo quy trình</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const allUsers = <%- JSON.stringify(users.map(u => ({id:u.id, name:u.full_name, role:u.role}))) %>;
+
+function toggleOptions(sel) {
+  const row = sel.closest('.field-row');
+  const ta = row.querySelector('.options-textarea');
+  if (sel.value === 'select') {
+    ta.style.display = 'block';
+    ta.required = true;
+  } else {
+    ta.style.display = 'none';
+    ta.required = false;
+  }
+}
+
+function addField() {
+  const c = document.getElementById('fieldsContainer');
+  const div = document.createElement('div');
+  div.className = 'field-row';
+  div.innerHTML = `<div class="field-row-main">
+    <div style="display:flex;gap:6px;align-items:center">
+      <input type="text" name="fields[]" class="form-control" placeholder="Tên trường" style="flex:2">
+      <select name="ftypes[]" class="form-control" style="flex:1" onchange="toggleOptions(this)">
+        <option value="text">Văn bản</option>
+        <option value="textarea">Đoạn văn</option>
+        <option value="number">Số</option>
+        <option value="date">Ngày</option>
+        <option value="select">Lựa chọn</option>
+      </select>
+      <select name="freqs[]" class="form-control" style="flex:1">
+        <option value="true">Bắt buộc</option>
+        <option value="false">Tuỳ chọn</option>
+      </select>
+      <button type="button" onclick="this.closest('.field-row').remove()" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="options-row">
+      <textarea name="foptions[]" class="options-textarea" placeholder="Các lựa chọn, mỗi dòng một giá trị..."></textarea>
+    </div>
+  </div>`;
+  c.appendChild(div);
+}
+
+let stepCount = 0;
+function addStep() {
+  const c = document.getElementById('stepsContainer');
+  if (stepCount === 0) c.innerHTML = '';
+  stepCount++;
+  const opts = allUsers.map(u => `<option value="${u.id}">${u.name} (${u.role})</option>`).join('');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = `<div style="width:26px;height:26px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${stepCount}</div>
+    <input type="text" name="step_name[]" class="form-control" placeholder="Tên bước (VD: Trưởng phòng)" style="flex:1">
+    <select name="step_approver[]" class="form-control" style="flex:2">
+      <option value="">— Chọn người duyệt —</option>${opts}
+    </select>
+    <button type="button" onclick="this.closest('div').remove();stepCount--" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>`;
+  c.appendChild(div);
+}
+</script>

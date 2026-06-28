@@ -1,0 +1,75 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h2>Đối tác</h2>
+    <p><%= (counts.supplier||0) %> nhà cung ứng · <%= (counts.contractor||0) %> tổ đội thi công</p>
+  </div>
+  <div class="page-header-actions">
+    <% if (['admin','director'].includes(locals.userRole)) { %>
+    <a href="/partners/create" class="btn btn-primary"><i class="fas fa-plus"></i> Thêm đối tác</a>
+    <% } %>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs" style="margin-bottom:0;border-bottom:none">
+  <button class="tab-btn <%= !filters.type || filters.type==='' ? 'active' : '' %>" onclick="filterType('')">Tất cả (<%= partners.length %>)</button>
+  <button class="tab-btn <%= filters.type==='supplier' ? 'active' : '' %>" onclick="filterType('supplier')">
+    <i class="fas fa-truck"></i> Nhà cung ứng (<%= counts.supplier||0 %>)
+  </button>
+  <button class="tab-btn <%= filters.type==='contractor' ? 'active' : '' %>" onclick="filterType('contractor')">
+    <i class="fas fa-hard-hat"></i> Tổ đội thi công (<%= counts.contractor||0 %>)
+  </button>
+</div>
+
+<form method="GET" class="filter-bar" style="margin-top:12px">
+  <input type="hidden" name="type" id="typeFilter" value="<%= filters.type||'' %>">
+  <input type="text" name="search" class="form-control" placeholder="Tìm tên, SĐT..." value="<%= filters.search||'' %>" style="flex:1;max-width:280px">
+  <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+  <a href="/partners" class="btn btn-outline">Reset</a>
+</form>
+
+<% if (partners.length === 0) { %>
+<div class="card mt-3">
+  <div class="empty-state">
+    <div class="empty-state-icon"><i class="fas fa-handshake"></i></div>
+    <h3>Chưa có đối tác nào</h3>
+    <p>Thêm nhà cung ứng hoặc tổ đội thi công</p>
+  </div>
+</div>
+<% } else { %>
+<div class="projects-grid" style="margin-top:16px">
+<% partners.forEach(p => { %>
+<div class="project-card">
+  <div class="project-card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span class="badge" style="background:<%= p.type==='supplier' ? 'var(--primary-50)' : 'var(--warning-bg)' %>;color:<%= p.type==='supplier' ? 'var(--primary)' : 'var(--warning)' %>">
+          <i class="fas fa-<%= p.type==='supplier' ? 'truck' : 'hard-hat' %>"></i>
+          <%= p.type==='supplier' ? 'Nhà cung ứng' : 'Tổ đội thi công' %>
+        </span>
+      </div>
+      <a href="/partners/<%= p.id %>" class="project-name"><%= p.name %></a>
+      <% if (p.contact_person) { %><div class="project-client"><i class="fas fa-user" style="margin-right:4px"></i><%= p.contact_person %></div><% } %>
+    </div>
+  </div>
+  <div class="project-meta" style="margin-top:10px">
+    <% if (p.phone) { %><span class="project-meta-item"><i class="fas fa-phone"></i> <%= p.phone %></span><% } %>
+    <% if (p.email) { %><span class="project-meta-item"><i class="fas fa-envelope"></i> <%= p.email %></span><% } %>
+  </div>
+  <div class="project-actions" style="margin-top:12px">
+    <a href="/partners/<%= p.id %>" class="btn btn-sm btn-outline">Chi tiết</a>
+    <% if (['admin','director'].includes(locals.userRole)) { %>
+    <a href="/partners/<%= p.id %>/edit" class="btn btn-sm btn-primary">Sửa</a>
+    <% } %>
+  </div>
+</div>
+<% }) %>
+</div>
+<% } %>
+
+<script>
+function filterType(type) {
+  document.getElementById('typeFilter').value = type;
+  document.querySelector('form').submit();
+}
+</script>

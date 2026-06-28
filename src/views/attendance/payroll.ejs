@@ -1,0 +1,171 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h2>Bảng lương</h2>
+    <p>Tháng <%= month %>/<%= year %></p>
+  </div>
+  <div class="page-header-actions">
+    <a href="/attendance?month=<%= month %>&year=<%= year %>" class="btn btn-outline"><i class="fas fa-calendar-alt"></i> Chấm công</a>
+    <button onclick="window.print()" class="btn btn-outline"><i class="fas fa-print"></i> In</button>
+  </div>
+</div>
+
+<form method="GET" class="filter-bar" style="margin-bottom:16px">
+  <select name="month" class="form-control" style="width:120px">
+    <% for(let m=1;m<=12;m++) { %><option value="<%= m %>" <%= m===month?'selected':'' %>>Tháng <%= m %></option><% } %>
+  </select>
+  <select name="year" class="form-control" style="width:100px">
+    <% for(let y=new Date().getFullYear()-1;y<=new Date().getFullYear()+1;y++) { %><option value="<%= y %>" <%= y===year?'selected':'' %>><%= y %></option><% } %>
+  </select>
+  <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+</form>
+
+<div class="card" id="payrollTable">
+  <div class="card-header">
+    <span class="card-title">BẢNG LƯƠNG THÁNG <%= month %>/<%= year %></span>
+    <span style="font-size:12px;color:var(--text-3)">CÔNG TY TNHH KỸ THUẬT CÔNG NGHỆ RIAE</span>
+  </div>
+  <div style="overflow-x:auto">
+    <table style="font-size:12px">
+      <thead>
+        <tr style="background:#F8FAFC">
+          <th>STT</th>
+          <th>Họ tên</th>
+          <th>Bộ phận</th>
+          <th>Lương CB</th>
+          <th>Ngày công/<%= daysInMonth %></th>
+          <th>OT(h)</th>
+          <th>Lương OT</th>
+          <th>Thưởng</th>
+          <th>Khấu trừ</th>
+          <th>BHXH</th>
+          <th>Thuế TN</th>
+          <th style="color:var(--primary);min-width:120px">THỰC NHẬN</th>
+          <th>TT</th>
+          <th class="no-print">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+      <%
+        const payrollMap = {};
+        payroll.forEach(p => { payrollMap[p.user_id] = p; });
+        let grandTotal = 0;
+        employees.forEach((emp, idx) => {
+          const p = payrollMap[emp.id];
+          if (p) grandTotal += parseFloat(p.net_salary||0);
+      %>
+      <tr>
+        <td style="color:var(--text-3)"><%= idx+1 %></td>
+        <td style="font-weight:500"><%= emp.full_name %></td>
+        <td style="color:var(--text-3)"><%= emp.department||'—' %></td>
+        <td><%= emp.salary ? Number(emp.salary).toLocaleString('vi-VN') : '—' %></td>
+        <td style="text-align:center;font-weight:600"><%= emp.present_days %></td>
+        <td style="text-align:center"><%= emp.overtime_hours>0 ? emp.overtime_hours : '—' %></td>
+        <% if (p) { %>
+        <td><%= Number(p.overtime_pay||0).toLocaleString('vi-VN') %></td>
+        <td style="color:#4CAF50"><%= Number(p.bonus||0).toLocaleString('vi-VN') %></td>
+        <td style="color:#F44336"><%= Number(p.deductions||0).toLocaleString('vi-VN') %></td>
+        <td><%= Number(p.insurance||0).toLocaleString('vi-VN') %></td>
+        <td><%= Number(p.tax||0).toLocaleString('vi-VN') %></td>
+        <td style="font-weight:800;color:var(--primary)"><%= Number(p.net_salary||0).toLocaleString('vi-VN') %> đ</td>
+        <td>
+          <span class="badge" style="background:<%= p.status==='paid'?'#E8F5E9':p.status==='confirmed'?'#E3F2FD':'var(--border)' %>;color:<%= p.status==='paid'?'#4CAF50':p.status==='confirmed'?'#2196F3':'#999' %>">
+            <%= p.status==='paid'?'Đã trả':p.status==='confirmed'?'Đã duyệt':'Nháp' %>
+          </span>
+        </td>
+        <td class="no-print" style="white-space:nowrap">
+          <button onclick="openPayroll('<%= emp.id %>','<%= emp.full_name %>',<%= emp.salary||0 %>,<%= emp.present_days %>,<%= emp.overtime_hours %>)" class="btn btn-sm btn-outline"><i class="fas fa-edit"></i></button>
+          <% if (p.status==='draft') { %>
+          <form action="/attendance/payroll/<%= p.id %>/confirm" method="POST" style="display:inline">
+            <button type="submit" class="btn btn-sm btn-primary" title="Duyệt" onclick="return confirm('Xác nhận bảng lương?')"><i class="fas fa-check"></i></button>
+          </form>
+          <% } %>
+          <% if (p.status==='confirmed') { %>
+          <a href="/signatures/payroll/<%= p.id %>" class="btn btn-sm btn-outline" title="Ký xác nhận"><i class="fas fa-signature"></i></a>
+          <% } %>
+        </td>
+        <% } else { %>
+        <td colspan="6" style="color:var(--text-3)">Chưa có</td>
+        <td></td>
+        <td class="no-print">
+          <button onclick="openPayroll('<%= emp.id %>','<%= emp.full_name %>',<%= emp.salary||0 %>,<%= emp.present_days %>,<%= emp.overtime_hours %>)" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Nhập</button>
+        </td>
+        <% } %>
+      </tr>
+      <% }); %>
+      <tr style="background:#EEF2FF;font-weight:700;font-size:13px">
+        <td colspan="11" style="text-align:right">TỔNG CHI LƯƠNG:</td>
+        <td style="color:var(--primary);font-size:14px"><%= grandTotal.toLocaleString('vi-VN') %> đ</td>
+        <td colspan="2"></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Payroll input modal -->
+<div class="modal-overlay" id="payrollModal">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <span class="modal-title">Nhập lương</span>
+      <button class="modal-close" onclick="document.getElementById('payrollModal').classList.remove('open')"><i class="fas fa-times"></i></button>
+    </div>
+    <form action="/attendance/payroll" method="POST">
+      <input type="hidden" name="user_id" id="pr_uid">
+      <input type="hidden" name="month" value="<%= month %>">
+      <input type="hidden" name="year" value="<%= year %>">
+      <div class="modal-body">
+        <div style="font-weight:600;padding:8px 12px;background:var(--border-light);border-radius:6px;margin-bottom:14px" id="pr_name"></div>
+        <div class="form-grid-2">
+          <div class="form-group"><label class="form-label">Lương cơ bản (đ)</label><input type="number" name="base_salary" id="pr_base" class="form-control" oninput="calcNet()" min="0"></div>
+          <div class="form-group"><label class="form-label">Số ngày công chuẩn</label><input type="number" name="working_days" id="pr_wdays" class="form-control" value="<%= daysInMonth %>" oninput="calcNet()"></div>
+          <div class="form-group"><label class="form-label">Ngày công thực tế</label><input type="number" name="actual_days" id="pr_adays" class="form-control" oninput="calcNet()"></div>
+          <div class="form-group"><label class="form-label">Giờ OT</label><input type="number" name="overtime_hours" id="pr_ot" class="form-control" step="0.5" oninput="calcNet()"></div>
+          <div class="form-group"><label class="form-label">Lương OT (đ)</label><input type="number" name="overtime_pay" id="pr_otpay" class="form-control" value="0" oninput="calcNet()"></div>
+          <div class="form-group"><label class="form-label">Thưởng (đ)</label><input type="number" name="bonus" id="pr_bonus" class="form-control" value="0" oninput="calcNet()"></div>
+          <div class="form-group"><label class="form-label">Khấu trừ khác (đ)</label><input type="number" name="deductions" id="pr_deduct" class="form-control" value="0" oninput="calcNet()"></div>
+          <div class="form-group"><label class="form-label">BHXH (đ)</label><input type="number" name="insurance" id="pr_ins" class="form-control" value="0" oninput="calcNet()"></div>
+          <div class="form-group"><label class="form-label">Thuế TNCN (đ)</label><input type="number" name="tax" id="pr_tax" class="form-control" value="0" oninput="calcNet()"></div>
+          <div class="form-group"><label class="form-label">Ghi chú</label><input type="text" name="notes" class="form-control"></div>
+        </div>
+        <div style="margin-top:12px;padding:12px;background:#E8F5E9;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:600">Thực nhận:</span>
+          <span style="font-size:20px;font-weight:800;color:#4CAF50" id="pr_net">0 đ</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('payrollModal').classList.remove('open')">Hủy</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>@media print{.no-print,.page-header .page-header-actions,.filter-bar{display:none!important}}</style>
+<script>
+function openPayroll(uid, name, salary, adays, ot) {
+  document.getElementById('pr_uid').value = uid;
+  document.getElementById('pr_name').textContent = name;
+  document.getElementById('pr_base').value = salary;
+  document.getElementById('pr_adays').value = adays;
+  document.getElementById('pr_ot').value = ot;
+  document.getElementById('pr_otpay').value = 0;
+  document.getElementById('pr_bonus').value = 0;
+  document.getElementById('pr_deduct').value = 0;
+  document.getElementById('pr_ins').value = 0;
+  document.getElementById('pr_tax').value = 0;
+  calcNet();
+  document.getElementById('payrollModal').classList.add('open');
+}
+function calcNet() {
+  const base = parseFloat(document.getElementById('pr_base').value)||0;
+  const wd   = parseFloat(document.getElementById('pr_wdays').value)||26;
+  const ad   = parseFloat(document.getElementById('pr_adays').value)||0;
+  const net  = (base*ad/wd)
+             + (parseFloat(document.getElementById('pr_otpay').value)||0)
+             + (parseFloat(document.getElementById('pr_bonus').value)||0)
+             - (parseFloat(document.getElementById('pr_deduct').value)||0)
+             - (parseFloat(document.getElementById('pr_ins').value)||0)
+             - (parseFloat(document.getElementById('pr_tax').value)||0);
+  document.getElementById('pr_net').textContent = Math.round(net).toLocaleString('vi-VN') + ' đ';
+}
+</script>

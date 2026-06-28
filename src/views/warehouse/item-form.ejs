@@ -1,0 +1,70 @@
+<div style="max-width:800px;margin:0 auto">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><%= item ? 'Chỉnh sửa Vật tư' : 'Thêm Vật tư mới' %></span>
+      <a href="/warehouse/items" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Quay lại</a>
+    </div>
+    <div class="card-body">
+      <form action="<%= item ? '/warehouse/items/' + item.id + '?_method=PUT' : '/warehouse/items' %>" method="POST">
+        <% if (item) { %><input type="hidden" name="_method" value="PUT"><% } %>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Mã vật tư <span class="req">*</span></label>
+            <input type="text" name="code" class="form-control" value="<%= item ? item.code : '' %>" <%= item ? 'readonly style="background:#f8fafc"' : 'required' %> placeholder="VD: CAP-001">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tên vật tư <span class="req">*</span></label>
+            <input type="text" name="name" class="form-control" value="<%= item ? item.name : '' %>" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Danh mục</label>
+            <select name="category_id" class="form-control">
+              <option value="">— Chọn danh mục —</option>
+              <% categories.forEach(c => { %>
+              <option value="<%= c.id %>" <%= item && item.category_id===c.id ? 'selected' : '' %>><%= c.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Đơn vị tính <span class="req">*</span></label>
+            <input type="text" name="unit" class="form-control" value="<%= item ? item.unit : '' %>" placeholder="cái, m, kg, cuộn..." required>
+          </div>
+          <% if (!item) { %>
+          <div class="form-group">
+            <label class="form-label">Số lượng ban đầu</label>
+            <input type="number" name="quantity" class="form-control" value="0" min="0" step="0.01">
+          </div>
+          <% } %>
+          <div class="form-group">
+            <label class="form-label">Tồn kho tối thiểu</label>
+            <input type="number" name="min_quantity" class="form-control" value="<%= item ? item.min_quantity : 0 %>" min="0" step="0.01">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Đơn giá (VNĐ)</label>
+            <input type="number" name="unit_price" class="form-control" value="<%= item ? item.unit_price || '' : '' %>" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vị trí trong kho</label>
+            <input type="text" name="location" class="form-control" value="<%= item ? item.location || '' : '' %>" placeholder="VD: Kệ A1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nhà cung cấp</label>
+            <input type="text" name="supplier" class="form-control" value="<%= item ? item.supplier || '' : '' %>">
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label">Mô tả</label>
+            <textarea name="description" class="form-control"><%= item ? item.description || '' : '' %></textarea>
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label">Ghi chú</label>
+            <textarea name="notes" class="form-control" rows="2"><%= item ? item.notes || '' : '' %></textarea>
+          </div>
+        </div>
+        <div style="margin-top:20px;display:flex;gap:10px">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <%= item ? 'Lưu thay đổi' : 'Thêm vật tư' %></button>
+          <a href="/warehouse/items" class="btn btn-outline">Hủy</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

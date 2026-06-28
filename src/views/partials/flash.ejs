@@ -1,0 +1,14 @@
+<% if (messages && messages.success && messages.success.length > 0) { %>
+<div class="flash flash-success" id="flashMsg">
+  <i class="fas fa-check-circle"></i>
+  <span><%= messages.success[0] %></span>
+  <button class="flash-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+</div>
+<% } %>
+<% if (messages && messages.error && messages.error.length > 0) { %>
+<div class="flash flash-error" id="flashMsg">
+  <i class="fas fa-exclamation-circle"></i>
+  <span><%= messages.error[0] %></span>
+  <button class="flash-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+</div>
+<% } %>

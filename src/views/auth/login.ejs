@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng nhập - RIAE Management System</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="login-page">
+  <div class="login-container">
+    <!-- Left Panel -->
+    <div class="login-left">
+      <div class="login-left-content">
+        <div class="login-brand">
+          <div class="login-logo-circle">R</div>
+          <div>
+            <h1 class="login-brand-name">RIAE</h1>
+            <p class="login-brand-full">Công ty TNHH Kỹ Thuật Công Nghệ</p>
+          </div>
+        </div>
+        <h2 class="login-tagline">Hệ thống Quản lý<br>Nội bộ Doanh nghiệp</h2>
+        <p class="login-desc">Quản lý dự án, nhân sự, kho vật tư và thông báo công ty — tất cả trong một nền tảng.</p>
+        <div class="login-features">
+          <div class="lf-item"><i class="fas fa-check-circle"></i><span>Quản lý Dự án & Tiến độ</span></div>
+          <div class="lf-item"><i class="fas fa-check-circle"></i><span>Quản lý Nhân sự</span></div>
+          <div class="lf-item"><i class="fas fa-check-circle"></i><span>Quản lý Kho vật tư</span></div>
+          <div class="lf-item"><i class="fas fa-check-circle"></i><span>Thông báo & Quyết định</span></div>
+        </div>
+      </div>
+      <div class="login-left-dots"></div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="login-right">
+      <div class="login-form-box">
+        <div class="login-form-header">
+          <h2>Đăng nhập</h2>
+          <p>Nhập thông tin tài khoản của bạn để tiếp tục</p>
+        </div>
+
+        <% if (messages && messages.error && messages.error.length > 0) { %>
+        <div class="login-alert">
+          <i class="fas fa-exclamation-triangle"></i>
+          <%= messages.error[0] %>
+        </div>
+        <% } %>
+
+        <form action="/auth/login" method="POST" class="login-form" autocomplete="off">
+          <div class="form-field">
+            <label class="field-label">Tên đăng nhập</label>
+            <div class="field-input-wrap">
+              <i class="fas fa-user field-icon"></i>
+              <input type="text" name="username" class="field-input" placeholder="Username hoặc Email" required autofocus>
+            </div>
+          </div>
+          <div class="form-field">
+            <label class="field-label">Mật khẩu</label>
+            <div class="field-input-wrap">
+              <i class="fas fa-lock field-icon"></i>
+              <input type="password" name="password" id="pwdInput" class="field-input" placeholder="Mật khẩu" required>
+              <button type="button" class="field-toggle" onclick="togglePwd()" tabindex="-1">
+                <i class="fas fa-eye" id="pwdIcon"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="login-btn">
+            <i class="fas fa-arrow-right-to-bracket"></i>
+            Đăng nhập
+          </button>
+        </form>
+        <div class="login-hint">
+          <i class="fas fa-info-circle"></i>
+          Tài khoản mặc định: <strong>admin</strong> / <strong>Admin@2024</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    function togglePwd() {
+      const i = document.getElementById('pwdInput');
+      const ic = document.getElementById('pwdIcon');
+      i.type = i.type === 'password' ? 'text' : 'password';
+      ic.className = i.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+    }
+  </script>
+</body>
+</html>

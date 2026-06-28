@@ -1,0 +1,581 @@
+<!-- Kanban Header -->
+<div class="kb-header">
+  <div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <a href="/projects/<%= project.id %>" style="color:var(--text-3);font-size:13px;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="fas fa-folder-open"></i><%= project.name %></a>
+      <i class="fas fa-chevron-right" style="font-size:10px;color:var(--text-3)"></i>
+      <span style="font-size:13px;font-weight:600;color:var(--text)">Kanban Board</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+      <span class="badge badge-<%= project.status %>"><%= project.status %></span>
+      <% const total = tasks.length, done = tasks.filter(t=>t.status==='done').length; %>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:80px;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:<%= total > 0 ? Math.round(done/total*100) : 0 %>%;background:var(--primary);border-radius:3px"></div>
+        </div>
+        <span style="font-size:11px;color:var(--text-3)"><%= done %>/<%= total %> task</span>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <!-- Filter by assignee -->
+    <select id="assigneeFilter" class="form-input" style="width:160px;font-size:12px" onchange="filterCards()">
+      <option value="">Tất cả thành viên</option>
+      <% members.forEach(m => { %>
+      <option value="<%= m.id %>"><%= m.full_name %></option>
+      <% }) %>
+    </select>
+    <button class="btn btn-primary" onclick="openAddTask(null)">
+      <i class="fas fa-plus"></i> Thêm Task
+    </button>
+    <a href="/projects/<%= project.id %>" class="btn btn-outline"><i class="fas fa-arrow-left"></i></a>
+  </div>
+</div>
+
+<!-- Kanban Board -->
+<div class="kb-board" id="kbBoard">
+<% const cols = [
+  { status:'todo',        label:'Cần làm',    icon:'circle',       color:'#94A3B8', bg:'rgba(148,163,184,.08)' },
+  { status:'in_progress', label:'Đang làm',   icon:'spinner',      color:'#3B82F6', bg:'rgba(59,130,246,.08)' },
+  { status:'review',      label:'Kiểm tra',   icon:'eye',          color:'#D97706', bg:'rgba(245,158,11,.08)'  },
+  { status:'done',        label:'Hoàn thành', icon:'check-circle', color:'#16A34A', bg:'rgba(22,163,74,.08)'   }
+] %>
+<% cols.forEach(col => { %>
+<div class="kb-col" id="col-<%= col.status %>" data-status="<%= col.status %>"
+     ondragover="colDragOver(event,this)" ondragleave="colDragLeave(this)" ondrop="colDrop(event,this)">
+
+  <div class="kb-col-head" style="--col-color:<%= col.color %>">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="kb-col-dot" style="background:<%= col.color %>"></span>
+      <span class="kb-col-label"><%= col.label %></span>
+      <span class="kb-col-badge" id="badge-<%= col.status %>">
+        <%= tasks.filter(t=>t.status===col.status).length %>
+      </span>
+    </div>
+    <button class="kb-col-add" onclick="openAddTask('<%= col.status %>')" title="Thêm task vào cột này">
+      <i class="fas fa-plus"></i>
+    </button>
+  </div>
+
+  <div class="kb-cards" id="cards-<%= col.status %>">
+    <% tasks.filter(t=>t.status===col.status).forEach(task => {
+      const now = new Date();
+      const due = task.due_date ? new Date(task.due_date) : null;
+      const isOverdue = due && due < now && task.status !== 'done';
+      const isDueSoon = due && !isOverdue && (due - now) < 3*24*60*60*1000;
+      const dueClass = isOverdue ? 'due-overdue' : isDueSoon ? 'due-soon' : 'due-ok';
+    %>
+    <div class="kb-card" draggable="true" id="card-<%= task.id %>"
+         data-id="<%= task.id %>"
+         data-status="<%= task.status %>"
+         data-assignee="<%= task.assignee_id || '' %>"
+         ondragstart="cardDragStart(event)"
+         ondragend="cardDragEnd(event)"
+         onclick="openTaskDetail('<%= task.id %>')">
+
+      <!-- Priority stripe -->
+      <div class="kb-card-priority-bar priority-bar-<%= task.priority %>"></div>
+
+      <div class="kb-card-body">
+        <!-- Title + priority badge -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px">
+          <div class="kb-card-title"><%= task.title %></div>
+          <span class="kb-priority-badge kb-priority-<%= task.priority %>"><%= task.priority === 'urgent' ? '🔴' : task.priority === 'high' ? '🟠' : task.priority === 'medium' ? '🟡' : '🔵' %></span>
+        </div>
+
+        <% if (task.description) { %>
+        <div class="kb-card-desc"><%= task.description.substring(0,70) %><%= task.description.length > 70 ? '…' : '' %></div>
+        <% } %>
+
+        <!-- Tags -->
+        <% if (task.priority === 'urgent' || task.priority === 'high') { %>
+        <span class="kb-card-tag tag-<%= task.priority %>"><i class="fas fa-exclamation-circle"></i> <%= task.priority === 'urgent' ? 'Khẩn cấp' : 'Ưu tiên cao' %></span>
+        <% } %>
+
+        <!-- Footer: assignee + deadline -->
+        <div class="kb-card-footer">
+          <div style="display:flex;align-items:center;gap:6px">
+            <% if (task.assignee_name) { %>
+            <div class="kb-assignee" title="<%= task.assignee_name %>">
+              <% if (task.assignee_avatar) { %>
+                <img src="<%= task.assignee_avatar %>" alt="">
+              <% } else { %>
+                <span><%= task.assignee_name.charAt(0).toUpperCase() %></span>
+              <% } %>
+            </div>
+            <span class="kb-assignee-name"><%= task.assignee_name.split(' ').pop() %></span>
+            <% } else { %>
+            <span class="kb-unassigned"><i class="fas fa-user-plus"></i> Chưa giao</span>
+            <% } %>
+          </div>
+          <% if (due) { %>
+          <span class="kb-due <%= dueClass %>">
+            <i class="fas fa-<%= isOverdue ? 'exclamation-triangle' : 'calendar-alt' %>"></i>
+            <%= due.toLocaleDateString('vi-VN', {day:'2-digit',month:'2-digit'}) %>
+          </span>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Drop indicator -->
+      <div class="kb-card-drop-indicator"></div>
+    </div>
+    <% }) %>
+
+    <!-- Empty col placeholder -->
+    <div class="kb-empty-col" id="empty-<%= col.status %>" style="display:<%= tasks.filter(t=>t.status===col.status).length===0 ? 'flex' : 'none' %>">
+      <i class="fas fa-inbox" style="font-size:20px;opacity:0.3;margin-bottom:6px"></i>
+      <span>Kéo task vào đây</span>
+    </div>
+  </div>
+</div>
+<% }) %>
+</div>
+
+<!-- ===== ADD / EDIT TASK MODAL ===== -->
+<div id="taskModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeTaskModal()">
+  <div class="modal-box" style="max-width:560px;width:94%">
+    <div class="modal-header">
+      <h3 id="taskModalTitle" style="margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px">
+        <span style="width:30px;height:30px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center">
+          <i class="fas fa-plus" style="color:#fff;font-size:13px"></i>
+        </span>
+        Tạo Task mới
+      </h3>
+      <button class="modal-close" onclick="closeTaskModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <form action="/tasks" method="POST" id="taskForm">
+      <input type="hidden" name="project_id" value="<%= project.id %>">
+      <input type="hidden" name="status" id="taskInitialStatus" value="todo">
+      <div class="modal-body" style="display:grid;gap:0;padding:0">
+
+        <!-- Nhóm 1: Thông tin cơ bản -->
+        <div style="padding:20px 22px 16px;display:grid;gap:14px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:-4px">
+            <span style="width:3px;height:14px;background:var(--primary);border-radius:2px;display:inline-block"></span>
+            <span style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Thông tin cơ bản</span>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Tiêu đề <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="title" class="form-input" placeholder="Nhập tiêu đề task..." required autofocus>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Mô tả</label>
+            <textarea name="description" class="form-input" rows="2" placeholder="Mô tả chi tiết công việc cần làm..."></textarea>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div style="height:1px;background:var(--border);margin:0 22px"></div>
+
+        <!-- Nhóm 2: Phân loại & Tiến độ -->
+        <div style="padding:16px 22px 20px;display:grid;gap:14px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:-4px">
+            <span style="width:3px;height:14px;background:var(--warning);border-radius:2px;display:inline-block"></span>
+            <span style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Phân loại & Tiến độ</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Người thực hiện</label>
+              <select name="assignee_id" class="form-input">
+                <option value="">— Chưa giao —</option>
+                <% members.forEach(m => { %>
+                <option value="<%= m.id %>"><%= m.full_name %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Ưu tiên</label>
+              <select name="priority" class="form-input">
+                <option value="low">🔵 Thấp</option>
+                <option value="medium" selected>🟡 Bình thường</option>
+                <option value="high">🟠 Cao</option>
+                <option value="urgent">🔴 Khẩn cấp</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Hạn chót</label>
+              <input type="date" name="due_date" class="form-input">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Ước tính (giờ)</label>
+              <input type="number" name="estimated_hours" class="form-input" min="0" step="0.5" placeholder="0">
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeTaskModal()"
+          style="padding:9px 18px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:transparent;color:var(--text-2);font-size:13.5px;font-weight:500;cursor:pointer;transition:var(--transition)"
+          onmouseover="this.style.borderColor='var(--text-3)'" onmouseout="this.style.borderColor='var(--border)'">
+          Hủy
+        </button>
+        <button type="submit"
+          style="padding:9px 22px;border-radius:var(--radius-sm);border:none;background:var(--primary);color:#fff;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;transition:var(--transition);box-shadow:0 2px 8px rgba(21,101,192,.3)"
+          onmouseover="this.style.background='var(--primary-dark)'" onmouseout="this.style.background='var(--primary)'">
+          <i class="fas fa-check"></i> Tạo Task
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== TASK DETAIL SIDE PANEL ===== -->
+<div id="taskPanel" class="task-panel" style="display:none">
+  <div class="task-panel-inner">
+    <div class="task-panel-head">
+      <span style="font-size:14px;font-weight:600;color:var(--text)">Chi tiết Task</span>
+      <div style="display:flex;gap:6px">
+        <a id="taskPanelEditBtn" class="btn btn-sm btn-outline" href="#"><i class="fas fa-edit"></i></a>
+        <button class="btn btn-sm btn-outline" onclick="closeTaskPanel()"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div id="taskPanelBody" style="padding:16px;overflow-y:auto;flex:1">
+      <div style="text-align:center;padding:32px;color:var(--text-3)"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+    </div>
+  </div>
+</div>
+<div id="taskPanelOverlay" style="display:none;position:fixed;inset:0;z-index:89" onclick="closeTaskPanel()"></div>
+
+<style>
+/* ===== Kanban header ===== */
+.kb-header { display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:20px;flex-wrap:wrap; }
+
+/* ===== Board layout ===== */
+.kb-board {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  align-items:start;
+  min-height:500px;
+}
+@media(max-width:900px) { .kb-board { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:560px) { .kb-board { grid-template-columns:1fr; } }
+
+/* ===== Column ===== */
+.kb-col {
+  background:var(--bg);border-radius:12px;border:1px solid var(--border);
+  min-height:200px;display:flex;flex-direction:column;
+  transition:background .15s;
+}
+.kb-col.drag-over { background:rgba(59,130,246,.06);border-color:var(--primary); }
+
+.kb-col-head {
+  padding:12px 14px;display:flex;justify-content:space-between;align-items:center;
+  border-bottom:2px solid var(--col-color,var(--border));border-radius:12px 12px 0 0;
+}
+.kb-col-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.kb-col-label { font-size:13px;font-weight:600;color:var(--text); }
+.kb-col-badge {
+  background:var(--card);border:1px solid var(--border);color:var(--text-2);
+  font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;
+}
+.kb-col-add {
+  background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px 6px;
+  border-radius:6px;font-size:12px;transition:all .15s;
+}
+.kb-col-add:hover { background:var(--primary);color:#fff; }
+
+/* ===== Cards container ===== */
+.kb-cards { padding:10px;display:flex;flex-direction:column;gap:8px;min-height:60px;flex:1; }
+.kb-empty-col {
+  flex-direction:column;align-items:center;justify-content:center;
+  color:var(--text-3);font-size:12px;padding:20px;
+  border:1.5px dashed var(--border);border-radius:8px;min-height:80px;
+}
+
+/* ===== Card ===== */
+.kb-card {
+  background:var(--card);border-radius:10px;border:1px solid var(--border);
+  cursor:grab;position:relative;overflow:hidden;
+  transition:box-shadow .15s,transform .1s,opacity .15s;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.kb-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.12);transform:translateY(-1px); }
+.kb-card.dragging { opacity:0.4;cursor:grabbing;transform:scale(0.97); }
+.kb-card.drag-target { border-color:var(--primary);box-shadow:0 0 0 2px rgba(59,130,246,.25); }
+
+.kb-card-priority-bar {
+  position:absolute;left:0;top:0;bottom:0;width:3px;
+}
+.priority-bar-urgent { background:#dc2626; }
+.priority-bar-high   { background:#d97706; }
+.priority-bar-medium { background:#3b82f6; }
+.priority-bar-low    { background:#94a3b8; }
+
+.kb-card-body { padding:10px 10px 10px 13px; }
+.kb-card-title { font-size:13px;font-weight:600;color:var(--text);line-height:1.4;flex:1; }
+.kb-card-desc  { font-size:11px;color:var(--text-3);line-height:1.4;margin-bottom:6px; }
+.kb-priority-badge { font-size:13px;flex-shrink:0;user-select:none; }
+
+.kb-card-tag {
+  display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;
+  font-size:10px;font-weight:600;margin-bottom:6px;
+}
+.tag-urgent { background:rgba(220,38,38,.1);color:#dc2626; }
+.tag-high   { background:rgba(245,158,11,.1);color:#d97706; }
+
+.kb-card-footer { display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border); }
+
+.kb-assignee {
+  width:22px;height:22px;border-radius:50%;overflow:hidden;flex-shrink:0;
+  background:var(--primary);display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;color:#fff;
+}
+.kb-assignee img { width:100%;height:100%;object-fit:cover; }
+.kb-assignee-name { font-size:11px;color:var(--text-2); }
+.kb-unassigned { font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:4px; }
+
+.kb-due {
+  font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;
+  padding:2px 6px;border-radius:5px;
+}
+.due-ok      { color:var(--text-3);background:transparent; }
+.due-soon    { color:#d97706;background:rgba(245,158,11,.1); }
+.due-overdue { color:#dc2626;background:rgba(220,38,38,.1);animation:pulse-danger 2s infinite; }
+@keyframes pulse-danger { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+/* ===== Drop indicator ===== */
+.kb-card-drop-indicator { height:0;background:var(--primary);border-radius:2px;transition:height .1s;margin:0 -1px; }
+.kb-card.drop-before .kb-card-drop-indicator { height:3px;margin-top:-2px; }
+
+/* ===== Task detail panel ===== */
+.task-panel {
+  position:fixed;right:0;top:0;bottom:0;width:420px;max-width:100vw;z-index:90;
+  background:var(--card);border-left:1px solid var(--border);
+  box-shadow:-4px 0 24px rgba(0,0,0,.12);
+  display:flex;flex-direction:column;
+  animation:slideInRight .2s ease;
+}
+@keyframes slideInRight { from{transform:translateX(100%)} to{transform:translateX(0)} }
+.task-panel-inner { display:flex;flex-direction:column;height:100%; }
+.task-panel-head {
+  padding:14px 16px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;flex-shrink:0;
+}
+
+/* ===== Task panel content ===== */
+.tp-section { margin-bottom:16px; }
+.tp-label { font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px; }
+.tp-value { font-size:13px;color:var(--text); }
+.tp-status-row { display:flex;gap:6px;flex-wrap:wrap; }
+</style>
+
+<script>
+/* ===== DRAG & DROP ===== */
+let draggingId = null;
+let draggingEl = null;
+let dragSourceCol = null;
+
+function cardDragStart(e) {
+  draggingId = e.currentTarget.dataset.id;
+  draggingEl = e.currentTarget;
+  dragSourceCol = e.currentTarget.closest('.kb-col').dataset.status;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', draggingId);
+}
+
+function cardDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.kb-card.drop-before').forEach(c => c.classList.remove('drop-before'));
+  draggingId = null; draggingEl = null;
+}
+
+function colDragOver(e, col) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  col.classList.add('drag-over');
+  // Highlight nearest card
+  const cards = [...col.querySelectorAll('.kb-card:not(.dragging)')];
+  document.querySelectorAll('.kb-card.drop-before').forEach(c => c.classList.remove('drop-before'));
+  const mouseY = e.clientY;
+  for (const card of cards) {
+    const rect = card.getBoundingClientRect();
+    if (mouseY < rect.top + rect.height / 2) { card.classList.add('drop-before'); break; }
+  }
+}
+
+function colDragLeave(col) { col.classList.remove('drag-over'); }
+
+async function colDrop(e, col) {
+  e.preventDefault();
+  col.classList.remove('drag-over');
+  document.querySelectorAll('.kb-card.drop-before').forEach(c => c.classList.remove('drop-before'));
+  if (!draggingId) return;
+  const newStatus = col.dataset.status;
+  const oldStatus = draggingEl?.dataset.status;
+  if (newStatus === oldStatus) return;
+
+  // Optimistic UI: move card immediately
+  const card = document.getElementById('card-' + draggingId);
+  if (card) {
+    const targetCards = document.getElementById('cards-' + newStatus);
+    card.dataset.status = newStatus;
+    targetCards.appendChild(card);
+    updateColCounts();
+  }
+
+  // API call
+  try {
+    const r = await fetch('/tasks/' + draggingId + '/status', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status: newStatus })
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error);
+    // Update deadline color class
+    if (card) updateCardDeadline(card);
+    showKbToast('Đã chuyển sang: ' + colLabels[newStatus]);
+  } catch(err) {
+    // Rollback
+    if (card) {
+      const srcCards = document.getElementById('cards-' + oldStatus);
+      card.dataset.status = oldStatus;
+      srcCards.appendChild(card);
+      updateColCounts();
+    }
+    showKbToast('Lỗi: ' + err.message, 'error');
+  }
+}
+
+const colLabels = { todo:'Cần làm', in_progress:'Đang làm', review:'Kiểm tra', done:'Hoàn thành' };
+
+function updateColCounts() {
+  ['todo','in_progress','review','done'].forEach(s => {
+    const count = document.querySelectorAll(`#cards-${s} .kb-card`).length;
+    document.getElementById('badge-' + s).textContent = count;
+    document.getElementById('empty-' + s).style.display = count === 0 ? 'flex' : 'none';
+  });
+}
+
+function updateCardDeadline(card) {
+  const status = card.dataset.status;
+  const dueEl = card.querySelector('.kb-due');
+  if (!dueEl) return;
+  dueEl.classList.remove('due-ok','due-soon','due-overdue');
+  if (status === 'done') { dueEl.classList.add('due-ok'); return; }
+  // Re-apply based on original date attribute (set via data-due)
+  dueEl.classList.add('due-ok');
+}
+
+/* ===== FILTER BY ASSIGNEE ===== */
+function filterCards() {
+  const val = document.getElementById('assigneeFilter').value;
+  document.querySelectorAll('.kb-card').forEach(card => {
+    card.style.display = (!val || card.dataset.assignee === val) ? '' : 'none';
+  });
+  updateColCounts();
+}
+
+/* ===== ADD TASK MODAL ===== */
+function openAddTask(status) {
+  document.getElementById('taskInitialStatus').value = status || 'todo';
+  document.getElementById('taskModal').style.display = 'flex';
+  setTimeout(() => document.querySelector('#taskModal input[name=title]').focus(), 50);
+}
+function closeTaskModal() { document.getElementById('taskModal').style.display = 'none'; }
+
+/* ===== TASK DETAIL PANEL ===== */
+async function openTaskDetail(taskId) {
+  // Don't open if dragging
+  if (draggingId) return;
+  document.getElementById('taskPanel').style.display = 'flex';
+  document.getElementById('taskPanelOverlay').style.display = 'block';
+  document.getElementById('taskPanelEditBtn').href = '/tasks/' + taskId + '/edit';
+  document.getElementById('taskPanelBody').innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-3)"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+
+  try {
+    // We load task detail from project tasks data already on page
+    const card = document.getElementById('card-' + taskId);
+    if (!card) return;
+    const title = card.querySelector('.kb-card-title')?.textContent?.trim();
+    const desc = card.querySelector('.kb-card-desc')?.textContent?.trim();
+    const assignee = card.querySelector('.kb-assignee-name')?.textContent?.trim();
+    const due = card.querySelector('.kb-due')?.textContent?.trim();
+    const status = card.dataset.status;
+    const priorityEl = card.querySelector('.kb-priority-badge');
+    const statusLabels = { todo:'Cần làm', in_progress:'Đang làm', review:'Kiểm tra', done:'Hoàn thành' };
+
+    let html = `
+      <div class="tp-section">
+        <div class="tp-label">Tiêu đề</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text)">${title || '—'}</div>
+      </div>
+      ${desc ? `<div class="tp-section"><div class="tp-label">Mô tả</div><div class="tp-value" style="line-height:1.6">${desc}</div></div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="tp-section"><div class="tp-label">Trạng thái</div>
+          <span class="badge badge-${status}">${statusLabels[status]||status}</span>
+        </div>
+        <div class="tp-section"><div class="tp-label">Người thực hiện</div>
+          <div class="tp-value">${assignee || '—'}</div>
+        </div>
+        <div class="tp-section"><div class="tp-label">Hạn chót</div>
+          <div class="tp-value">${due || '—'}</div>
+        </div>
+      </div>
+      <div class="tp-section">
+        <div class="tp-label">Chuyển trạng thái nhanh</div>
+        <div class="tp-status-row">
+          ${['todo','in_progress','review','done'].map(s =>
+            `<button class="btn btn-sm ${s===status ? 'btn-primary' : 'btn-outline'}" onclick="quickStatus('${taskId}','${s}',this)" data-status="${s}">${statusLabels[s]}</button>`
+          ).join('')}
+        </div>
+      </div>
+    `;
+    document.getElementById('taskPanelBody').innerHTML = html;
+  } catch(e) {
+    document.getElementById('taskPanelBody').innerHTML = '<p style="color:var(--danger)">Lỗi tải dữ liệu</p>';
+  }
+}
+
+async function quickStatus(taskId, status, btn) {
+  try {
+    const r = await fetch('/tasks/' + taskId + '/status', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status})
+    });
+    const d = await r.json();
+    if (d.success) {
+      // Update card + panel
+      const card = document.getElementById('card-' + taskId);
+      if (card) {
+        const oldStatus = card.dataset.status;
+        card.dataset.status = status;
+        document.getElementById('cards-' + status)?.appendChild(card);
+        updateColCounts();
+      }
+      btn.closest('.tp-status-row').querySelectorAll('button').forEach(b => {
+        b.className = b.dataset.status === status ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+      });
+      showKbToast('✅ Đã cập nhật: ' + colLabels[status]);
+    }
+  } catch(e) { showKbToast('Lỗi', 'error'); }
+}
+
+function closeTaskPanel() {
+  document.getElementById('taskPanel').style.display = 'none';
+  document.getElementById('taskPanelOverlay').style.display = 'none';
+}
+
+/* ===== TOAST ===== */
+function showKbToast(msg, type='success') {
+  let c = document.getElementById('kbToast');
+  if (!c) {
+    c = document.createElement('div');
+    c.id = 'kbToast';
+    c.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999;';
+    document.body.appendChild(c);
+  }
+  c.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${type==='error'?'#dc2626':'#16a34a'};padding:10px 18px;border-radius:8px;font-size:13px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.15);animation:kbFadeIn .2s ease">${msg}</div>`;
+  const style=document.createElement('style');
+  style.textContent='@keyframes kbFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
+  document.head.appendChild(style);
+  setTimeout(()=>{if(c)c.innerHTML=''},2500);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeTaskModal(); closeTaskPanel(); }
+});
+</script>

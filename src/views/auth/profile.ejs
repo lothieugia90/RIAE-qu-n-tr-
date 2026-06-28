@@ -1,0 +1,283 @@
+<div style="max-width:860px;margin:0 auto">
+
+  <!-- Profile Hero Card -->
+  <div class="card mb-4">
+    <div class="profile-hero">
+      <!-- Avatar upload area -->
+      <form action="/auth/profile" method="POST" enctype="multipart/form-data" id="avatarForm">
+        <input type="hidden" name="full_name" value="<%= currentUser.full_name %>">
+        <input type="hidden" name="phone" value="<%= currentUser.phone || '' %>">
+        <input type="hidden" name="department" value="<%= currentUser.department || '' %>">
+        <input type="hidden" name="position" value="<%= currentUser.position || '' %>">
+        <label class="avatar-upload-wrap" title="Nhấn để thay đổi ảnh đại diện">
+          <input type="file" name="avatar" accept="image/*" style="display:none" onchange="previewAvatar(this)">
+          <div class="avatar-upload-ring" id="avatarRing">
+            <% if (currentUser.avatar_url) { %>
+              <img src="<%= currentUser.avatar_url %>" alt="" id="avatarPreview" class="avatar-img">
+            <% } else { %>
+              <div class="avatar-initials" id="avatarInitials"><%= currentUser.full_name.charAt(0).toUpperCase() %></div>
+              <img src="" alt="" id="avatarPreview" class="avatar-img" style="display:none">
+            <% } %>
+            <div class="avatar-overlay">
+              <i class="fas fa-camera"></i>
+              <span>Thay ảnh</span>
+            </div>
+          </div>
+        </label>
+        <div id="avatarActions" style="display:none;margin-top:10px;text-align:center;gap:8px;justify-content:center;flex-wrap:wrap" class="d-flex">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-upload" style="margin-right:5px"></i>Lưu ảnh</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="cancelAvatar()">Hủy</button>
+        </div>
+      </form>
+
+      <!-- Identity -->
+      <div class="profile-identity">
+        <h2 class="profile-name"><%= currentUser.full_name %></h2>
+        <div class="profile-meta">
+          <% if (currentUser.position) { %><span><i class="fas fa-briefcase"></i> <%= currentUser.position %></span><% } %>
+          <% if (currentUser.department) { %><span><i class="fas fa-building"></i> <%= currentUser.department %></span><% } %>
+          <span><i class="fas fa-envelope"></i> <%= currentUser.email %></span>
+          <% if (currentUser.phone) { %><span><i class="fas fa-phone"></i> <%= currentUser.phone %></span><% } %>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <span class="badge badge-<%= currentUser.role %>" style="font-size:12px;padding:4px 12px"><%= currentUser.role %></span>
+          <% if (employee && employee.employee_code) { %>
+          <span class="badge" style="background:var(--bg);color:var(--text-2);font-size:12px;border:1px solid var(--border)">
+            <i class="fas fa-id-badge" style="margin-right:4px"></i><%= employee.employee_code %>
+          </span>
+          <% } %>
+          <% if (employee && employee.hire_date) { %>
+          <span class="badge" style="background:var(--bg);color:var(--text-2);font-size:12px;border:1px solid var(--border)">
+            <i class="fas fa-calendar-alt" style="margin-right:4px"></i>Từ <%= new Date(employee.hire_date).toLocaleDateString('vi-VN') %>
+          </span>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Info -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-user-edit" style="margin-right:6px;color:var(--primary)"></i>Thông tin cá nhân</span>
+      </div>
+      <div class="card-body">
+        <form action="/auth/profile" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label class="form-label">Họ và tên <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="full_name" class="form-input" value="<%= currentUser.full_name %>" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-input" value="<%= currentUser.email %>" readonly style="background:var(--bg);cursor:not-allowed" title="Liên hệ admin để đổi email">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số điện thoại</label>
+            <input type="text" name="phone" class="form-input" value="<%= currentUser.phone || '' %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phòng ban</label>
+            <input type="text" name="department" class="form-input" value="<%= currentUser.department || '' %>">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Chức vụ</label>
+            <input type="text" name="position" class="form-input" value="<%= currentUser.position || '' %>">
+          </div>
+          <div style="margin-top:20px">
+            <button type="submit" class="btn btn-primary" style="width:100%"><i class="fas fa-save" style="margin-right:6px"></i>Lưu thay đổi</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <!-- Change password -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="fas fa-lock" style="margin-right:6px;color:var(--warning)"></i>Đổi mật khẩu</span>
+        </div>
+        <div class="card-body">
+          <form action="/auth/change-password" method="POST">
+            <div class="form-group">
+              <label class="form-label">Mật khẩu hiện tại <span style="color:var(--danger)">*</span></label>
+              <div style="position:relative">
+                <input type="password" name="current_password" class="form-input" required id="pw1">
+                <button type="button" onclick="togglePw('pw1')" class="pw-toggle"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mật khẩu mới <span style="color:var(--danger)">*</span></label>
+              <div style="position:relative">
+                <input type="password" name="new_password" class="form-input" required minlength="6" id="pw2" oninput="checkPwStrength(this.value)">
+                <button type="button" onclick="togglePw('pw2')" class="pw-toggle"><i class="fas fa-eye"></i></button>
+              </div>
+              <div id="pwStrengthBar" style="height:3px;border-radius:2px;margin-top:5px;background:var(--border);overflow:hidden">
+                <div id="pwStrengthFill" style="height:100%;width:0;transition:width .3s,background .3s"></div>
+              </div>
+              <div id="pwStrengthLabel" style="font-size:10px;color:var(--text-3);margin-top:3px"></div>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Xác nhận mật khẩu mới <span style="color:var(--danger)">*</span></label>
+              <div style="position:relative">
+                <input type="password" name="confirm_password" class="form-input" required minlength="6" id="pw3">
+                <button type="button" onclick="togglePw('pw3')" class="pw-toggle"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div style="margin-top:20px">
+              <button type="submit" class="btn btn-warning" style="width:100%"><i class="fas fa-key" style="margin-right:6px"></i>Đổi mật khẩu</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Employee info (readonly) -->
+      <% if (employee && (employee.hire_date || employee.contract_type || employee.address)) { %>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="fas fa-id-card" style="margin-right:6px;color:var(--text-3)"></i>Thông tin hợp đồng</span>
+        </div>
+        <div class="card-body" style="display:grid;gap:10px">
+          <% if (employee.hire_date) { %>
+          <div class="info-row"><span class="info-label">Ngày vào làm</span><span><%= new Date(employee.hire_date).toLocaleDateString('vi-VN') %></span></div>
+          <% } %>
+          <% if (employee.contract_type) { %>
+          <div class="info-row"><span class="info-label">Loại HĐ</span><span><%= employee.contract_type %></span></div>
+          <% } %>
+          <% if (employee.address) { %>
+          <div class="info-row"><span class="info-label">Địa chỉ</span><span style="text-align:right"><%= employee.address %></span></div>
+          <% } %>
+          <% if (employee.bank_name) { %>
+          <div class="info-row"><span class="info-label">Ngân hàng</span><span><%= employee.bank_name %> – <%= employee.bank_account %></span></div>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+    </div>
+
+  </div>
+</div>
+
+<style>
+/* ---- Profile Hero ---- */
+.profile-hero {
+  display: flex; align-items: flex-start; gap: 28px;
+  padding: 28px;
+}
+.avatar-upload-wrap { cursor: pointer; display: block; flex-shrink: 0; }
+.avatar-upload-ring {
+  position: relative; width: 110px; height: 110px;
+  border-radius: 50%; overflow: hidden;
+  border: 3px solid var(--primary);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  transition: box-shadow 0.2s;
+}
+.avatar-upload-wrap:hover .avatar-upload-ring {
+  box-shadow: 0 4px 24px rgba(59,130,246,0.35);
+}
+.avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-initials {
+  width: 100%; height: 100%;
+  background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 42px; font-weight: 700;
+}
+.avatar-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; gap: 4px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.avatar-upload-wrap:hover .avatar-overlay { opacity: 1; }
+.avatar-overlay i { font-size: 20px; }
+
+.profile-identity { flex: 1; min-width: 0; padding-top: 6px; }
+.profile-name { font-size: 24px; font-weight: 700; color: var(--text); margin: 0 0 8px; }
+.profile-meta { display: flex; flex-direction: column; gap: 4px; }
+.profile-meta span { font-size: 13px; color: var(--text-3); display: flex; align-items: center; gap: 7px; }
+.profile-meta i { width: 14px; color: var(--text-3); }
+
+/* ---- Password toggle ---- */
+.pw-toggle {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: var(--text-3); padding: 4px;
+}
+.pw-toggle:hover { color: var(--text); }
+
+/* ---- Info rows ---- */
+.info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--text-3); font-weight: 500; }
+
+@media (max-width: 640px) {
+  .profile-hero { flex-direction: column; align-items: center; text-align: center; padding: 20px; }
+  .profile-meta span { justify-content: center; }
+  div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+}
+</style>
+
+<script>
+let originalSrc = '';
+
+function previewAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('avatarPreview');
+    const initials = document.getElementById('avatarInitials');
+    originalSrc = preview.src;
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    if (initials) initials.style.display = 'none';
+    const actions = document.getElementById('avatarActions');
+    if (actions) { actions.style.display = 'flex'; }
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function cancelAvatar() {
+  const preview = document.getElementById('avatarPreview');
+  const initials = document.getElementById('avatarInitials');
+  const input = document.querySelector('#avatarForm input[type=file]');
+  if (originalSrc) {
+    preview.src = originalSrc;
+    preview.style.display = originalSrc ? 'block' : 'none';
+  } else {
+    preview.style.display = 'none';
+    if (initials) initials.style.display = 'flex';
+  }
+  if (input) input.value = '';
+  document.getElementById('avatarActions').style.display = 'none';
+}
+
+function togglePw(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+  const icon = el.nextElementSibling.querySelector('i');
+  icon.className = el.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+}
+
+function checkPwStrength(val) {
+  const fill = document.getElementById('pwStrengthFill');
+  const label = document.getElementById('pwStrengthLabel');
+  if (!val) { fill.style.width = '0'; label.textContent = ''; return; }
+  let score = 0;
+  if (val.length >= 8) score++;
+  if (/[A-Z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const levels = [
+    { w: '25%', color: '#dc2626', text: 'Yếu' },
+    { w: '50%', color: '#d97706', text: 'Trung bình' },
+    { w: '75%', color: '#2563eb', text: 'Khá' },
+    { w: '100%', color: '#16a34a', text: 'Mạnh' }
+  ];
+  const lv = levels[Math.min(score, 3)];
+  fill.style.width = lv.w;
+  fill.style.background = lv.color;
+  label.style.color = lv.color;
+  label.textContent = lv.text;
+}
+</script>

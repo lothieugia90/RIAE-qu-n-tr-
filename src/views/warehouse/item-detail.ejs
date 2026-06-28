@@ -1,0 +1,380 @@
+<style>
+.status-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:12px; font-size:13px; font-weight:500; }
+.chip-available { background:#E8F5E9; color:#388E3C; }
+.chip-in_use { background:#E3F2FD; color:#1565C0; }
+.chip-maintenance { background:#FFF3E0; color:#E65100; }
+.chip-lost { background:#FFEBEE; color:#C62828; }
+.sig-widget { border:1px solid var(--border); border-radius:10px; padding:16px; background:var(--card); }
+.assignment-row-overdue { background:#FFF8E1 !important; }
+</style>
+
+<div class="page-header">
+  <div class="page-header-title">
+    <h2><%= item.name %></h2>
+    <p><%= item.code %> <% if (item.category_name) { %>· <%= item.category_name %><% } %></p>
+  </div>
+  <div class="page-header-actions">
+    <% if (['admin','warehouse'].includes(locals.userRole)) { %>
+    <a href="/warehouse/items/<%= item.id %>/edit" class="btn btn-outline"><i class="fas fa-edit"></i> Sửa</a>
+    <% } %>
+    <a href="/warehouse/items" class="btn btn-outline"><i class="fas fa-arrow-left"></i></a>
+  </div>
+</div>
+
+<div class="grid-70-30">
+  <div>
+    <!-- Transaction Form -->
+    <% if (['admin','warehouse'].includes(locals.userRole)) { %>
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">Ghi nhận Xuất/Nhập kho</span></div>
+      <div class="card-body">
+        <form action="/warehouse/transactions" method="POST">
+          <input type="hidden" name="item_id" value="<%= item.id %>">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Loại giao dịch <span class="req">*</span></label>
+              <select name="transaction_type" class="form-control" required>
+                <option value="import">↑ Nhập kho</option>
+                <option value="export">↓ Xuất kho</option>
+                <option value="adjust">↔ Điều chỉnh</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Số lượng (<%= item.unit %>) <span class="req">*</span></label>
+              <input type="number" name="quantity" class="form-control" min="0.01" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Đơn giá giao dịch</label>
+              <input type="number" name="unit_price" class="form-control" value="<%= item.unit_price || '' %>" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Dự án liên quan</label>
+              <select name="project_id" class="form-control">
+                <option value="">— Không có —</option>
+                <% projects.forEach(p => { %>
+                <option value="<%= p.id %>"><%= p.name %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Số phiếu tham chiếu</label>
+              <input type="text" name="reference_code" class="form-control" placeholder="VD: PN-2024-001">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ghi chú</label>
+              <input type="text" name="notes" class="form-control">
+            </div>
+          </div>
+          <div style="margin-top:14px">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Xác nhận giao dịch</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Assignment History Tab -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-clipboard-list"></i> Lịch sử giao nhận</span>
+        <% if (['admin','warehouse','director'].includes(locals.userRole)) { %>
+        <button onclick="document.getElementById('assignModal').classList.add('open')" class="btn btn-sm btn-primary">
+          <i class="fas fa-share"></i> Gán / Xuất
+        </button>
+        <% } %>
+      </div>
+      <div style="overflow-x:auto">
+        <% if (!assignments || assignments.length === 0) { %>
+        <div class="empty-state" style="padding:24px"><p style="color:var(--text-3)">Chưa có phiếu giao nào</p></div>
+        <% } else { %>
+        <table>
+          <thead><tr><th>Người nhận / Dự án</th><th>Loại</th><th>SL</th><th>Ngày giao</th><th>Chữ ký</th><th>Trạng thái</th><th></th></tr></thead>
+          <tbody>
+          <% assignments.forEach(a => { %>
+          <tr>
+            <td>
+              <div style="font-weight:500"><%= a.assignee_name || a.project_name || '—' %></div>
+              <% if (a.project_name && a.assignee_name) { %><div style="font-size:11px;color:var(--text-3)"><%= a.project_name %></div><% } %>
+              <div style="font-size:11px;color:var(--text-3)">Giao bởi: <%= a.assigner_name || '—' %></div>
+            </td>
+            <td style="font-size:12px"><%= a.assignment_type==='personal' ? 'Cá nhân' : 'Dự án' %></td>
+            <td style="font-weight:600"><%= a.quantity %> <%= item.unit %></td>
+            <td style="font-size:12px;color:var(--text-3)"><%= new Date(a.assigned_at).toLocaleDateString('vi-VN') %></td>
+            <td>
+              <% if (a.signature_data) { %>
+              <span style="color:var(--success);font-size:12px"><i class="fas fa-check-circle"></i> Đã ký</span>
+              <% } else { %>
+              <span style="color:var(--text-3);font-size:12px"><i class="fas fa-clock"></i> Chưa ký</span>
+              <% } %>
+            </td>
+            <td>
+              <% if (a.status==='active') { %>
+              <span style="background:#E3F2FD;color:#1565C0;padding:2px 8px;border-radius:10px;font-size:12px">Đang giao</span>
+              <% } else { %>
+              <span style="background:#F5F5F5;color:var(--text-3);padding:2px 8px;border-radius:10px;font-size:12px">Đã trả</span>
+              <% } %>
+            </td>
+            <td><a href="/warehouse/assignments/<%= a.id %>" class="btn btn-sm btn-outline"><i class="fas fa-eye"></i></a></td>
+          </tr>
+          <% }) %>
+          </tbody>
+        </table>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Signature Widget -->
+    <% if (activeAssignment && !activeAssignment.signature_data) { %>
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title"><i class="fas fa-signature"></i> Chữ ký xác nhận nhận hàng</span></div>
+      <div class="card-body">
+        <div class="sig-widget">
+          <div style="font-size:13px;color:var(--text-3);margin-bottom:10px">Người nhận: <strong><%= activeAssignment.assignee_name || '—' %></strong></div>
+          <canvas id="sigCanvas" width="400" height="150" style="border:2px solid var(--border);border-radius:8px;cursor:crosshair;touch-action:none;max-width:100%"></canvas>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button onclick="clearSig()" class="btn btn-sm btn-outline"><i class="fas fa-undo"></i> Xóa</button>
+            <button onclick="saveSig('<%= activeAssignment.id %>')" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Lưu chữ ký</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% } else if (activeAssignment && activeAssignment.signature_data) { %>
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title"><i class="fas fa-signature"></i> Chữ ký xác nhận</span></div>
+      <div class="card-body">
+        <img src="<%= activeAssignment.signature_data %>" style="max-width:300px;border:1px solid var(--border);border-radius:6px">
+        <div style="font-size:12px;color:var(--text-3);margin-top:8px">
+          Đã ký lúc: <%= activeAssignment.signed_at ? new Date(activeAssignment.signed_at).toLocaleString('vi-VN') : '—' %>
+          <% if (activeAssignment.signed_ip) { %> · IP: <%= activeAssignment.signed_ip %><% } %>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Transaction History -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Lịch sử giao dịch kho</span></div>
+      <div style="overflow-x:auto">
+        <% if (transactions.length === 0) { %>
+        <div class="empty-state" style="padding:32px"><p>Chưa có giao dịch nào</p></div>
+        <% } else { %>
+        <table>
+          <thead><tr><th>Loại</th><th>Số lượng</th><th>Dự án</th><th>Người thực hiện</th><th>Ngày</th></tr></thead>
+          <tbody>
+          <% transactions.forEach(tx => { %>
+          <tr>
+            <td>
+              <span class="badge" style="background:<%= tx.transaction_type==='import' ? 'var(--success-bg)' : tx.transaction_type==='export' ? 'var(--danger-bg)' : 'var(--info-bg)' %>;color:<%= tx.transaction_type==='import' ? 'var(--success)' : tx.transaction_type==='export' ? 'var(--danger)' : 'var(--info)' %>">
+                <%= tx.transaction_type==='import' ? '↑ Nhập' : tx.transaction_type==='export' ? '↓ Xuất' : '↔ Điều chỉnh' %>
+              </span>
+            </td>
+            <td style="font-weight:600"><%= tx.quantity %> <%= item.unit %></td>
+            <td style="font-size:12px"><%= tx.project_name || '—' %></td>
+            <td style="font-size:12px"><%= tx.performer_name || '—' %></td>
+            <td style="font-size:12px;color:var(--text-3)"><%= new Date(tx.transaction_date).toLocaleDateString('vi-VN') %></td>
+          </tr>
+          <% }) %>
+          </tbody>
+        </table>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right sidebar -->
+  <div>
+    <div class="card mb-4">
+      <div class="card-body">
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:48px;font-weight:800;color:<%= item.quantity===0 ? 'var(--danger)' : item.quantity <= item.min_quantity ? 'var(--warning)' : 'var(--success)' %>"><%= item.quantity %></div>
+          <div style="font-size:16px;color:var(--text-3)"><%= item.unit %> tồn kho</div>
+          <% if (item.quantity <= item.min_quantity) { %>
+          <div style="margin-top:10px">
+            <span class="badge" style="background:var(--warning-bg);color:var(--warning)">
+              <i class="fas fa-exclamation-triangle"></i>
+              <%= item.quantity === 0 ? 'Hết hàng' : 'Sắp hết hàng' %>
+            </span>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- Status Card for tool/asset -->
+        <% if (item.item_type === 'tool' || item.item_type === 'asset') { %>
+        <div class="divider"></div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:12px;color:var(--text-3);margin-bottom:6px">Trạng thái</div>
+          <% const statusLabel = {available:'Sẵn sàng',in_use:'Đang dùng',maintenance:'Bảo trì',lost:'Mất'}; %>
+          <% const statusClass = {available:'chip-available',in_use:'chip-in_use',maintenance:'chip-maintenance',lost:'chip-lost'}; %>
+          <span class="status-chip <%= statusClass[item.item_status] || 'chip-available' %>">
+            <i class="fas fa-circle" style="font-size:7px"></i>
+            <%= statusLabel[item.item_status] || 'Sẵn sàng' %>
+          </span>
+        </div>
+        <% if (item.holder_name) { %>
+        <div style="margin-bottom:8px">
+          <div style="font-size:12px;color:var(--text-3);margin-bottom:4px">Người giữ</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <% if (item.holder_avatar) { %>
+            <img src="<%= item.holder_avatar %>" style="width:28px;height:28px;border-radius:50%;object-fit:cover">
+            <% } else { %>
+            <span style="width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700"><%= item.holder_name.charAt(0).toUpperCase() %></span>
+            <% } %>
+            <span style="font-size:13px;font-weight:500"><%= item.holder_name %></span>
+          </div>
+        </div>
+        <% } %>
+        <% if (item.assigned_project_name) { %>
+        <div style="margin-bottom:8px">
+          <div style="font-size:12px;color:var(--text-3)">Dự án</div>
+          <div style="font-size:13px;font-weight:500"><%= item.assigned_project_name %></div>
+        </div>
+        <% } %>
+        <% if (item.assigned_at) { %>
+        <div style="margin-bottom:8px">
+          <div style="font-size:12px;color:var(--text-3)">Ngày giao</div>
+          <div style="font-size:13px"><%= new Date(item.assigned_at).toLocaleDateString('vi-VN') %></div>
+        </div>
+        <% } %>
+        <% if (['admin','warehouse','director'].includes(locals.userRole)) { %>
+        <div style="margin-top:12px">
+          <% if (item.item_status === 'available' || !item.item_status) { %>
+          <button onclick="document.getElementById('assignModal').classList.add('open')" class="btn btn-primary" style="width:100%">
+            <i class="fas fa-share"></i> Gán / Xuất
+          </button>
+          <% } else if (item.item_status === 'in_use' && activeAssignment) { %>
+          <form action="/warehouse/assignments/<%= activeAssignment.id %>/return" method="POST" onsubmit="return confirm('Xác nhận thu hồi vật tư này?')">
+            <button type="submit" class="btn btn-outline" style="width:100%;color:var(--danger);border-color:var(--danger)">
+              <i class="fas fa-undo"></i> Thu hồi
+            </button>
+          </form>
+          <% } %>
+        </div>
+        <% } %>
+        <% } %>
+
+        <div class="divider"></div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+          <div><span style="color:var(--text-3)">Tồn tối thiểu:</span><strong style="float:right"><%= item.min_quantity %> <%= item.unit %></strong></div>
+          <% if (item.unit_price) { %>
+          <div><span style="color:var(--text-3)">Đơn giá:</span><strong style="float:right"><%= Number(item.unit_price).toLocaleString('vi-VN') %> đ</strong></div>
+          <div><span style="color:var(--text-3)">Tổng giá trị:</span><strong style="float:right;color:var(--success)"><%= Number(item.quantity * item.unit_price).toLocaleString('vi-VN') %> đ</strong></div>
+          <% } %>
+          <div><span style="color:var(--text-3)">Vị trí:</span><strong style="float:right"><%= item.location || '—' %></strong></div>
+          <div><span style="color:var(--text-3)">Nhà cung cấp:</span><strong style="float:right"><%= item.supplier || '—' %></strong></div>
+        </div>
+        <% if (item.description) { %>
+        <div class="divider"></div>
+        <div style="font-size:12px;color:var(--text-3)"><%= item.description %></div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Assignment Modal -->
+<div class="modal-overlay" id="assignModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <span class="modal-title">Gán / Xuất vật tư</span>
+      <button class="modal-close" onclick="document.getElementById('assignModal').classList.remove('open')"><i class="fas fa-times"></i></button>
+    </div>
+    <form action="/warehouse/assignments" method="POST">
+      <input type="hidden" name="item_id" value="<%= item.id %>">
+      <div class="modal-body">
+        <div style="padding:10px;background:var(--bg);border-radius:8px;margin-bottom:16px;border:1px solid var(--border)">
+          <div style="font-weight:600"><%= item.name %></div>
+          <div style="font-size:12px;color:var(--text-3)">Tồn kho: <%= item.quantity %> <%= item.unit %></div>
+        </div>
+        <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <button type="button" id="detailTogglePersonal" onclick="detailSetType('personal')" style="flex:1;padding:8px;border:none;cursor:pointer;font-size:13px;background:var(--primary);color:#fff">
+            <i class="fas fa-user"></i> Gán cá nhân
+          </button>
+          <button type="button" id="detailToggleProject" onclick="detailSetType('project')" style="flex:1;padding:8px;border:none;cursor:pointer;font-size:13px;background:var(--card);color:var(--text)">
+            <i class="fas fa-project-diagram"></i> Xuất dự án
+          </button>
+        </div>
+        <input type="hidden" name="assignment_type" id="detailAssignmentType" value="personal">
+        <div id="detailSectionPersonal">
+          <div class="form-group">
+            <label class="form-label">Người nhận</label>
+            <select name="assigned_to_user" class="form-control">
+              <option value="">— Chọn người —</option>
+              <% users.forEach(u => { %>
+              <option value="<%= u.id %>"><%= u.full_name %></option>
+              <% }) %>
+            </select>
+          </div>
+        </div>
+        <div id="detailSectionProject" style="display:none">
+          <div class="form-group">
+            <label class="form-label">Dự án</label>
+            <select name="assigned_to_project" class="form-control">
+              <option value="">— Chọn dự án —</option>
+              <% projects.forEach(p => { %>
+              <option value="<%= p.id %>"><%= p.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Người nhận tại dự án</label>
+            <select name="assigned_to_user" class="form-control">
+              <option value="">— Chọn người —</option>
+              <% users.forEach(u => { %>
+              <option value="<%= u.id %>"><%= u.full_name %></option>
+              <% }) %>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Số lượng</label>
+          <input type="number" name="quantity" class="form-control" min="1" step="0.01" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ghi chú</label>
+          <textarea name="notes" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('assignModal').classList.remove('open')">Hủy</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Xác nhận</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function detailSetType(type) {
+  document.getElementById('detailAssignmentType').value = type;
+  document.getElementById('detailSectionPersonal').style.display = type==='personal' ? '' : 'none';
+  document.getElementById('detailSectionProject').style.display = type==='project' ? '' : 'none';
+  document.getElementById('detailTogglePersonal').style.background = type==='personal' ? 'var(--primary)' : 'var(--card)';
+  document.getElementById('detailTogglePersonal').style.color = type==='personal' ? '#fff' : 'var(--text)';
+  document.getElementById('detailToggleProject').style.background = type==='project' ? 'var(--primary)' : 'var(--card)';
+  document.getElementById('detailToggleProject').style.color = type==='project' ? '#fff' : 'var(--text)';
+}
+
+const canvas = document.getElementById('sigCanvas');
+if (canvas) {
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  canvas.addEventListener('mousedown', e => { drawing=true; ctx.beginPath(); ctx.moveTo(e.offsetX,e.offsetY); });
+  canvas.addEventListener('mousemove', e => { if(!drawing) return; ctx.lineTo(e.offsetX,e.offsetY); ctx.stroke(); });
+  canvas.addEventListener('mouseup', () => drawing=false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const t=e.touches[0]; const r=canvas.getBoundingClientRect(); ctx.beginPath(); ctx.moveTo(t.clientX-r.left,t.clientY-r.top); }, {passive:false});
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing) return; const t=e.touches[0]; const r=canvas.getBoundingClientRect(); ctx.lineTo(t.clientX-r.left,t.clientY-r.top); ctx.stroke(); }, {passive:false});
+  canvas.addEventListener('touchend', () => drawing=false);
+}
+
+function clearSig() { const c=document.getElementById('sigCanvas'); if(c) c.getContext('2d').clearRect(0,0,c.width,c.height); }
+
+async function saveSig(assignId) {
+  if (!assignId) return;
+  const canvas = document.getElementById('sigCanvas');
+  const data = canvas.toDataURL('image/png');
+  const r = await fetch('/warehouse/assignments/'+assignId+'/sign', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({signature_data:data})
+  });
+  if ((await r.json()).success) { location.reload(); }
+}
+</script>

@@ -1,0 +1,136 @@
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-logo-wrap">
+      <div class="brand-icon" style="background:transparent;padding:2px">
+        <img src="/images/logo.png" alt="RIAE" style="width:34px;height:34px;object-fit:contain;border-radius:4px">
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">RIAE</span>
+        <span class="brand-sub">Management</span>
+      </div>
+    </div>
+    <button class="sidebar-close-btn" id="sidebarCloseBtn"><i class="fas fa-times"></i></button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-group">
+      <span class="nav-group-label">TỔNG QUAN</span>
+      <a href="/dashboard" class="nav-link <%= path === '/dashboard' ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-th-large"></i></span>
+        <span class="nav-text">Dashboard</span>
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <span class="nav-group-label">QUẢN LÝ</span>
+      <a href="/projects" class="nav-link <%= path.startsWith('/projects') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-folder-open"></i></span>
+        <span class="nav-text">Dự án</span>
+      </a>
+      <a href="/announcements" class="nav-link <%= path.startsWith('/announcements') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-bell"></i></span>
+        <span class="nav-text">Thông báo</span>
+        <% if (locals.unreadAnnouncements > 0) { %>
+        <span class="nav-badge"><%= unreadAnnouncements %></span>
+        <% } %>
+      </a>
+      <a href="/partners" class="nav-link <%= path.startsWith('/partners') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-handshake"></i></span>
+        <span class="nav-text">Đối tác</span>
+      </a>
+      <a href="/quotes" class="nav-link <%= path.startsWith('/quotes') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-file-invoice-dollar"></i></span>
+        <span class="nav-text">Báo giá</span>
+      </a>
+      <a href="/chat" class="nav-link <%= path.startsWith('/chat') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-comments"></i></span>
+        <span class="nav-text">Chat</span>
+        <% if (locals.unreadChats > 0) { %>
+        <span class="nav-badge"><%= unreadChats %></span>
+        <% } %>
+      </a>
+      <a href="/attendance" class="nav-link <%= path.startsWith('/attendance') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-calendar-check"></i></span>
+        <span class="nav-text">Chấm công</span>
+      </a>
+      <% if (['admin','director','hr'].includes(locals.userRole)) { %>
+      <a href="/attendance/payroll" class="nav-link <%= path.startsWith('/attendance/payroll') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-file-invoice-dollar"></i></span>
+        <span class="nav-text">Bảng lương</span>
+      </a>
+      <% } %>
+      <a href="/requests" class="nav-link <%= path.startsWith('/requests') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-tasks"></i></span>
+        <span class="nav-text">Phê duyệt</span>
+      </a>
+      <% if (['admin','director','pm','warehouse'].includes(locals.userRole)) { %>
+      <a href="/hr" class="nav-link <%= path.startsWith('/hr') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-users"></i></span>
+        <span class="nav-text">Nhân sự</span>
+      </a>
+      <a href="/warehouse" class="nav-link <%= path === '/warehouse' ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-boxes"></i></span>
+        <span class="nav-text">Kho bãi</span>
+      </a>
+      <a href="/warehouse/assignments" class="nav-link <%= path.startsWith('/warehouse/assignments') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
+        <span class="nav-text">Phiếu giao kho</span>
+      </a>
+      <% } %>
+    </div>
+
+    <% if (['admin','director','hr'].includes(locals.userRole)) { %>
+    <div class="nav-group">
+      <span class="nav-group-label">NHÂN SỰ & LƯƠNG</span>
+      <a href="/payroll-settings" class="nav-link <%= path.startsWith('/payroll-settings') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-sliders-h"></i></span>
+        <span class="nav-text">Cấu hình Lương</span>
+      </a>
+    </div>
+    <% } %>
+    <% if (locals.userRole === 'admin') { %>
+    <div class="nav-group">
+      <span class="nav-group-label">HỆ THỐNG</span>
+      <a href="/admin" class="nav-link <%= path === '/admin' ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-cog"></i></span>
+        <span class="nav-text">Quản trị</span>
+      </a>
+      <a href="/admin/audit" class="nav-link <%= path.startsWith('/admin/audit') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-history"></i></span>
+        <span class="nav-text">Nhật ký</span>
+      </a>
+    </div>
+    <% } %>
+  </nav>
+
+  <div class="sidebar-user-panel">
+    <a href="/auth/profile" class="sidebar-avatar-link" title="Hồ sơ cá nhân">
+      <div class="sidebar-avatar-ring">
+        <% if (locals.currentUser && currentUser.avatar_url) { %>
+          <img src="<%= currentUser.avatar_url %>" alt="<%= currentUser.full_name %>">
+        <% } else { %>
+          <span><%= locals.currentUser ? currentUser.full_name.charAt(0).toUpperCase() : 'U' %></span>
+        <% } %>
+      </div>
+    </a>
+    <div class="sidebar-user-info">
+      <a href="/auth/profile" class="sidebar-user-name"><%= locals.currentUser ? currentUser.full_name : '' %></a>
+      <span class="sidebar-user-title">
+        <% if (locals.currentUser) { %>
+          <% const roleLabels = { admin:'Quản trị viên', director:'Giám đốc', pm:'Quản lý dự án', engineer:'Kỹ sư', warehouse:'Kho bãi', guest:'Khách' }; %>
+          <%= roleLabels[currentUser.role] || currentUser.role %>
+          <% if (currentUser.position) { %> · <%= currentUser.position %><% } %>
+        <% } %>
+      </span>
+    </div>
+    <div class="sidebar-user-actions">
+      <% if (locals.userRole === 'admin') { %>
+      <a href="/admin" class="sidebar-action-btn" title="Quản trị"><i class="fas fa-cog"></i></a>
+      <% } else { %>
+      <a href="/auth/profile" class="sidebar-action-btn" title="Cài đặt"><i class="fas fa-cog"></i></a>
+      <% } %>
+      <a href="/auth/logout" class="sidebar-action-btn sidebar-logout-btn" title="Đăng xuất"><i class="fas fa-sign-out-alt"></i></a>
+    </div>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>

@@ -1,0 +1,68 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h2><i class="fas fa-chart-gantt text-primary" style="margin-right:8px"></i>Gantt Chart</h2>
+    <p><a href="/projects/<%= project.id %>"><%= project.name %></a></p>
+  </div>
+  <div class="page-header-actions">
+    <a href="/projects/<%= project.id %>/kanban" class="btn btn-outline"><i class="fas fa-columns"></i> Kanban</a>
+    <a href="/projects/<%= project.id %>" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Dự án</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <% if (tasks.length === 0) { %>
+    <div class="empty-state" style="padding:48px">
+      <div class="empty-state-icon"><i class="fas fa-chart-gantt"></i></div>
+      <h3>Chưa có task nào</h3>
+      <p>Thêm task với ngày bắt đầu/kết thúc để hiển thị Gantt</p>
+      <a href="/projects/<%= project.id %>/kanban" class="btn btn-primary" style="margin-top:16px">Thêm Task</a>
+    </div>
+    <% } else { %>
+    <%
+      const allDates = tasks.flatMap(t => [t.start_date, t.due_date, t.created_at].filter(Boolean).map(d => new Date(d)));
+      const minDate = allDates.length ? new Date(Math.min(...allDates)) : new Date(project.start_date || Date.now());
+      const maxDate = allDates.length ? new Date(Math.max(...allDates)) : new Date(project.end_date || Date.now());
+      const totalDays = Math.max(1, Math.ceil((maxDate - minDate) / 86400000)) + 7;
+    %>
+    <div class="gantt-container" style="padding:16px">
+      <div class="gantt-table">
+        <!-- Header -->
+        <div class="gantt-header">
+          <div class="gantt-label-col">Task</div>
+          <div class="gantt-timeline" style="position:relative;height:30px">
+            <% for (let i = 0; i <= totalDays; i += 7) {
+               const d = new Date(minDate); d.setDate(d.getDate() + i);
+               const left = (i / totalDays * 100).toFixed(1);
+            %>
+            <span style="position:absolute;left:<%= left %>%;font-size:10px;color:var(--text-3);white-space:nowrap;transform:translateX(-50%)">
+              <%= d.toLocaleDateString('vi-VN', {month:'short',day:'numeric'}) %>
+            </span>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Rows -->
+        <% tasks.forEach(task => {
+          const startD = task.start_date ? new Date(task.start_date) : new Date(task.created_at);
+          const endD = task.due_date ? new Date(task.due_date) : startD;
+          const left = Math.max(0, (startD - minDate) / (totalDays * 86400000) * 100);
+          const width = Math.max(1, (endD - startD + 86400000) / (totalDays * 86400000) * 100);
+        %>
+        <div class="gantt-row">
+          <div class="gantt-row-label">
+            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px"><%= task.title %></div>
+            <div style="font-size:11px;color:var(--text-3)"><%= task.assignee_name || '—' %></div>
+          </div>
+          <div class="gantt-row-bar">
+            <div class="gantt-bar <%= task.status %>" style="left:<%= left.toFixed(1) %>%;width:<%= Math.min(width, 100 - left).toFixed(1) %>%">
+              <span style="overflow:hidden;text-overflow:ellipsis"><%= task.title %></span>
+            </div>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+  </div>
+</div>

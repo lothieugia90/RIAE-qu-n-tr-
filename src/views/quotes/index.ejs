@@ -1,0 +1,47 @@
+<div class="page-header">
+  <div class="page-header-title"><h2>Bộ Báo giá</h2><p><%= quotes.length %> báo giá</p></div>
+  <div class="page-header-actions">
+    <% if (['admin','director','pm'].includes(locals.userRole)) { %>
+    <a href="/quotes/create" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo báo giá</a>
+    <% } %>
+  </div>
+</div>
+
+<form method="GET" class="filter-bar">
+  <input type="text" name="search" class="form-control" placeholder="Tìm mã, tiêu đề, khách hàng..." value="<%= filters.search||'' %>" style="flex:1;max-width:280px">
+  <select name="status" class="form-control">
+    <option value="">Tất cả trạng thái</option>
+    <option value="draft" <%= filters.status==='draft'?'selected':'' %>>Nháp</option>
+    <option value="sent" <%= filters.status==='sent'?'selected':'' %>>Đã gửi</option>
+    <option value="approved" <%= filters.status==='approved'?'selected':'' %>>Đã duyệt</option>
+    <option value="rejected" <%= filters.status==='rejected'?'selected':'' %>>Từ chối</option>
+  </select>
+  <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+  <a href="/quotes" class="btn btn-outline">Reset</a>
+</form>
+
+<% if (quotes.length === 0) { %>
+<div class="card"><div class="empty-state"><div class="empty-state-icon"><i class="fas fa-file-invoice-dollar"></i></div><h3>Chưa có báo giá nào</h3></div></div>
+<% } else { %>
+<div class="card">
+  <div class="table-wrap" style="border:none">
+    <table>
+      <thead><tr><th>Mã BG</th><th>Tiêu đề</th><th>Khách hàng</th><th>Dự án</th><th>Tổng tiền</th><th>Trạng thái</th><th>Ngày tạo</th><th></th></tr></thead>
+      <tbody>
+      <% quotes.forEach(q => { %>
+      <tr>
+        <td style="font-size:11px;font-weight:700;color:var(--text-3)"><%= q.code %></td>
+        <td><a href="/quotes/<%= q.id %>" style="font-weight:500"><%= q.title %></a></td>
+        <td style="font-size:13px"><%= q.client_name || '—' %></td>
+        <td style="font-size:12px"><%= q.project_name || '—' %></td>
+        <td style="font-weight:600;color:var(--primary)"><%= q.total_amount ? Number(q.total_amount).toLocaleString('vi-VN') + ' đ' : '—' %></td>
+        <td><span class="badge" style="background:<%= q.status==='approved'?'var(--success-bg)':q.status==='rejected'?'var(--danger-bg)':q.status==='sent'?'var(--info-bg)':'var(--border)' %>;color:<%= q.status==='approved'?'var(--success)':q.status==='rejected'?'var(--danger)':q.status==='sent'?'var(--info)':'var(--text-3)' %>"><%= q.status==='draft'?'Nháp':q.status==='sent'?'Đã gửi':q.status==='approved'?'Đã duyệt':'Từ chối' %></span></td>
+        <td style="font-size:12px;color:var(--text-3)"><%= new Date(q.created_at).toLocaleDateString('vi-VN') %></td>
+        <td><a href="/quotes/<%= q.id %>" class="btn btn-sm btn-outline"><i class="fas fa-eye"></i></a></td>
+      </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>

@@ -1,0 +1,142 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h2>Bảng tin công ty</h2>
+    <p><% if (unreadCount > 0) { %><span style="color:var(--danger);font-weight:600"><%= unreadCount %> thông báo chưa đọc</span><% } else { %>Tất cả đã đọc<% } %></p>
+  </div>
+  <div class="page-header-actions">
+    <% if (['admin','director','pm'].includes(locals.userRole)) { %>
+    <a href="/announcements/create" class="btn btn-primary"><i class="fas fa-plus"></i> Đăng thông báo</a>
+    <% } %>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<div class="ann-filter-bar">
+  <% const types = [{v:'',l:'Tất cả loại',icon:'layer-group'},{v:'general',l:'Chung',icon:'bullhorn'},{v:'urgent',l:'Khẩn cấp',icon:'exclamation-circle'},{v:'decision',l:'Quyết định',icon:'gavel'},{v:'policy',l:'Chính sách',icon:'file-contract'},{v:'event',l:'Sự kiện',icon:'calendar-alt'}] %>
+  <% types.forEach(t => { %>
+  <a href="/announcements<%= t.v ? '?type='+t.v : '' %>"
+     class="ann-filter-chip <%= (!filters.type && !t.v) || filters.type===t.v ? 'active' : '' %>">
+    <i class="fas fa-<%= t.icon %>"></i> <%= t.l %>
+  </a>
+  <% }) %>
+</div>
+
+<% if (announcements.length === 0) { %>
+<div class="card" style="margin-top:16px">
+  <div class="empty-state" style="padding:60px 20px">
+    <div class="empty-state-icon"><i class="fas fa-bell" style="font-size:40px;color:var(--border)"></i></div>
+    <h3 style="color:var(--text-2);margin:16px 0 8px">Không có thông báo nào</h3>
+    <p style="color:var(--text-3)">Chưa có thông báo nào được đăng trong mục này</p>
+  </div>
+</div>
+<% } else { %>
+<div class="ann-feed">
+<% announcements.forEach(a => { %>
+<article class="ann-feed-card <%= a.is_pinned ? 'ann-pinned' : '' %> <%= !a.is_read ? 'ann-unread' : '' %>"
+  data-id="<%= a.id %>">
+
+  <!-- Type stripe -->
+  <div class="ann-type-stripe ann-stripe-<%= a.type %>"></div>
+
+  <div class="ann-feed-inner">
+    <!-- Header row -->
+    <div class="ann-feed-head">
+      <div class="ann-author">
+        <% if (a.author_avatar) { %>
+          <img src="<%= a.author_avatar %>" class="ann-author-avatar" alt="">
+        <% } else { %>
+          <div class="ann-author-avatar ann-author-initials"><%= (a.author_name||'?').charAt(0).toUpperCase() %></div>
+        <% } %>
+        <div>
+          <span class="ann-author-name"><%= a.author_name %></span>
+          <span class="ann-author-date">
+            <% if (a.is_pinned) { %><i class="fas fa-thumbtack" style="color:var(--warning);margin-right:3px"></i><% } %>
+            <%= new Date(a.published_at || a.created_at).toLocaleDateString('vi-VN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) %>
+          </span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="ann-type-badge ann-badge-<%= a.type %>">
+          <% const typeLabels = {general:'Thông báo',urgent:'Khẩn cấp',decision:'Quyết định',policy:'Chính sách',event:'Sự kiện'} %>
+          <%= typeLabels[a.type] || a.type %>
+        </span>
+        <% if (!a.is_read) { %><span class="ann-unread-dot"></span><% } %>
+      </div>
+    </div>
+
+    <!-- Title + preview -->
+    <a href="/announcements/<%= a.id %>" class="ann-feed-title-link">
+      <h3 class="ann-feed-title"><%= a.title %></h3>
+    </a>
+    <p class="ann-feed-preview"><%= (a.content || '').replace(/<[^>]*>/g,'').substring(0,160) %><%= (a.content||'').length > 160 ? '...' : '' %></p>
+
+    <!-- Footer row -->
+    <div class="ann-feed-foot">
+      <div style="display:flex;align-items:center;gap:14px">
+        <span class="ann-meta-item"><i class="fas fa-eye"></i> <%= a.read_count %> đã đọc</span>
+        <% if (a.file_count > 0) { %>
+        <span class="ann-meta-item"><i class="fas fa-paperclip"></i> <%= a.file_count %> tệp đính kèm</span>
+        <% } %>
+        <% if (a.seen_count > 0) { %>
+        <span class="ann-meta-item"><i class="fas fa-check-double" style="color:var(--success)"></i> <%= a.seen_count %> xác nhận</span>
+        <% } %>
+      </div>
+      <a href="/announcements/<%= a.id %>" class="ann-read-btn">
+        Xem chi tiết <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+
+    <% if (a.expires_at) { %>
+    <div class="ann-expires"><i class="fas fa-hourglass-end"></i> Hết hạn: <%= new Date(a.expires_at).toLocaleDateString('vi-VN') %></div>
+    <% } %>
+  </div>
+</article>
+<% }) %>
+</div>
+<% } %>
+
+<style>
+.ann-filter-bar { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px }
+.ann-filter-chip { display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;font-size:13px;font-weight:500;color:var(--text-2);background:var(--card);border:1.5px solid var(--border);text-decoration:none;transition:var(--transition) }
+.ann-filter-chip:hover,.ann-filter-chip.active { background:var(--primary);color:#fff;border-color:var(--primary) }
+
+.ann-feed { display:grid;gap:16px }
+.ann-feed-card { background:var(--card);border-radius:var(--radius);border:1.5px solid var(--border);display:flex;overflow:hidden;transition:var(--transition);position:relative }
+.ann-feed-card:hover { border-color:var(--primary-50);box-shadow:0 4px 20px rgba(21,101,192,.1);transform:translateY(-1px) }
+.ann-feed-card.ann-pinned { border-color:var(--warning);background:linear-gradient(135deg,var(--card) 0%,#fffbf0 100%) }
+.ann-feed-card.ann-unread { border-left-color:var(--primary) }
+
+.ann-type-stripe { width:4px;flex-shrink:0 }
+.ann-stripe-urgent { background:var(--danger) }
+.ann-stripe-decision { background:#7c3aed }
+.ann-stripe-policy { background:#0891b2 }
+.ann-stripe-event { background:var(--success) }
+.ann-stripe-general { background:var(--primary) }
+
+.ann-feed-inner { flex:1;padding:18px 20px;min-width:0 }
+.ann-feed-head { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:10px;flex-wrap:wrap }
+.ann-author { display:flex;align-items:center;gap:10px }
+.ann-author-avatar { width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0 }
+.ann-author-initials { background:var(--primary-50);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px }
+.ann-author-name { font-size:13.5px;font-weight:600;color:var(--text);display:block }
+.ann-author-date { font-size:11.5px;color:var(--text-3) }
+
+.ann-type-badge { padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600 }
+.ann-badge-urgent { background:#fee2e2;color:#dc2626 }
+.ann-badge-decision { background:#ede9fe;color:#7c3aed }
+.ann-badge-policy { background:#e0f2fe;color:#0891b2 }
+.ann-badge-event { background:#dcfce7;color:#16a34a }
+.ann-badge-general { background:var(--primary-50);color:var(--primary) }
+.ann-unread-dot { width:9px;height:9px;border-radius:50%;background:var(--danger);display:inline-block;flex-shrink:0;animation:pulse 1.5s infinite }
+
+.ann-feed-title-link { text-decoration:none }
+.ann-feed-title { font-size:16px;font-weight:700;color:var(--text);margin:0 0 8px;line-height:1.4 }
+.ann-feed-title-link:hover .ann-feed-title { color:var(--primary) }
+.ann-feed-preview { font-size:13.5px;color:var(--text-2);line-height:1.65;margin:0 0 14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden }
+
+.ann-feed-foot { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px }
+.ann-meta-item { font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:4px }
+.ann-read-btn { font-size:13px;font-weight:600;color:var(--primary);text-decoration:none;display:flex;align-items:center;gap:5px;transition:var(--transition) }
+.ann-read-btn:hover { gap:8px }
+.ann-expires { margin-top:10px;padding:6px 10px;background:var(--warning-bg);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);display:inline-flex;align-items:center;gap:5px }
+</style>

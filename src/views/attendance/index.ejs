@@ -1,0 +1,625 @@
+<%
+// Status config: code → { label, short, color, bg, icon }
+const STATUS_CFG = {
+  present:      { label:'Có mặt',       short:'P', color:'#16a34a', bg:'#dcfce7', icon:'check' },
+  late:         { label:'Đi muộn',      short:'M', color:'#d97706', bg:'#fef3c7', icon:'clock' },
+  annual_leave: { label:'Nghỉ phép',    short:'N', color:'#2563eb', bg:'#dbeafe', icon:'umbrella-beach' },
+  sick_leave:   { label:'Nghỉ bệnh',    short:'B', color:'#7c3aed', bg:'#ede9fe', icon:'heartbeat' },
+  unpaid_leave: { label:'Nghỉ không lương', short:'K', color:'#ef4444', bg:'#fee2e2', icon:'minus-circle' },
+  holiday:      { label:'Ngày lễ',      short:'L', color:'#64748b', bg:'#f1f5f9', icon:'flag' },
+};
+const monthNames = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+const dowNames   = ['CN','T2','T3','T4','T5','T6','T7'];
+
+// Count stats
+let totalPresent=0, totalLate=0, totalLeave=0;
+users.forEach(u => {
+  if (recordMap[u.id]) {
+    Object.values(recordMap[u.id]).forEach(r => {
+      if (r.status==='present') totalPresent++;
+      else if (r.status==='late') totalLate++;
+      else if (r.status==='annual_leave'||r.status==='sick_leave') totalLeave++;
+    });
+  }
+});
+%>
+
+<!-- ── HEADER ──────────────────────────────────────────────────── -->
+<div class="atd-header">
+  <div>
+    <h1 class="atd-title"><i class="fas fa-calendar-check"></i> Bảng Chấm công</h1>
+    <p class="atd-sub"><%= monthNames[month-1] %> <%= year %> · <%= users.length %> nhân viên</p>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <% if (isHR) { %>
+    <div id="saveStatus" class="atd-save-status atd-save-idle"><i class="fas fa-check-circle"></i> Đã lưu</div>
+    <button class="atd-btn atd-btn-outline" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Xuất Excel</button>
+    <a href="/attendance/payroll?month=<%= month %>&year=<%= year %>" class="atd-btn atd-btn-outline">
+      <i class="fas fa-money-bill-wave"></i> Bảng lương
+    </a>
+    <% } %>
+  </div>
+</div>
+
+<!-- ── FILTER BAR ─────────────────────────────────────────────── -->
+<div class="atd-filters">
+  <form method="GET" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <select name="month" class="atd-select" onchange="this.form.submit()">
+      <% for(let m=1;m<=12;m++){%><option value="<%= m %>" <%= m===month?'selected':'' %>><%= monthNames[m-1] %></option><%}%>
+    </select>
+    <select name="year" class="atd-select" onchange="this.form.submit()">
+      <% for(let y=new Date().getFullYear()-1;y<=new Date().getFullYear()+1;y++){%>
+      <option value="<%= y %>" <%= y===year?'selected':'' %>><%= y %></option>
+      <%}%>
+    </select>
+    <% if (isHR && departments.length > 0) { %>
+    <select name="dept" class="atd-select" onchange="this.form.submit()">
+      <option value="">Tất cả phòng ban</option>
+      <% departments.forEach(d=>{%><option value="<%= d %>" <%= d===dept?'selected':'' %>><%= d %></option><%})%>
+    </select>
+    <% } %>
+    <input type="text" class="atd-select" id="searchEmp" placeholder="🔍 Tìm nhân viên..." oninput="filterEmployees(this.value)" style="min-width:180px">
+  </form>
+
+  <!-- Status legend -->
+  <div class="atd-legend">
+    <% Object.entries(STATUS_CFG).forEach(([k,s])=>{ %>
+    <span class="atd-legend-item"><span class="atd-cell-badge" style="background:<%= s.bg %>;color:<%= s.color %>"><%= s.short %></span> <%= s.label %></span>
+    <% }) %>
+    <span class="atd-legend-item"><span class="atd-cell-badge atd-cell-weekend">☐</span> Cuối tuần/Lễ</span>
+  </div>
+</div>
+
+<!-- ── SUMMARY STRIP ──────────────────────────────────────────── -->
+<div class="atd-summary">
+  <div class="atd-sum-item">
+    <i class="fas fa-user-check" style="color:#16a34a"></i>
+    <span class="atd-sum-val" style="color:#16a34a"><%= totalPresent %></span>
+    <span class="atd-sum-label">Lượt có mặt</span>
+  </div>
+  <div class="atd-sum-item">
+    <i class="fas fa-clock" style="color:#d97706"></i>
+    <span class="atd-sum-val" style="color:#d97706"><%= totalLate %></span>
+    <span class="atd-sum-label">Lượt đi muộn</span>
+  </div>
+  <div class="atd-sum-item">
+    <i class="fas fa-umbrella-beach" style="color:#2563eb"></i>
+    <span class="atd-sum-val" style="color:#2563eb"><%= totalLeave %></span>
+    <span class="atd-sum-label">Lượt nghỉ phép</span>
+  </div>
+  <div class="atd-sum-item">
+    <i class="fas fa-users" style="color:#64748b"></i>
+    <span class="atd-sum-val"><%= users.length %></span>
+    <span class="atd-sum-label">Nhân viên</span>
+  </div>
+</div>
+
+<!-- ── GRID TABLE ─────────────────────────────────────────────── -->
+<div class="atd-grid-wrap">
+  <table class="atd-grid" id="atdGrid">
+    <thead>
+      <!-- Row 1: Day numbers -->
+      <tr class="atd-head-days">
+        <th class="atd-th-fixed atd-th-name" rowspan="2">
+          Nhân viên
+          <% if (isHR) { %><span class="atd-emp-count"><%= users.length %></span><% } %>
+        </th>
+        <% days.forEach(d => { %>
+        <th class="atd-th-day <%= d.isHoliday?'atd-th-off':d.isWeekend?'atd-th-weekend':'' %>"
+            title="<%= d.isHoliday?'Ngày lễ':d.isWeekend?'Cuối tuần':'' %>">
+          <%= d.day %>
+        </th>
+        <% }) %>
+        <th class="atd-th-total">CP</th>
+        <th class="atd-th-total atd-th-late-col">Muộn</th>
+        <th class="atd-th-total atd-th-leave-col">Nghỉ</th>
+        <th class="atd-th-total atd-th-ot-col">OT(h)</th>
+      </tr>
+      <!-- Row 2: Day-of-week -->
+      <tr class="atd-head-dow">
+        <% days.forEach(d => { %>
+        <th class="atd-th-dow <%= d.isSunday?'atd-th-sunday':d.isWeekend?'atd-th-weekend':d.isHoliday?'atd-th-off':'' %>">
+          <%= dowNames[d.dow] %>
+        </th>
+        <% }) %>
+        <th colspan="4"></th>
+      </tr>
+    </thead>
+    <tbody id="atdBody">
+    <%
+    users.forEach((u, ui) => {
+      const uRec = recordMap[u.id] || {};
+      let pCount=0, lCount=0, leaveCount=0, otTotal=0;
+      days.forEach(d => {
+        const r = uRec[d.day];
+        if (!r) return;
+        if (r.status==='present') pCount++;
+        else if (r.status==='late') { pCount++; lCount++; }
+        else if (r.status==='annual_leave'||r.status==='sick_leave') leaveCount++;
+        otTotal += parseFloat(r.overtime_hours)||0;
+      });
+    %>
+    <tr class="atd-row" data-uid="<%= u.id %>" data-name="<%= u.full_name.toLowerCase() %>">
+      <td class="atd-td-fixed atd-td-name">
+        <div class="atd-emp-cell">
+          <div class="atd-emp-av" style="background:<%= ['#dbeafe','#dcfce7','#fef3c7','#ede9fe','#fee2e2'][ui%5] %>">
+            <%= u.full_name.charAt(0).toUpperCase() %>
+          </div>
+          <div>
+            <div class="atd-emp-name"><%= u.full_name %></div>
+            <div class="atd-emp-dept"><%= u.department||u.position||u.role %></div>
+          </div>
+        </div>
+      </td>
+      <% days.forEach(d => {
+        const dateStr = year + '-' + String(month).padStart(2,'0') + '-' + String(d.day).padStart(2,'0');
+        const r = uRec[d.day];
+        const st = r ? r.status : '';
+        const cfg = STATUS_CFG[st] || null;
+        const isHolidayDay = d.isHoliday;
+        const isWeekendDay = d.isWeekend;
+      %>
+      <td class="atd-td-cell <%= isHolidayDay?'atd-td-off':isWeekendDay?'atd-td-weekend':'' %>"
+          data-uid="<%= u.id %>" data-date="<%= dateStr %>" data-status="<%= st %>">
+        <% if (isHolidayDay) { %>
+          <span class="atd-cell-off">L</span>
+        <% } else if (isHR) { %>
+          <div class="atd-cell-btn <%= cfg?'atd-cell-set':'' %>"
+               style="<%= cfg?`background:${cfg.bg};color:${cfg.color};`:'' %>"
+               onclick="openCellMenu(this,'<%= u.id %>','<%= dateStr %>','<%= st %>')"
+               title="<%= cfg?cfg.label:(isWeekendDay?'Cuối tuần - click để chấm':'Chưa chấm') %>">
+            <%= cfg ? cfg.short : '☐' %>
+          </div>
+        <% } else { %>
+          <% if (cfg) { %>
+          <span class="atd-cell-badge" style="background:<%= cfg.bg %>;color:<%= cfg.color %>"><%= cfg.short %></span>
+          <% } else { %><span style="color:#d1d5db;font-size:11px">—</span><% } %>
+        <% } %>
+      </td>
+      <% }) %>
+      <td class="atd-td-total atd-td-present" id="p-<%= u.id %>"><%= pCount %></td>
+      <td class="atd-td-total atd-td-late"    id="l-<%= u.id %>"><%= lCount %></td>
+      <td class="atd-td-total atd-td-leave"   id="lv-<%= u.id %>"><%= leaveCount %></td>
+      <td class="atd-td-total atd-td-ot"      id="ot-<%= u.id %>"><%= otTotal > 0 ? otTotal.toFixed(1) : '—' %></td>
+    </tr>
+    <!-- OT ROW -->
+    <tr class="atd-ot-row" data-uid="<%= u.id %>">
+      <td class="atd-td-fixed atd-ot-label">
+        <div style="display:flex;align-items:center;gap:5px;padding-left:36px">
+          <i class="fas fa-moon" style="color:#7c3aed;font-size:9px"></i>
+          <span>Tăng ca (giờ)</span>
+        </div>
+      </td>
+      <% days.forEach(d => {
+        const dateStr = year + '-' + String(month).padStart(2,'0') + '-' + String(d.day).padStart(2,'0');
+        const r = uRec[d.day];
+        const ot = r ? (parseFloat(r.overtime_hours)||0) : 0;
+        const isHolidayDay = d.isHoliday;
+      %>
+      <td class="atd-ot-cell <%= d.isWeekend?'atd-ot-weekend':'' %> <%= isHolidayDay?'atd-td-off':'' %>">
+        <% if (isHolidayDay) { %>
+          <span style="color:#d1d5db;font-size:10px">—</span>
+        <% } else if (isHR) { %>
+          <input type="number" class="atd-ot-input" min="0" max="12" step="0.5"
+            value="<%= ot > 0 ? ot : '' %>"
+            placeholder="0"
+            data-uid="<%= u.id %>" data-date="<%= dateStr %>"
+            onchange="saveOT(this)" oninput="setSaveStatus('pending')"
+            title="Giờ tăng ca ngày <%= d.day %>/<%= month %>"
+            style="<%= ot > 0 ? 'color:#7c3aed;font-weight:700;background:#faf5ff;' : '' %>">
+        <% } else { %>
+          <span style="font-size:11px;color:<%= ot>0?'#7c3aed':'#d1d5db' %>"><%= ot > 0 ? ot : '—' %></span>
+        <% } %>
+      </td>
+      <% }) %>
+      <td class="atd-td-total" colspan="3" style="font-size:11px;color:var(--text-3);text-align:right;padding-right:6px">Tổng OT:</td>
+      <td class="atd-td-total atd-td-ot" id="ot-<%= u.id %>"><%= otTotal > 0 ? otTotal.toFixed(1) : '—' %></td>
+    </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── CELL CONTEXT MENU ─────────────────────────────────────── -->
+<div id="cellMenu" class="atd-cell-menu" style="display:none">
+  <div class="atd-menu-head">
+    <span id="cellMenuDate" style="font-size:11px;color:var(--text-3)"></span>
+    <span id="cellMenuName" style="font-size:12px;font-weight:700;color:var(--text)"></span>
+  </div>
+  <div class="atd-menu-options">
+    <button class="atd-menu-opt atd-menu-clear" onclick="applyStatus('')">
+      <span class="atd-menu-code">☐</span> Xóa / Chưa chấm
+    </button>
+    <button class="atd-menu-opt" onclick="applyStatus('present')" style="--c:#16a34a;--bg:#dcfce7">
+      <span class="atd-menu-code" style="background:#dcfce7;color:#16a34a">P</span> Có mặt
+    </button>
+    <button class="atd-menu-opt" onclick="applyStatus('late')" style="--c:#d97706;--bg:#fef3c7">
+      <span class="atd-menu-code" style="background:#fef3c7;color:#d97706">M</span> Đi muộn
+    </button>
+    <button class="atd-menu-opt" onclick="applyStatus('annual_leave')" style="--c:#2563eb;--bg:#dbeafe">
+      <span class="atd-menu-code" style="background:#dbeafe;color:#2563eb">N</span> Nghỉ phép
+    </button>
+    <button class="atd-menu-opt" onclick="applyStatus('sick_leave')" style="--c:#7c3aed;--bg:#ede9fe">
+      <span class="atd-menu-code" style="background:#ede9fe;color:#7c3aed">B</span> Nghỉ bệnh
+    </button>
+    <button class="atd-menu-opt" onclick="applyStatus('unpaid_leave')" style="--c:#ef4444;--bg:#fee2e2">
+      <span class="atd-menu-code" style="background:#fee2e2;color:#ef4444">K</span> Nghỉ không lương
+    </button>
+  </div>
+</div>
+<div id="cellMenuOverlay" style="display:none;position:fixed;inset:0;z-index:999" onclick="closeMenu()"></div>
+
+<!-- ── NOTE TOOLTIP ──────────────────────────────────────────── -->
+<div id="cellTooltip" class="atd-tooltip" style="display:none"></div>
+
+<style>
+/* ── BASE ─────────────────────────────────────────────────────── */
+.atd-header  { display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px;flex-wrap:wrap }
+.atd-title   { font-size:22px;font-weight:800;color:var(--text);margin:0 0 3px;display:flex;align-items:center;gap:10px }
+.atd-title i { color:var(--primary) }
+.atd-sub     { font-size:13px;color:var(--text-3);margin:0 }
+
+/* ── BUTTONS ─────────────────────────────────────────────────── */
+.atd-btn { display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius-sm);font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:none;border:1.5px solid transparent;transition:var(--transition) }
+.atd-btn-outline { background:transparent;color:var(--text-2);border-color:var(--border) }
+.atd-btn-outline:hover { border-color:var(--primary);color:var(--primary) }
+
+/* ── SAVE STATUS INDICATOR ───────────────────────────────────── */
+.atd-save-status { display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;transition:all .3s }
+.atd-save-idle    { background:#dcfce7;color:#16a34a }
+.atd-save-pending { background:#fef3c7;color:#d97706 }
+.atd-save-saving  { background:#dbeafe;color:#2563eb }
+.atd-save-error   { background:#fee2e2;color:#dc2626 }
+
+/* ── FILTER BAR ──────────────────────────────────────────────── */
+.atd-filters { display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;flex-wrap:wrap }
+.atd-select { padding:6px 10px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--card);font-size:13px;color:var(--text);outline:none }
+.atd-select:focus { border-color:var(--primary) }
+
+/* ── LEGEND ──────────────────────────────────────────────────── */
+.atd-legend { display:flex;gap:8px;flex-wrap:wrap;align-items:center }
+.atd-legend-item { display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--text-2) }
+.atd-cell-weekend { background:#f1f5f9;color:#94a3b8 }
+
+/* ── SUMMARY ─────────────────────────────────────────────────── */
+.atd-summary { display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap }
+.atd-sum-item { display:flex;align-items:center;gap:8px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;box-shadow:var(--shadow) }
+.atd-sum-val { font-size:18px;font-weight:800;color:var(--text) }
+.atd-sum-label { font-size:11.5px;color:var(--text-3) }
+
+/* ── GRID WRAPPER ────────────────────────────────────────────── */
+.atd-grid-wrap { overflow-x:auto;border-radius:var(--radius);border:1.5px solid var(--border);box-shadow:var(--shadow);background:var(--card) }
+.atd-grid { border-collapse:collapse;font-size:12px;min-width:max-content;width:100% }
+
+/* ── HEADER ROWS ─────────────────────────────────────────────── */
+.atd-head-days th,
+.atd-head-dow  th { background:#f8fafc;border-bottom:1.5px solid var(--border);white-space:nowrap }
+.atd-th-fixed { position:sticky;left:0;z-index:3;background:#f8fafc!important }
+.atd-th-name  { width:200px;min-width:200px;padding:10px 14px;font-size:11px;font-weight:700;text-align:left;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3) }
+.atd-emp-count { margin-left:6px;background:var(--primary-50);color:var(--primary);padding:1px 6px;border-radius:20px;font-size:10px;font-weight:700 }
+.atd-th-day   { width:32px;min-width:32px;padding:6px 2px;text-align:center;font-size:12px;font-weight:700;color:var(--text) }
+.atd-th-off   { background:#f1f5f9!important;color:#94a3b8!important }
+.atd-th-dow   { width:32px;padding:3px 2px;text-align:center;font-size:10px;font-weight:500;color:var(--text-3);border-bottom:2px solid var(--border) }
+.atd-th-sunday { color:#ef4444!important;font-weight:700 }
+.atd-th-total { width:48px;min-width:48px;padding:6px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--text-3);background:#f8fafc;border-left:2px solid var(--border) }
+
+/* ── BODY ROWS ───────────────────────────────────────────────── */
+.atd-row { border-bottom:1px solid var(--border);transition:background .1s }
+.atd-row:last-child { border-bottom:none }
+.atd-row:hover .atd-td-name { background:#f8fafc }
+.atd-row.atd-hidden { display:none }
+
+/* ── NAME CELL ───────────────────────────────────────────────── */
+.atd-td-fixed { position:sticky;left:0;z-index:2;background:var(--card) }
+.atd-td-name  { padding:6px 10px;border-right:2px solid var(--border);min-width:200px;transition:background .1s }
+.atd-emp-cell { display:flex;align-items:center;gap:8px }
+.atd-emp-av   { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#374151;flex-shrink:0 }
+.atd-emp-name { font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap }
+.atd-emp-dept { font-size:10.5px;color:var(--text-3) }
+
+/* ── DATA CELLS ──────────────────────────────────────────────── */
+.atd-td-cell { width:32px;padding:2px;text-align:center;vertical-align:middle;border-right:1px solid var(--border) }
+.atd-td-off  { background:#f8f9fa;border-right:1px solid #e5e7eb }
+.atd-cell-off { font-size:11px;color:#cbd5e1;display:block;text-align:center }
+.atd-cell-badge { display:inline-block;width:22px;height:22px;border-radius:5px;font-size:11px;font-weight:800;line-height:22px;text-align:center }
+
+/* Clickable cell button for HR */
+.atd-cell-btn { width:26px;height:26px;border-radius:5px;font-size:11.5px;font-weight:800;line-height:26px;text-align:center;cursor:pointer;background:transparent;color:#cbd5e1;border:1.5px dashed #e2e8f0;transition:all .15s;margin:auto;user-select:none }
+.atd-cell-btn:hover { border-color:var(--primary);color:var(--primary);background:var(--primary-50) }
+.atd-cell-set { border:1.5px solid transparent!important }
+.atd-cell-btn.atd-cell-saving { opacity:.5;pointer-events:none }
+.atd-cell-btn.atd-cell-just-saved { animation:cellSaved .6s ease }
+@keyframes cellSaved { 0%{transform:scale(1.2)} 100%{transform:scale(1)} }
+
+/* ── WEEKEND (clickable, tinted) ───────────────────────────── */
+.atd-th-weekend  { background:#fdf4ff!important;color:#7c3aed!important }
+.atd-td-weekend  { background:#fdf4ff!important }
+.atd-td-weekend .atd-cell-btn { border-color:#e9d5ff!important;color:#c4b5fd }
+.atd-td-weekend .atd-cell-btn:hover { border-color:#7c3aed!important;color:#7c3aed;background:#ede9fe }
+
+/* ── OT ROW ─────────────────────────────────────────────────── */
+.atd-ot-row { border-bottom:2px solid var(--border) }
+.atd-ot-label { padding:2px 10px;font-size:10.5px;font-weight:600;color:#7c3aed;background:#faf5ff;border-right:2px solid var(--border);white-space:nowrap }
+.atd-ot-cell  { padding:2px;text-align:center;border-right:1px solid var(--border);background:#faf5ff }
+.atd-ot-weekend { background:#f5f0ff!important }
+.atd-ot-input {
+  width:28px;height:22px;border:1.5px solid #e9d5ff;border-radius:4px;
+  font-size:11px;font-weight:600;color:#7c3aed;text-align:center;
+  background:transparent;outline:none;padding:0;
+  -moz-appearance:textfield;
+}
+.atd-ot-input::-webkit-inner-spin-button,
+.atd-ot-input::-webkit-outer-spin-button { -webkit-appearance:none;margin:0 }
+.atd-ot-input:focus { border-color:#7c3aed;background:#ede9fe }
+.atd-ot-input:hover { border-color:#a78bfa }
+.atd-ot-input[value]:not([value=""]) { background:#ede9fe;border-color:#a78bfa }
+
+/* ── TOTAL CELLS ─────────────────────────────────────────────── */
+.atd-td-total  { text-align:center;font-size:12px;font-weight:700;border-left:2px solid var(--border);padding:4px }
+.atd-td-present { color:#16a34a }
+.atd-td-late    { color:#d97706 }
+.atd-td-leave   { color:#2563eb }
+.atd-td-ot      { color:#7c3aed;font-size:11.5px }
+
+/* ── CONTEXT MENU ────────────────────────────────────────────── */
+.atd-cell-menu { position:fixed;z-index:1000;background:var(--card);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);min-width:190px;overflow:hidden;animation:menuIn .15s ease }
+@keyframes menuIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
+.atd-menu-head { padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg) }
+.atd-menu-options { padding:4px }
+.atd-menu-opt { display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;border:none;background:transparent;cursor:pointer;border-radius:6px;font-size:13px;color:var(--text);transition:background .1s;text-align:left }
+.atd-menu-opt:hover { background:var(--bg) }
+.atd-menu-clear { color:var(--text-3) }
+.atd-menu-code { width:22px;height:22px;border-radius:4px;font-size:11px;font-weight:800;line-height:22px;text-align:center;flex-shrink:0;background:var(--bg);color:var(--text-3) }
+
+/* ── TOOLTIP ─────────────────────────────────────────────────── */
+.atd-tooltip { position:fixed;z-index:1100;background:#1e293b;color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;pointer-events:none;max-width:200px;white-space:pre-wrap }
+</style>
+
+<script>
+const STATUS_CFG = <%- JSON.stringify(
+  Object.fromEntries(Object.entries({
+    present:      {label:'Có mặt',       short:'P', color:'#16a34a', bg:'#dcfce7'},
+    late:         {label:'Đi muộn',      short:'M', color:'#d97706', bg:'#fef3c7'},
+    annual_leave: {label:'Nghỉ phép',    short:'N', color:'#2563eb', bg:'#dbeafe'},
+    sick_leave:   {label:'Nghỉ bệnh',    short:'B', color:'#7c3aed', bg:'#ede9fe'},
+    unpaid_leave: {label:'Nghỉ không lương', short:'K', color:'#ef4444', bg:'#fee2e2'},
+  }))
+) %>;
+
+let _menuCell = null, _menuUid = null, _menuDate = null;
+
+/* ── OPEN CONTEXT MENU ─────────────────────────────────────── */
+function openCellMenu(btn, uid, date, currentStatus) {
+  _menuCell = btn;
+  _menuUid  = uid;
+  _menuDate = date;
+
+  const menu = document.getElementById('cellMenu');
+  const overlay = document.getElementById('cellMenuOverlay');
+
+  // header info
+  const [y,m,d] = date.split('-');
+  document.getElementById('cellMenuDate').textContent = `${d}/${m}/${y}`;
+  // find employee name
+  const row = btn.closest('tr');
+  document.getElementById('cellMenuName').textContent = row ? row.querySelector('.atd-emp-name').textContent : '';
+
+  // position near click
+  const rect = btn.getBoundingClientRect();
+  menu.style.display = 'block';
+  overlay.style.display = 'block';
+  let top  = rect.bottom + 6;
+  let left = rect.left;
+  const mw = 190, mh = 250;
+  if (left + mw > window.innerWidth - 8)  left = window.innerWidth - mw - 8;
+  if (top  + mh > window.innerHeight - 8) top  = rect.top - mh - 6;
+  menu.style.top  = top  + 'px';
+  menu.style.left = left + 'px';
+}
+
+function closeMenu() {
+  document.getElementById('cellMenu').style.display = 'none';
+  document.getElementById('cellMenuOverlay').style.display = 'none';
+}
+
+/* ── APPLY STATUS ──────────────────────────────────────────── */
+async function applyStatus(status) {
+  closeMenu();
+  if (!_menuCell) return;
+  const btn = _menuCell;
+  const uid = _menuUid;
+  const date = _menuDate;
+
+  btn.classList.add('atd-cell-saving');
+  setSaveStatus('saving');
+
+  try {
+    const r = await fetch('/attendance/cell', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: uid, work_date: date, status })
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error);
+
+    // Update cell appearance
+    if (status === '') {
+      btn.textContent = '☐';
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.border = '';
+      btn.classList.remove('atd-cell-set');
+    } else {
+      const cfg = STATUS_CFG[status];
+      btn.textContent = cfg.short;
+      btn.style.background = cfg.bg;
+      btn.style.color = cfg.color;
+      btn.style.border = '1.5px solid transparent';
+      btn.classList.add('atd-cell-set');
+    }
+
+    // Update parent td data
+    btn.closest('td').dataset.status = status;
+
+    // Recalculate row totals
+    recalcRow(uid);
+
+    btn.classList.remove('atd-cell-saving');
+    btn.classList.add('atd-cell-just-saved');
+    setTimeout(() => btn.classList.remove('atd-cell-just-saved'), 600);
+    setSaveStatus('saved');
+  } catch (e) {
+    btn.classList.remove('atd-cell-saving');
+    setSaveStatus('error');
+    alert('Lỗi lưu: ' + e.message);
+  }
+}
+
+/* ── RECALCULATE ROW TOTALS ────────────────────────────────── */
+function recalcRow(uid) {
+  const attRow = document.querySelector(`tr.atd-row[data-uid="${uid}"]`);
+  const otRow  = document.querySelector(`tr.atd-ot-row[data-uid="${uid}"]`);
+  if (!attRow) return;
+
+  let pCount=0, lCount=0, leaveCount=0, otTotal=0;
+  attRow.querySelectorAll('.atd-td-cell').forEach(td => {
+    const st = td.dataset.status || '';
+    if (st === 'present') pCount++;
+    else if (st === 'late') { pCount++; lCount++; }
+    else if (st === 'annual_leave' || st === 'sick_leave') leaveCount++;
+  });
+  if (otRow) {
+    otRow.querySelectorAll('.atd-ot-input').forEach(inp => {
+      otTotal += parseFloat(inp.value) || 0;
+    });
+  }
+
+  const pEl  = attRow.querySelector(`[id="p-${uid}"]`)  || document.getElementById('p-'  + uid);
+  const lEl  = attRow.querySelector(`[id="l-${uid}"]`)  || document.getElementById('l-'  + uid);
+  const lvEl = attRow.querySelector(`[id="lv-${uid}"]`) || document.getElementById('lv-' + uid);
+  const otEl = document.getElementById('ot-' + uid);
+  if (pEl)  pEl.textContent  = pCount;
+  if (lEl)  lEl.textContent  = lCount;
+  if (lvEl) lvEl.textContent = leaveCount;
+  if (otEl) otEl.textContent = otTotal > 0 ? otTotal.toFixed(1) : '—';
+}
+
+/* ── SAVE OT CELL ──────────────────────────────────────────── */
+let otTimer = {};
+async function saveOT(inp) {
+  const uid  = inp.dataset.uid;
+  const date = inp.dataset.date;
+  const val  = parseFloat(inp.value) || 0;
+
+  // Visual pending
+  inp.style.borderColor = '#d97706';
+  setSaveStatus('pending');
+
+  clearTimeout(otTimer[uid + date]);
+  otTimer[uid + date] = setTimeout(async () => {
+    try {
+      // Get current status for this cell (need it for upsert)
+      const attCell = document.querySelector(`.atd-td-cell[data-uid="${uid}"][data-date="${date}"]`);
+      const currentStatus = attCell ? (attCell.dataset.status || '') : '';
+
+      const r = await fetch('/attendance/cell', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: uid, work_date: date, status: currentStatus, overtime_hours: val })
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error);
+
+      // Style: tinted if has value
+      if (val > 0) {
+        inp.style.background = '#ede9fe';
+        inp.style.borderColor = '#a78bfa';
+        inp.style.color = '#7c3aed';
+        inp.style.fontWeight = '700';
+      } else {
+        inp.style.background = '';
+        inp.style.borderColor = '';
+        inp.style.color = '';
+        inp.style.fontWeight = '';
+        inp.value = '';
+      }
+
+      recalcRow(uid);
+      setSaveStatus('saved');
+    } catch (e) {
+      inp.style.borderColor = '#ef4444';
+      setSaveStatus('error');
+    }
+  }, 500);
+}
+
+/* ── SAVE STATUS INDICATOR ─────────────────────────────────── */
+let saveTimer;
+function setSaveStatus(state) {
+  const el = document.getElementById('saveStatus');
+  if (!el) return;
+  clearTimeout(saveTimer);
+  const map = {
+    idle:    { cls:'atd-save-idle',    text:'<i class="fas fa-check-circle"></i> Đã lưu' },
+    saving:  { cls:'atd-save-saving',  text:'<i class="fas fa-circle-notch fa-spin"></i> Đang lưu...' },
+    saved:   { cls:'atd-save-idle',    text:'<i class="fas fa-check-circle"></i> Đã lưu' },
+    pending: { cls:'atd-save-pending', text:'<i class="fas fa-dot-circle"></i> Chưa lưu' },
+    error:   { cls:'atd-save-error',   text:'<i class="fas fa-exclamation-circle"></i> Lỗi lưu' },
+  };
+  const s = map[state] || map.idle;
+  el.className = 'atd-save-status ' + s.cls;
+  el.innerHTML = s.text;
+  if (state === 'saved') {
+    saveTimer = setTimeout(() => { el.innerHTML = map.idle.text; el.className='atd-save-status atd-save-idle'; }, 3000);
+  }
+}
+
+/* ── FILTER EMPLOYEES ──────────────────────────────────────── */
+function filterEmployees(q) {
+  const term = q.toLowerCase().trim();
+  document.querySelectorAll('#atdBody .atd-row').forEach(row => {
+    const name = row.dataset.name || '';
+    row.classList.toggle('atd-hidden', term.length > 0 && !name.includes(term));
+  });
+}
+
+/* ── KEYBOARD SHORTCUT: click cell + press key ─────────────── */
+document.addEventListener('keydown', e => {
+  if (!_menuCell) return;
+  const map = { 'p':'present','m':'late','n':'annual_leave','b':'sick_leave','k':'unpaid_leave','Delete':'','Backspace':'' };
+  if (map.hasOwnProperty(e.key.toLowerCase())) {
+    applyStatus(map[e.key.toLowerCase()] || '');
+    e.preventDefault();
+  }
+});
+
+/* ── EXPORT EXCEL (CSV) ────────────────────────────────────── */
+function exportExcel() {
+  const month = '<%= month %>'.padStart(2,'0');
+  const year  = '<%= year %>';
+  const days  = <%- JSON.stringify(days.map(d=>d.day)) %>;
+  const rows  = [['Nhân viên','Phòng ban',...days.map(d=>`${d}/${month}`),'CP','Muộn','Nghỉ','OT(h)']];
+  document.querySelectorAll('#atdBody .atd-row').forEach(row => {
+    if (row.classList.contains('atd-hidden')) return;
+    const name = row.querySelector('.atd-emp-name').textContent;
+    const dept = row.querySelector('.atd-emp-dept').textContent;
+    const cells = [...row.querySelectorAll('.atd-td-cell')].map(td => {
+      const st = td.dataset.status || '';
+      return STATUS_CFG[st] ? STATUS_CFG[st].short : (td.classList.contains('atd-td-off') ? '—' : '');
+    });
+    const totals = [
+      row.querySelector('[id^="p-"]')?.textContent||'0',
+      row.querySelector('[id^="l-"]')?.textContent||'0',
+      row.querySelector('[id^="lv-"]')?.textContent||'0',
+      row.querySelector('[id^="ot-"]')?.textContent||'—',
+    ];
+    rows.push([name, dept, ...cells, ...totals]);
+  });
+  const csv = rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cham-cong-${month}-${year}.csv`;
+  a.click();
+}
+</script>

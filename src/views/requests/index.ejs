@@ -1,0 +1,365 @@
+<style>
+.req-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.req-stat-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 20px; display:flex; align-items:center; gap:14px; }
+.req-stat-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.req-stat-label { font-size:12px; color:var(--text-3); margin-bottom:2px; }
+.req-stat-value { font-size:22px; font-weight:700; color:var(--text-1); }
+.req-tabs { display:flex; gap:2px; border-bottom:2px solid var(--border); margin-bottom:20px; }
+.req-tab { padding:10px 18px; font-size:14px; font-weight:500; color:var(--text-2); cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .15s; display:flex; align-items:center; gap:6px; }
+.req-tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+.req-tab:hover:not(.active) { color:var(--text-1); }
+.req-tab-badge { background:var(--danger); color:#fff; font-size:10px; font-weight:700; border-radius:10px; padding:1px 6px; min-width:18px; text-align:center; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+.filter-bar { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.cat-pills { display:flex; gap:6px; }
+.cat-pill { padding:5px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text-2); transition:all .15s; }
+.cat-pill.active, .cat-pill:hover { border-color:var(--primary); background:#EFF6FF; color:var(--primary); }
+.req-search { padding:7px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--bg); color:var(--text-1); outline:none; width:200px; }
+.req-search:focus { border-color:var(--primary); }
+.status-filter { padding:7px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--bg); color:var(--text-1); }
+.req-table { width:100%; border-collapse:collapse; font-size:13px; }
+.req-table th { padding:10px 12px; text-align:left; font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--border); background:var(--bg); }
+.req-table td { padding:11px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.req-table tr:last-child td { border-bottom:none; }
+.req-table tr:hover td { background:var(--bg); }
+.cat-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:600; white-space:nowrap; }
+.priority-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+.priority-urgent { background:#FEE2E2; color:#DC2626; }
+.priority-high { background:#FEF3C7; color:#D97706; }
+.priority-normal { background:#F3F4F6; color:#6B7280; }
+.priority-low { background:#F0FDF4; color:#16A34A; }
+.status-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.status-pending  { background:#FEF9C3; color:#B45309; }
+.status-approved { background:#DCFCE7; color:#15803D; }
+.status-rejected { background:#FEE2E2; color:#DC2626; }
+.req-actions { display:flex; gap:6px; align-items:center; }
+.btn-icon { width:30px; height:30px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text-2); display:inline-flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; transition:all .15s; text-decoration:none; }
+.btn-icon:hover { border-color:var(--primary); color:var(--primary); background:#EFF6FF; }
+.btn-icon.approve:hover { border-color:var(--success); color:var(--success); background:#F0FDF4; }
+.btn-icon.reject:hover  { border-color:var(--danger);  color:var(--danger);  background:#FEF2F2; }
+.bulk-bar { display:flex; align-items:center; gap:10px; padding:10px 14px; background:#EFF6FF; border-radius:8px; margin-bottom:12px; border:1px solid #BFDBFE; }
+.bulk-bar-info { font-size:13px; color:#1D4ED8; font-weight:500; flex:1; }
+.inline-reject-form { background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:12px; margin-top:8px; display:none; }
+.inline-reject-form.open { display:block; }
+.req-title-cell { font-weight:500; color:var(--text-1); }
+.req-title-cell a { color:inherit; text-decoration:none; }
+.req-title-cell a:hover { color:var(--primary); }
+.req-sub-text { font-size:11px; color:var(--text-3); margin-top:2px; }
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-3); }
+.empty-state i { font-size:48px; margin-bottom:12px; display:block; opacity:.4; }
+/* Modal */
+.req-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:1000; align-items:center; justify-content:center; }
+.req-modal-overlay.open { display:flex; }
+.req-modal { background:var(--card); border-radius:12px; width:540px; max-width:95vw; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+.req-modal-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.req-modal-body { padding:20px 24px; }
+.form-group-modal { margin-bottom:20px; }
+.cat-section { margin-bottom:20px; }
+.cat-section-title { font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+.form-card-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.form-card-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; cursor:pointer; text-decoration:none; transition:all .15s; }
+.form-card-item:hover { border-color:var(--primary); background:#EFF6FF; }
+.form-card-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.form-card-name { font-size:13px; font-weight:500; color:var(--text-1); }
+@media(max-width:768px){ .req-stats{grid-template-columns:repeat(2,1fr)} .filter-bar{flex-direction:column;align-items:flex-start} .req-search{width:100%} }
+</style>
+
+<div class="page-header">
+  <div class="page-header-title"><h2><i class="fas fa-inbox" style="margin-right:8px;color:var(--primary)"></i>Yêu cầu & Phê duyệt</h2></div>
+  <div class="page-header-actions">
+    <% if (isAdmin) { %>
+    <a href="/requests/forms" class="btn btn-outline"><i class="fas fa-cog"></i> Quản lý quy trình</a>
+    <% } %>
+    <% if (forms.length > 0) { %>
+    <button class="btn btn-primary" onclick="document.getElementById('formPickerModal').classList.add('open')">
+      <i class="fas fa-plus"></i> Tạo yêu cầu
+    </button>
+    <% } %>
+  </div>
+</div>
+
+<!-- Stats row -->
+<div class="req-stats">
+  <div class="req-stat-card">
+    <div class="req-stat-icon" style="background:#EFF6FF;color:#2563EB"><i class="fas fa-list-ul"></i></div>
+    <div><div class="req-stat-label">Tất cả</div><div class="req-stat-value"><%= stats.total %></div></div>
+  </div>
+  <div class="req-stat-card">
+    <div class="req-stat-icon" style="background:#FEF9C3;color:#B45309"><i class="fas fa-clock"></i></div>
+    <div><div class="req-stat-label">Chờ duyệt</div><div class="req-stat-value"><%= stats.pending %></div></div>
+  </div>
+  <div class="req-stat-card">
+    <div class="req-stat-icon" style="background:#DCFCE7;color:#15803D"><i class="fas fa-check-circle"></i></div>
+    <div><div class="req-stat-label">Đã duyệt</div><div class="req-stat-value"><%= stats.approved %></div></div>
+  </div>
+  <div class="req-stat-card">
+    <div class="req-stat-icon" style="background:#FEE2E2;color:#DC2626"><i class="fas fa-times-circle"></i></div>
+    <div><div class="req-stat-label">Từ chối</div><div class="req-stat-value"><%= stats.rejected %></div></div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="card">
+  <div class="card-header" style="padding-bottom:0;border-bottom:none">
+    <div class="req-tabs">
+      <button class="req-tab active" id="tab-mine" onclick="switchTab('mine')">
+        <i class="fas fa-user"></i> Yêu cầu của tôi
+      </button>
+      <button class="req-tab" id="tab-pending" onclick="switchTab('pending')">
+        <i class="fas fa-bell"></i> Chờ tôi duyệt
+        <% if (pendingCount > 0) { %><span class="req-tab-badge"><%= pendingCount %></span><% } %>
+      </button>
+      <% if (isAdmin) { %>
+      <button class="req-tab" id="tab-all" onclick="switchTab('all')">
+        <i class="fas fa-globe"></i> Tất cả
+      </button>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <!-- Tab: My Requests -->
+    <div class="tab-panel active" id="panel-mine">
+      <div class="filter-bar">
+        <div class="cat-pills">
+          <span class="cat-pill active" data-cat="" onclick="filterTab('mine',this,'')">Tất cả</span>
+          <span class="cat-pill" data-cat="admin"   onclick="filterTab('mine',this,'admin')">Hành chính</span>
+          <span class="cat-pill" data-cat="finance" onclick="filterTab('mine',this,'finance')">Tài chính</span>
+          <span class="cat-pill" data-cat="project" onclick="filterTab('mine',this,'project')">Dự án</span>
+        </div>
+        <select class="status-filter" id="status-mine" onchange="renderTable('mine')">
+          <option value="">Tất cả trạng thái</option>
+          <option value="pending">Chờ duyệt</option>
+          <option value="approved">Đã duyệt</option>
+          <option value="rejected">Từ chối</option>
+        </select>
+        <input class="req-search" id="search-mine" placeholder="Tìm kiếm..." oninput="renderTable('mine')">
+      </div>
+      <div id="table-mine"></div>
+    </div>
+
+    <!-- Tab: Pending approvals -->
+    <div class="tab-panel" id="panel-pending">
+      <div id="bulk-bar-pending" class="bulk-bar" style="display:none">
+        <span class="bulk-bar-info"><span id="bulk-count">0</span> yêu cầu đã chọn</span>
+        <form method="POST" action="/requests/bulk-approve" id="bulk-form">
+          <input type="hidden" name="action" id="bulk-action" value="approve">
+          <div id="bulk-ids-container"></div>
+          <div id="bulk-reject-reason" style="display:none;margin-bottom:8px">
+            <input type="text" name="rejection_reason" placeholder="Lý do từ chối (bắt buộc)" class="req-search" style="width:280px">
+          </div>
+          <button type="button" class="btn btn-sm btn-success" onclick="bulkAction('approve')"><i class="fas fa-check"></i> Duyệt</button>
+          <button type="button" class="btn btn-sm btn-danger"  onclick="bulkAction('reject')"><i class="fas fa-times"></i> Từ chối</button>
+        </form>
+      </div>
+      <div class="filter-bar">
+        <div class="cat-pills">
+          <span class="cat-pill active" data-cat="" onclick="filterTab('pending',this,'')">Tất cả</span>
+          <span class="cat-pill" data-cat="admin"   onclick="filterTab('pending',this,'admin')">Hành chính</span>
+          <span class="cat-pill" data-cat="finance" onclick="filterTab('pending',this,'finance')">Tài chính</span>
+          <span class="cat-pill" data-cat="project" onclick="filterTab('pending',this,'project')">Dự án</span>
+        </div>
+        <input class="req-search" id="search-pending" placeholder="Tìm kiếm..." oninput="renderTable('pending')">
+      </div>
+      <div id="table-pending"></div>
+    </div>
+
+    <!-- Tab: All (admin) -->
+    <% if (isAdmin) { %>
+    <div class="tab-panel" id="panel-all">
+      <div class="filter-bar">
+        <div class="cat-pills">
+          <span class="cat-pill active" data-cat="" onclick="filterTab('all',this,'')">Tất cả</span>
+          <span class="cat-pill" data-cat="admin"   onclick="filterTab('all',this,'admin')">Hành chính</span>
+          <span class="cat-pill" data-cat="finance" onclick="filterTab('all',this,'finance')">Tài chính</span>
+          <span class="cat-pill" data-cat="project" onclick="filterTab('all',this,'project')">Dự án</span>
+        </div>
+        <select class="status-filter" id="status-all" onchange="renderTable('all')">
+          <option value="">Tất cả trạng thái</option>
+          <option value="pending">Chờ duyệt</option>
+          <option value="approved">Đã duyệt</option>
+          <option value="rejected">Từ chối</option>
+        </select>
+        <input class="req-search" id="search-all" placeholder="Tìm kiếm..." oninput="renderTable('all')">
+      </div>
+      <div id="table-all"></div>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<!-- Form Picker Modal -->
+<div class="req-modal-overlay" id="formPickerModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="req-modal">
+    <div class="req-modal-header">
+      <strong style="font-size:16px">Chọn loại yêu cầu</strong>
+      <button onclick="document.getElementById('formPickerModal').classList.remove('open')" class="btn-icon"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="req-modal-body">
+      <%
+        const catOrder = ['admin','finance','project','other'];
+        const catLabels = { admin:'Hành chính', finance:'Tài chính', project:'Dự án', other:'Khác' };
+        const catIcons  = { admin:'fa-user-clock', finance:'fa-coins', project:'fa-project-diagram', other:'fa-file-alt' };
+        const catColors = { admin:'#2563EB', finance:'#16A34A', project:'#7C3AED', other:'#6B7280' };
+        const catBgs    = { admin:'#EFF6FF', finance:'#F0FDF4', project:'#FAF5FF', other:'#F9FAFB' };
+        for (const cat of catOrder) {
+          if (formsByCategory[cat] && formsByCategory[cat].length > 0) {
+      %>
+      <div class="cat-section">
+        <div class="cat-section-title"><i class="fas <%= catIcons[cat] %>" style="margin-right:5px;color:<%= catColors[cat] %>"></i><%= catLabels[cat] %></div>
+        <div class="form-card-list">
+          <% formsByCategory[cat].forEach(function(f){ %>
+          <a href="/requests/new/<%= f.id %>" class="form-card-item">
+            <div class="form-card-icon" style="background:<%= catBgs[cat] %>;color:<%= catColors[cat] %>"><i class="fas <%= catIcons[cat] %>"></i></div>
+            <div class="form-card-name"><%= f.name %></div>
+          </a>
+          <% }) %>
+        </div>
+      </div>
+      <% } } %>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = {
+  mine:    <%- JSON.stringify(myRequests) %>,
+  pending: <%- JSON.stringify(pendingRequests) %>,
+  all:     <%- JSON.stringify(allRequests) %>
+};
+const catFilter = { mine: '', pending: '', all: '' };
+
+const STATUS_LABEL = { pending:'Chờ duyệt', approved:'Đã duyệt', rejected:'Từ chối' };
+const STATUS_CLASS = { pending:'status-pending', approved:'status-approved', rejected:'status-rejected' };
+const STATUS_ICON  = { pending:'fa-clock', approved:'fa-check-circle', rejected:'fa-times-circle' };
+const PRIORITY_LABEL = { urgent:'Khẩn cấp', high:'Cao', normal:'Bình thường', low:'Thấp' };
+const PRIORITY_CLASS = { urgent:'priority-urgent', high:'priority-high', normal:'priority-normal', low:'priority-low' };
+const CAT_LABEL = { admin:'Hành chính', finance:'Tài chính', project:'Dự án', other:'Khác' };
+const CAT_ICON  = { admin:'fa-user-clock', finance:'fa-coins', project:'fa-project-diagram', other:'fa-file-alt' };
+const CAT_COLOR = { admin:'#2563EB', finance:'#16A34A', project:'#7C3AED', other:'#6B7280' };
+const CAT_BG    = { admin:'#EFF6FF', finance:'#F0FDF4', project:'#FAF5FF', other:'#F9FAFB' };
+
+function catBadge(cat) {
+  const c = cat || 'other';
+  return `<span class="cat-badge" style="background:${CAT_BG[c]};color:${CAT_COLOR[c]}"><i class="fas ${CAT_ICON[c]}"></i> ${CAT_LABEL[c]||c}</span>`;
+}
+function statusBadge(s) {
+  return `<span class="status-badge ${STATUS_CLASS[s]||'status-pending'}"><i class="fas ${STATUS_ICON[s]||'fa-clock'}"></i> ${STATUS_LABEL[s]||s}</span>`;
+}
+function priorityBadge(p) {
+  const pr = p || 'normal';
+  return `<span class="priority-badge ${PRIORITY_CLASS[pr]}">${PRIORITY_LABEL[pr]||pr}</span>`;
+}
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('vi-VN');
+}
+
+function getFiltered(tab) {
+  const searchEl = document.getElementById('search-' + tab);
+  const statusEl = document.getElementById('status-' + tab);
+  const q = searchEl ? searchEl.value.toLowerCase() : '';
+  const st = statusEl ? statusEl.value : '';
+  const cat = catFilter[tab];
+  return DATA[tab].filter(r => {
+    if (cat && (r.category || 'other') !== cat) return false;
+    if (st && r.status !== st) return false;
+    if (q && !(r.title||'').toLowerCase().includes(q) && !(r.submitter_name||'').toLowerCase().includes(q) && !(r.form_name||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderTable(tab) {
+  const rows = getFiltered(tab);
+  const isPending = tab === 'pending';
+  const el = document.getElementById('table-' + tab);
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i>Không có yêu cầu nào</div>';
+    return;
+  }
+  let html = '<table class="req-table"><thead><tr>';
+  if (isPending) html += '<th style="width:36px"><input type="checkbox" id="chk-all" onclick="toggleAll(this)"></th>';
+  html += '<th>Tiêu đề</th><th>Loại</th><th>Người gửi</th><th>Ưu tiên</th><th>Trạng thái</th><th>Ngày gửi</th><th></th>';
+  html += '</tr></thead><tbody>';
+  rows.forEach(r => {
+    html += '<tr' + (isPending ? ' data-id="' + r.id + '"' : '') + '>';
+    if (isPending) html += '<td><input type="checkbox" class="row-chk" value="' + r.id + '" onchange="updateBulkBar()"></td>';
+    html += '<td class="req-title-cell"><a href="/requests/' + r.id + '">' + (r.title||'') + '</a><div class="req-sub-text">' + (r.form_name||'') + '</div></td>';
+    html += '<td>' + catBadge(r.category) + '</td>';
+    html += '<td style="color:var(--text-2)">' + (r.submitter_name||'') + '</td>';
+    html += '<td>' + priorityBadge(r.priority) + '</td>';
+    html += '<td>' + statusBadge(r.status) + '</td>';
+    html += '<td style="color:var(--text-3)">' + fmtDate(r.created_at) + '</td>';
+    html += '<td><div class="req-actions">';
+    html += '<a href="/requests/' + r.id + '" class="btn-icon" title="Xem"><i class="fas fa-eye"></i></a>';
+    if (isPending) {
+      html += '<form method="POST" action="/requests/' + r.id + '/approve" style="display:inline" onsubmit="return confirm(\'Xác nhận phê duyệt?\')"><input type="hidden" name="action" value="approve"><button type="submit" class="btn-icon approve" title="Duyệt"><i class="fas fa-check"></i></button></form>';
+      html += '<button type="button" class="btn-icon reject" title="Từ chối" onclick="toggleRejectForm(' + r.id + ')"><i class="fas fa-times"></i></button>';
+    }
+    html += '</div>';
+    if (isPending) {
+      html += '<div class="inline-reject-form" id="reject-form-' + r.id + '"><form method="POST" action="/requests/' + r.id + '/approve"><input type="hidden" name="action" value="reject"><div style="display:flex;gap:8px;align-items:center"><input type="text" name="rejection_reason" placeholder="Lý do từ chối (bắt buộc)" class="req-search" style="flex:1" required><button type="submit" class="btn btn-sm btn-danger">Từ chối</button><button type="button" class="btn btn-sm btn-outline" onclick="toggleRejectForm(' + r.id + ')">Hủy</button></div></form></div>';
+    }
+    html += '</td></tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function toggleRejectForm(id) {
+  const el = document.getElementById('reject-form-' + id);
+  if (el) el.classList.toggle('open');
+}
+function toggleAll(chk) {
+  document.querySelectorAll('.row-chk').forEach(c => { c.checked = chk.checked; });
+  updateBulkBar();
+}
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.row-chk:checked');
+  const bar = document.getElementById('bulk-bar-pending');
+  if (!bar) return;
+  bar.style.display = checked.length > 0 ? 'flex' : 'none';
+  document.getElementById('bulk-count').textContent = checked.length;
+}
+function bulkAction(action) {
+  const checked = Array.from(document.querySelectorAll('.row-chk:checked'));
+  if (!checked.length) return;
+  document.getElementById('bulk-action').value = action;
+  const container = document.getElementById('bulk-ids-container');
+  container.innerHTML = checked.map(c => '<input type="hidden" name="ids[]" value="' + c.value + '">').join('');
+  const rejectDiv = document.getElementById('bulk-reject-reason');
+  if (action === 'reject') {
+    rejectDiv.style.display = 'block';
+    const input = rejectDiv.querySelector('input[name=rejection_reason]');
+    if (!input.value.trim()) { input.focus(); return; }
+  } else {
+    rejectDiv.style.display = 'none';
+  }
+  document.getElementById('bulk-form').submit();
+}
+
+function filterTab(tab, el, cat) {
+  catFilter[tab] = cat;
+  el.closest('.cat-pills').querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderTable(tab);
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.req-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  renderTable(name);
+}
+
+// Initial render
+renderTable('mine');
+renderTable('pending');
+<% if (isAdmin) { %>renderTable('all');<% } %>
+
+// Check URL for tab param
+const urlTab = new URLSearchParams(window.location.search).get('tab');
+if (urlTab) switchTab(urlTab);
+</script>

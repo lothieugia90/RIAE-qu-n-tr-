@@ -1,0 +1,175 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h2><%= partner.name %></h2>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <span class="badge" style="background:<%= partner.type==='supplier' ? 'var(--primary-50)' : 'var(--warning-bg)' %>;color:<%= partner.type==='supplier' ? 'var(--primary)' : 'var(--warning)' %>">
+        <i class="fas fa-<%= partner.type==='supplier' ? 'truck' : 'hard-hat' %>"></i>
+        <%= partner.type==='supplier' ? 'Nhà cung ứng' : 'Tổ đội thi công' %>
+      </span>
+    </div>
+  </div>
+  <div class="page-header-actions">
+    <% if (['admin','director'].includes(locals.userRole)) { %>
+    <a href="/partners/<%= partner.id %>/edit" class="btn btn-outline"><i class="fas fa-edit"></i> Sửa</a>
+    <form action="/partners/<%= partner.id %>/delete" method="POST" style="display:inline">
+      <button type="submit" class="btn btn-danger" onclick="return confirm('Xóa đối tác này?')"><i class="fas fa-trash"></i></button>
+    </form>
+    <% } %>
+    <a href="/partners" class="btn btn-outline"><i class="fas fa-arrow-left"></i></a>
+  </div>
+</div>
+
+<div class="grid-70-30">
+  <div>
+    <!-- Products / Services -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">
+          <% if (partner.type === 'supplier') { %>
+          <i class="fas fa-box" style="color:var(--primary);margin-right:6px"></i>Danh sách Hàng hóa cung ứng
+          <% } else { %>
+          <i class="fas fa-tools" style="color:var(--warning);margin-right:6px"></i>Đơn giá Thi công
+          <% } %>
+          (<%= products.length %>)
+        </span>
+        <% if (['admin','director','warehouse'].includes(locals.userRole)) { %>
+        <button onclick="document.getElementById('productModal').classList.add('open')" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Thêm</button>
+        <% } %>
+      </div>
+      <div style="overflow-x:auto">
+        <% if (products.length === 0) { %>
+        <div class="empty-state" style="padding:32px"><p>Chưa có mặt hàng nào</p></div>
+        <% } else { %>
+        <table>
+          <thead><tr><th>Tên hàng hóa / Hạng mục</th><th>Đơn vị</th><th>Đơn giá</th><th>Ghi chú</th><th></th></tr></thead>
+          <tbody>
+          <% products.forEach(prod => { %>
+          <tr>
+            <td style="font-weight:500"><%= prod.name %></td>
+            <td><%= prod.unit || '—' %></td>
+            <td style="font-weight:600;color:var(--primary)"><%= prod.unit_price ? Number(prod.unit_price).toLocaleString('vi-VN') + ' đ' : '—' %></td>
+            <td style="font-size:12px;color:var(--text-3)"><%= prod.notes || '' %></td>
+            <td>
+              <% if (['admin','director'].includes(locals.userRole)) { %>
+              <form action="/partners/<%= partner.id %>/products/<%= prod.id %>/delete" method="POST" style="display:inline">
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Xóa?')"><i class="fas fa-trash"></i></button>
+              </form>
+              <% } %>
+            </td>
+          </tr>
+          <% }) %>
+          </tbody>
+        </table>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Team Members (for contractors) -->
+    <% if (partner.type === 'contractor') { %>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-users" style="margin-right:6px;color:var(--warning)"></i>Thành viên Đội (<%= members.length %>)</span>
+        <% if (['admin','director'].includes(locals.userRole)) { %>
+        <button onclick="document.getElementById('memberModal').classList.add('open')" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Thêm</button>
+        <% } %>
+      </div>
+      <div style="overflow-x:auto">
+        <% if (members.length === 0) { %>
+        <div class="empty-state" style="padding:32px"><p>Chưa có thành viên nào</p></div>
+        <% } else { %>
+        <table>
+          <thead><tr><th>Họ tên</th><th>Vai trò</th><th>Điện thoại</th><th>CCCD</th><th></th></tr></thead>
+          <tbody>
+          <% members.forEach(m => { %>
+          <tr>
+            <td style="font-weight:500"><%= m.full_name %></td>
+            <td style="font-size:13px"><%= m.role || '—' %></td>
+            <td style="font-size:13px"><%= m.phone || '—' %></td>
+            <td style="font-size:12px;color:var(--text-3)"><%= m.id_card || '—' %></td>
+            <td>
+              <% if (['admin','director'].includes(locals.userRole)) { %>
+              <form action="/partners/<%= partner.id %>/members/<%= m.id %>/delete" method="POST" style="display:inline">
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Xóa?')"><i class="fas fa-trash"></i></button>
+              </form>
+              <% } %>
+            </td>
+          </tr>
+          <% }) %>
+          </tbody>
+        </table>
+        <% } %>
+      </div>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Right Info -->
+  <div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Thông tin liên hệ</span></div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:12px;font-size:13px">
+          <% if (partner.contact_person) { %><div><span style="color:var(--text-3)">Người liên hệ:</span><br><strong><%= partner.contact_person %></strong></div><% } %>
+          <% if (partner.phone) { %><div><span style="color:var(--text-3)">Điện thoại:</span><br><a href="tel:<%= partner.phone %>"><strong><%= partner.phone %></strong></a></div><% } %>
+          <% if (partner.email) { %><div><span style="color:var(--text-3)">Email:</span><br><a href="mailto:<%= partner.email %>"><strong><%= partner.email %></strong></a></div><% } %>
+          <% if (partner.tax_code) { %><div><span style="color:var(--text-3)">Mã số thuế:</span><br><strong><%= partner.tax_code %></strong></div><% } %>
+          <% if (partner.address) { %><div><span style="color:var(--text-3)">Địa chỉ:</span><br><%= partner.address %></div><% } %>
+          <% if (partner.notes) { %><div class="divider"></div><div style="color:var(--text-3)"><%= partner.notes %></div><% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Product Modal -->
+<div class="modal-overlay" id="productModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title"><%= partner.type==='supplier' ? 'Thêm Hàng hóa' : 'Thêm Đơn giá thi công' %></span>
+      <button class="modal-close" onclick="document.getElementById('productModal').classList.remove('open')"><i class="fas fa-times"></i></button>
+    </div>
+    <form action="/partners/<%= partner.id %>/products" method="POST">
+      <div class="modal-body">
+        <div class="form-group mb-3">
+          <label class="form-label">Tên hàng hóa / Hạng mục <span class="req">*</span></label>
+          <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group"><label class="form-label">Đơn vị</label><input type="text" name="unit" class="form-control" placeholder="m, cái, kg..."></div>
+          <div class="form-group"><label class="form-label">Đơn giá (đ)</label><input type="number" name="unit_price" class="form-control" min="0"></div>
+        </div>
+        <div class="form-group mt-3"><label class="form-label">Ghi chú</label><input type="text" name="notes" class="form-control"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('productModal').classList.remove('open')">Hủy</button>
+        <button type="submit" class="btn btn-primary">Thêm</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Member Modal -->
+<% if (partner.type === 'contractor') { %>
+<div class="modal-overlay" id="memberModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Thêm Thành viên Đội</span>
+      <button class="modal-close" onclick="document.getElementById('memberModal').classList.remove('open')"><i class="fas fa-times"></i></button>
+    </div>
+    <form action="/partners/<%= partner.id %>/members" method="POST">
+      <div class="modal-body">
+        <div class="form-group mb-3"><label class="form-label">Họ tên <span class="req">*</span></label><input type="text" name="full_name" class="form-control" required></div>
+        <div class="form-grid-2">
+          <div class="form-group"><label class="form-label">Vai trò</label><input type="text" name="role" class="form-control" placeholder="Thợ điện, Trưởng nhóm..."></div>
+          <div class="form-group"><label class="form-label">Điện thoại</label><input type="text" name="phone" class="form-control"></div>
+          <div class="form-group col-span-2"><label class="form-label">Số CCCD</label><input type="text" name="id_card" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('memberModal').classList.remove('open')">Hủy</button>
+        <button type="submit" class="btn btn-primary">Thêm</button>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>

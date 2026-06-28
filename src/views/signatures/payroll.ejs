@@ -1,0 +1,101 @@
+<div style="max-width:700px;margin:0 auto">
+  <div class="card">
+    <div class="card-header" style="background:var(--primary);color:#fff">
+      <span class="card-title" style="color:#fff"><i class="fas fa-file-signature"></i> Xác nhận Bảng lương</span>
+    </div>
+
+    <div class="card-body">
+      <!-- Summary -->
+      <div style="border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:20px">
+        <div style="text-align:center;margin-bottom:16px">
+          <img src="/images/logo.png" alt="RIAE" style="height:40px;margin-bottom:8px">
+          <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px">CÔNG TY TNHH KỸ THUẬT CÔNG NGHỆ RIAE</div>
+          <h3 style="margin:8px 0 4px">PHIẾU XÁC NHẬN LƯƠNG</h3>
+          <div style="font-size:13px;color:var(--text-3)">Tháng <%= record.month %>/<%= record.year %></div>
+        </div>
+        <div class="divider"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;margin-top:14px">
+          <div><span style="color:var(--text-3)">Họ tên:</span> <strong><%= record.full_name %></strong></div>
+          <div><span style="color:var(--text-3)">Chức vụ:</span> <strong><%= record.position||'—' %></strong></div>
+          <div><span style="color:var(--text-3)">Bộ phận:</span> <strong><%= record.department||'—' %></strong></div>
+          <div><span style="color:var(--text-3)">Ngày công:</span> <strong><%= record.actual_days %>/<%= record.working_days %> ngày</strong></div>
+          <div><span style="color:var(--text-3)">Lương cơ bản:</span> <strong><%= Number(record.base_salary||0).toLocaleString('vi-VN') %> đ</strong></div>
+          <div><span style="color:var(--text-3)">Thưởng:</span> <strong style="color:#4CAF50">+<%= Number(record.bonus||0).toLocaleString('vi-VN') %> đ</strong></div>
+          <div><span style="color:var(--text-3)">BHXH:</span> <strong style="color:#F44336">-<%= Number(record.insurance||0).toLocaleString('vi-VN') %> đ</strong></div>
+          <div><span style="color:var(--text-3)">Thuế TNCN:</span> <strong style="color:#F44336">-<%= Number(record.tax||0).toLocaleString('vi-VN') %> đ</strong></div>
+        </div>
+        <div style="margin-top:16px;padding:16px;background:linear-gradient(135deg,var(--primary) 0%,#3B5BDB 100%);border-radius:8px;display:flex;justify-content:space-between;align-items:center;color:#fff">
+          <span style="font-weight:700;font-size:14px">THỰC NHẬN:</span>
+          <span style="font-size:24px;font-weight:900"><%= Number(record.net_salary||0).toLocaleString('vi-VN') %> đ</span>
+        </div>
+      </div>
+
+      <!-- Signature Pad -->
+      <div style="margin-bottom:20px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px"><i class="fas fa-pen-nib" style="color:var(--primary);margin-right:6px"></i>Chữ ký của bạn</div>
+        <div style="position:relative;border:2px dashed var(--border);border-radius:10px;overflow:hidden;background:#FAFAFA">
+          <canvas id="sigCanvas" style="display:block;cursor:crosshair;touch-action:none" width="640" height="160"></canvas>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#DDD;font-size:13px;pointer-events:none" id="sigHint">Ký tên tại đây</div>
+        </div>
+        <button type="button" onclick="clearSig()" class="btn btn-sm btn-outline" style="margin-top:8px"><i class="fas fa-eraser"></i> Xóa chữ ký</button>
+      </div>
+
+      <!-- PIN -->
+      <form action="/signatures/payroll/<%= record.id %>/sign" method="POST">
+        <input type="hidden" name="signature_data" id="sigData">
+        <div style="padding:16px;background:#FFFDE7;border:1px solid #FFC107;border-radius:8px;margin-bottom:16px">
+          <div style="font-weight:600;font-size:13px;color:#F57F17;margin-bottom:10px"><i class="fas fa-shield-alt"></i> Xác thực danh tính</div>
+          <div class="form-group">
+            <label class="form-label">Mật khẩu đăng nhập của bạn <span class="req">*</span></label>
+            <input type="password" name="pin" class="form-control" required placeholder="Nhập mật khẩu để xác nhận...">
+          </div>
+          <div style="font-size:11px;color:#888;margin-top:8px"><i class="fas fa-info-circle"></i> Xác nhận đồng nghĩa bạn đã nhận đủ số tiền lương trên. Hành động này được ghi lại với thời gian và IP.</div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button type="submit" class="btn btn-primary" style="flex:1" onclick="captureSignature()">
+            <i class="fas fa-check-circle"></i> Xác nhận & Ký chấp thuận
+          </button>
+          <a href="/attendance/payroll" class="btn btn-outline">Hủy</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('sigCanvas');
+const ctx = canvas.getContext('2d');
+let drawing = false, hasSig = false;
+
+// Responsive canvas
+function resizeCanvas() {
+  const w = canvas.parentElement.clientWidth;
+  canvas.style.width = w + 'px';
+  canvas.style.height = '160px';
+}
+resizeCanvas();
+
+ctx.strokeStyle = '#1a237e';
+ctx.lineWidth = 2.5;
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / r.width;
+  const scaleY = canvas.height / r.height;
+  if (e.touches) return { x:(e.touches[0].clientX-r.left)*scaleX, y:(e.touches[0].clientY-r.top)*scaleY };
+  return { x:(e.clientX-r.left)*scaleX, y:(e.clientY-r.top)*scaleY };
+}
+
+canvas.addEventListener('mousedown', e => { drawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); hasSig=true; document.getElementById('sigHint').style.display='none'; });
+canvas.addEventListener('mousemove', e => { if(!drawing) return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
+canvas.addEventListener('mouseup', ()=>drawing=false);
+canvas.addEventListener('mouseleave', ()=>drawing=false);
+canvas.addEventListener('touchstart', e=>{ e.preventDefault(); drawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); hasSig=true; document.getElementById('sigHint').style.display='none'; });
+canvas.addEventListener('touchmove', e=>{ e.preventDefault(); if(!drawing) return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
+canvas.addEventListener('touchend', ()=>drawing=false);
+
+function clearSig() { ctx.clearRect(0,0,canvas.width,canvas.height); hasSig=false; document.getElementById('sigHint').style.display=''; }
+function captureSignature() { document.getElementById('sigData').value = hasSig ? canvas.toDataURL() : ''; }
+</script>
