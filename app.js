@@ -19,6 +19,9 @@ require('./src/config/migrate-v6')();
 
 const app = express();
 
+// Trust reverse proxy (Hostinger, Railway, Render, etc.)
+app.set('trust proxy', 1);
+
 // Security & Performance
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
@@ -49,8 +52,9 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true
+    secure: 'auto',
+    httpOnly: true,
+    sameSite: 'lax'
   }
 }));
 
