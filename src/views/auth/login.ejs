@@ -3,80 +3,364 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đăng nhập - RIAE Management System</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <title>Đăng nhập — RIAE Management</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      background: #f0f4f8;
+    }
+
+    /* ── LEFT PANEL ── */
+    .lp-left {
+      flex: 1;
+      background: linear-gradient(145deg, #0d2a6e 0%, #1a4db8 50%, #1565c0 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* decorative circles */
+    .lp-left::before {
+      content: '';
+      position: absolute;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.08);
+      top: -120px; right: -120px;
+    }
+    .lp-left::after {
+      content: '';
+      position: absolute;
+      width: 360px; height: 360px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.06);
+      bottom: -80px; left: -80px;
+    }
+
+    .lp-logo-wrap {
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px 32px;
+      margin-bottom: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      z-index: 1;
+    }
+    .lp-logo-wrap img {
+      width: 200px;
+      display: block;
+    }
+
+    .lp-tagline {
+      color: #fff;
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.3;
+      text-align: center;
+      margin-bottom: 16px;
+      z-index: 1;
+      letter-spacing: -.3px;
+    }
+    .lp-tagline span { color: #7dd3fc; }
+
+    .lp-desc {
+      color: rgba(255,255,255,.7);
+      font-size: 14px;
+      text-align: center;
+      line-height: 1.7;
+      max-width: 360px;
+      z-index: 1;
+      margin-bottom: 40px;
+    }
+
+    .lp-features {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 1;
+      width: 100%;
+      max-width: 340px;
+    }
+    .lp-feat {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      padding: 12px 16px;
+      backdrop-filter: blur(4px);
+    }
+    .lp-feat-ico {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.15);
+      display: flex; align-items: center; justify-content: center;
+      color: #7dd3fc;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .lp-feat-text { font-size: 13px; font-weight: 500; color: rgba(255,255,255,.9); }
+
+    /* ── RIGHT PANEL ── */
+    .lp-right {
+      width: 480px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 48px;
+      background: #fff;
+    }
+
+    .lp-form-box { width: 100%; }
+
+    .lp-form-top {
+      margin-bottom: 36px;
+    }
+    .lp-form-top h2 {
+      font-size: 26px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 6px;
+      letter-spacing: -.4px;
+    }
+    .lp-form-top p {
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    /* alert */
+    .lp-alert {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 4px solid #ef4444;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 20px;
+      font-size: 13.5px;
+      color: #b91c1c;
+      font-weight: 500;
+    }
+
+    /* fields */
+    .lp-field { margin-bottom: 18px; }
+    .lp-field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 7px;
+    }
+    .lp-input-wrap {
+      position: relative;
+    }
+    .lp-input-ico {
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 14px;
+      pointer-events: none;
+    }
+    .lp-input {
+      width: 100%;
+      padding: 12px 44px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+      outline: none;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+    }
+    .lp-input:focus {
+      border-color: #2563eb;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+    .lp-input::placeholder { color: #94a3b8; }
+    .lp-toggle {
+      position: absolute;
+      right: 12px; top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #94a3b8;
+      padding: 4px;
+      font-size: 14px;
+      transition: color .15s;
+    }
+    .lp-toggle:hover { color: #475569; }
+
+    /* submit */
+    .lp-submit {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #1d4ed8, #2563eb);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
+      transition: transform .15s, box-shadow .15s, background .15s;
+      box-shadow: 0 4px 14px rgba(37,99,235,.35);
+    }
+    .lp-submit:hover {
+      background: linear-gradient(135deg, #1e40af, #1d4ed8);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(37,99,235,.45);
+    }
+    .lp-submit:active { transform: translateY(0); }
+
+    .lp-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0;
+      color: #cbd5e1;
+      font-size: 12px;
+    }
+    .lp-divider::before, .lp-divider::after {
+      content: ''; flex: 1; height: 1px; background: #e2e8f0;
+    }
+
+    .lp-contact {
+      text-align: center;
+      font-size: 12.5px;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+    .lp-contact a { color: #2563eb; text-decoration: none; font-weight: 500; }
+    .lp-contact a:hover { text-decoration: underline; }
+
+    .lp-footer {
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 11.5px;
+      color: #cbd5e1;
+    }
+    .lp-footer img { width: 14px; opacity: .4; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .lp-left { display: none; }
+      .lp-right { width: 100%; }
+    }
+    @media (max-width: 480px) {
+      .lp-right { padding: 32px 24px; }
+    }
+  </style>
 </head>
-<body class="login-page">
-  <div class="login-container">
-    <!-- Left Panel -->
-    <div class="login-left">
-      <div class="login-left-content">
-        <div class="login-brand">
-          <div class="login-logo-circle">R</div>
-          <div>
-            <h1 class="login-brand-name">RIAE</h1>
-            <p class="login-brand-full">Công ty TNHH Kỹ Thuật Công Nghệ</p>
-          </div>
-        </div>
-        <h2 class="login-tagline">Hệ thống Quản lý<br>Nội bộ Doanh nghiệp</h2>
-        <p class="login-desc">Quản lý dự án, nhân sự, kho vật tư và thông báo công ty — tất cả trong một nền tảng.</p>
-        <div class="login-features">
-          <div class="lf-item"><i class="fas fa-check-circle"></i><span>Quản lý Dự án & Tiến độ</span></div>
-          <div class="lf-item"><i class="fas fa-check-circle"></i><span>Quản lý Nhân sự</span></div>
-          <div class="lf-item"><i class="fas fa-check-circle"></i><span>Quản lý Kho vật tư</span></div>
-          <div class="lf-item"><i class="fas fa-check-circle"></i><span>Thông báo & Quyết định</span></div>
-        </div>
-      </div>
-      <div class="login-left-dots"></div>
+<body>
+
+  <!-- LEFT -->
+  <div class="lp-left">
+    <div class="lp-logo-wrap">
+      <img src="/images/logo.png" alt="RIAE Logo">
     </div>
-
-    <!-- Right Panel -->
-    <div class="login-right">
-      <div class="login-form-box">
-        <div class="login-form-header">
-          <h2>Đăng nhập</h2>
-          <p>Nhập thông tin tài khoản của bạn để tiếp tục</p>
-        </div>
-
-        <% if (messages && messages.error && messages.error.length > 0) { %>
-        <div class="login-alert">
-          <i class="fas fa-exclamation-triangle"></i>
-          <%= messages.error[0] %>
-        </div>
-        <% } %>
-
-        <form action="/auth/login" method="POST" class="login-form" autocomplete="off">
-          <div class="form-field">
-            <label class="field-label">Tên đăng nhập</label>
-            <div class="field-input-wrap">
-              <i class="fas fa-user field-icon"></i>
-              <input type="text" name="username" class="field-input" placeholder="Username hoặc Email" required autofocus>
-            </div>
-          </div>
-          <div class="form-field">
-            <label class="field-label">Mật khẩu</label>
-            <div class="field-input-wrap">
-              <i class="fas fa-lock field-icon"></i>
-              <input type="password" name="password" id="pwdInput" class="field-input" placeholder="Mật khẩu" required>
-              <button type="button" class="field-toggle" onclick="togglePwd()" tabindex="-1">
-                <i class="fas fa-eye" id="pwdIcon"></i>
-              </button>
-            </div>
-          </div>
-          <button type="submit" class="login-btn">
-            <i class="fas fa-arrow-right-to-bracket"></i>
-            Đăng nhập
-          </button>
-        </form>
-        <div class="login-hint">
-          <i class="fas fa-info-circle"></i>
-          Tài khoản mặc định: <strong>admin</strong> / <strong>Admin@2024</strong>
-        </div>
+    <h2 class="lp-tagline">Hệ thống Quản lý<br><span>Nội bộ Doanh nghiệp</span></h2>
+    <p class="lp-desc">Nền tảng tập trung toàn bộ hoạt động vận hành — từ dự án, nhân sự đến kho vật tư và phê duyệt nội bộ.</p>
+    <div class="lp-features">
+      <div class="lp-feat">
+        <div class="lp-feat-ico"><i class="fas fa-layer-group"></i></div>
+        <span class="lp-feat-text">Quản lý Dự án & Tiến độ</span>
+      </div>
+      <div class="lp-feat">
+        <div class="lp-feat-ico"><i class="fas fa-users"></i></div>
+        <span class="lp-feat-text">Nhân sự & Chấm công</span>
+      </div>
+      <div class="lp-feat">
+        <div class="lp-feat-ico"><i class="fas fa-boxes"></i></div>
+        <span class="lp-feat-text">Kho vật tư & Phiếu giao</span>
+      </div>
+      <div class="lp-feat">
+        <div class="lp-feat-ico"><i class="fas fa-clipboard-check"></i></div>
+        <span class="lp-feat-text">Phê duyệt & Thông báo</span>
       </div>
     </div>
   </div>
+
+  <!-- RIGHT -->
+  <div class="lp-right">
+    <div class="lp-form-box">
+
+      <div class="lp-form-top">
+        <h2>Chào mừng trở lại</h2>
+        <p>Đăng nhập để truy cập hệ thống quản lý</p>
+      </div>
+
+      <% if (messages && messages.error && messages.error.length > 0) { %>
+      <div class="lp-alert">
+        <i class="fas fa-exclamation-circle"></i>
+        <%= messages.error[0] %>
+      </div>
+      <% } %>
+
+      <form action="/auth/login" method="POST" autocomplete="off">
+        <div class="lp-field">
+          <label>Tên đăng nhập</label>
+          <div class="lp-input-wrap">
+            <i class="fas fa-user lp-input-ico"></i>
+            <input type="text" name="username" class="lp-input" placeholder="Username hoặc Email" required autofocus>
+          </div>
+        </div>
+
+        <div class="lp-field">
+          <label>Mật khẩu</label>
+          <div class="lp-input-wrap">
+            <i class="fas fa-lock lp-input-ico"></i>
+            <input type="password" name="password" id="pwdInput" class="lp-input" placeholder="••••••••" required>
+            <button type="button" class="lp-toggle" onclick="togglePwd()" tabindex="-1">
+              <i class="fas fa-eye" id="pwdIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="lp-submit">
+          <i class="fas fa-arrow-right-to-bracket"></i>
+          Đăng nhập
+        </button>
+      </form>
+
+      <div class="lp-divider">Hỗ trợ</div>
+      <div class="lp-contact">
+        Quên mật khẩu? Liên hệ quản trị viên hệ thống<br>
+        <a href="mailto:admin@riae.vn">admin@riae.vn</a>
+      </div>
+
+      <div class="lp-footer">
+        <span>© 2025 RiAE — CÔNG TY TNHH KỸ THUẬT CÔNG NGHỆ</span>
+      </div>
+
+    </div>
+  </div>
+
   <script>
     function togglePwd() {
       const i = document.getElementById('pwdInput');
