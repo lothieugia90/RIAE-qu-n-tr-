@@ -1,0 +1,215 @@
+<%
+const priorityLabel = { urgent:'Khẩn cấp', high:'Cao', medium:'Trung bình', low:'Thấp' };
+const priorityColor = { urgent:'#dc2626', high:'#d97706', medium:'#3b82f6', low:'#94a3b8' };
+const statusLabel  = { todo:'Chưa làm', in_progress:'Đang làm', review:'Chờ duyệt', done:'Hoàn thành' };
+const statusColor  = { todo:'#94a3b8', in_progress:'#3b82f6', review:'#d97706', done:'#16a34a' };
+const today = new Date(); today.setHours(0,0,0,0);
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function daysDiff(d) {
+  if (!d) return null;
+  const dt = new Date(d); dt.setHours(0,0,0,0);
+  return Math.round((today - dt) / 86400000);
+}
+%>
+
+<style>
+.mt-header { margin-bottom:20px; }
+.mt-kpi-row { display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px; }
+.mt-kpi { flex:1;min-width:120px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px; }
+.mt-kpi-val { font-size:26px;font-weight:800;line-height:1;margin-bottom:2px; }
+.mt-kpi-lbl { font-size:11px;color:var(--text-3);font-weight:500;text-transform:uppercase;letter-spacing:.04em; }
+
+.mt-alert { display:flex;align-items:center;gap:12px;background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:10px;padding:14px 18px;margin-bottom:20px;animation:pulse-danger 2s infinite; }
+@keyframes pulse-danger { 0%,100%{opacity:1} 50%{opacity:.85} }
+.mt-alert-icon { font-size:20px;color:#dc2626; }
+.mt-alert-text strong { color:#b91c1c;font-size:15px; }
+.mt-alert-text p { color:#dc2626;font-size:13px;margin:2px 0 0; }
+
+.mt-section { margin-bottom:24px; }
+.mt-section-head { display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border); }
+.mt-section-icon { width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0; }
+.mt-section-title { font-size:15px;font-weight:700;color:var(--text); }
+.mt-section-count { background:var(--border);color:var(--text-2);border-radius:20px;padding:1px 10px;font-size:11px;font-weight:700; }
+
+.mt-table { width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden; }
+.mt-table th { background:var(--bg);font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border); }
+.mt-table td { padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle; }
+.mt-table tr:last-child td { border-bottom:none; }
+.mt-table tr:hover td { background:var(--hover); }
+
+.mt-task-title { font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px; }
+.mt-task-title a { color:inherit;text-decoration:none; }
+.mt-task-title a:hover { color:var(--primary); }
+.mt-proj-tag { font-size:11px;color:var(--text-3);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 7px;white-space:nowrap; }
+.mt-due { font-size:12px;font-weight:600;white-space:nowrap; }
+.mt-due.overdue { color:#dc2626; }
+.mt-due.today { color:#d97706; }
+.mt-due.ok { color:var(--text-3); }
+.mt-badge { display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;border-radius:6px;padding:3px 9px; }
+.mt-actions { display:flex;gap:6px; }
+.mt-btn { font-size:11px;border:1px solid var(--border);background:transparent;color:var(--text-2);border-radius:6px;padding:4px 10px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:.15s; }
+.mt-btn:hover { background:var(--primary);color:#fff;border-color:var(--primary); }
+.mt-btn.danger:hover { background:#dc2626;border-color:#dc2626;color:#fff; }
+
+.mt-empty { text-align:center;padding:32px;color:var(--text-3);font-size:13px; }
+.mt-empty i { font-size:24px;margin-bottom:8px;display:block; }
+
+@media(max-width:768px){
+  .mt-table th:nth-child(3), .mt-table td:nth-child(3),
+  .mt-table th:nth-child(4), .mt-table td:nth-child(4) { display:none; }
+}
+</style>
+
+<!-- Header -->
+<div class="mt-header">
+  <div class="page-header" style="margin-bottom:16px">
+    <div class="page-header-title">
+      <h2><i class="fas fa-tasks" style="color:var(--primary);margin-right:8px"></i>Công việc của tôi</h2>
+      <p>Tất cả task được giao cho bạn</p>
+    </div>
+    <div class="page-header-actions">
+      <a href="/projects" class="btn btn-outline"><i class="fas fa-folder-open"></i> Dự án</a>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="mt-kpi-row">
+    <div class="mt-kpi">
+      <div class="mt-kpi-val" style="color:var(--primary)"><%= stats.pending || 0 %></div>
+      <div class="mt-kpi-lbl">Đang thực hiện</div>
+    </div>
+    <div class="mt-kpi">
+      <div class="mt-kpi-val" style="color:#dc2626"><%= stats.overdue || 0 %></div>
+      <div class="mt-kpi-lbl">Quá hạn</div>
+    </div>
+    <div class="mt-kpi">
+      <div class="mt-kpi-val" style="color:#d97706"><%= stats.today || 0 %></div>
+      <div class="mt-kpi-lbl">Hôm nay</div>
+    </div>
+    <div class="mt-kpi">
+      <div class="mt-kpi-val" style="color:#16a34a"><%= stats.done || 0 %></div>
+      <div class="mt-kpi-lbl">Hoàn thành</div>
+    </div>
+  </div>
+
+  <!-- Alert banner -->
+  <% if (stats.overdue > 0 || stats.today > 0) { %>
+  <div class="mt-alert">
+    <div class="mt-alert-icon"><i class="fas fa-exclamation-triangle"></i></div>
+    <div class="mt-alert-text">
+      <strong>
+        <% if (stats.overdue > 0) { %>Bạn có <%= stats.overdue %> task quá hạn<% } %>
+        <% if (stats.overdue > 0 && stats.today > 0) { %> và <% } %>
+        <% if (stats.today > 0) { %><%= stats.today %> task cần hoàn thành hôm nay<% } %>
+      </strong>
+      <p>Hãy ưu tiên xử lý ngay để không ảnh hưởng đến tiến độ dự án.</p>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<% function taskTable(tasks, emptyMsg) { %>
+  <% if (!tasks || tasks.length === 0) { %>
+    <div class="mt-empty"><i class="fas fa-check-circle" style="color:#16a34a"></i><%= emptyMsg %></div>
+  <% } else { %>
+  <table class="mt-table">
+    <thead>
+      <tr>
+        <th>Công việc</th>
+        <th>Hạn chót</th>
+        <th>Ưu tiên</th>
+        <th>Trạng thái</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    <% tasks.forEach(t => {
+      const diff = daysDiff(t.due_date);
+      const dueClass = !t.due_date ? '' : diff > 0 ? 'overdue' : diff === 0 ? 'today' : 'ok';
+      const dueText = !t.due_date ? '—' : diff > 0 ? `Quá ${diff} ngày` : diff === 0 ? 'Hôm nay' : `${fmtDate(t.due_date)}`;
+    %>
+    <tr>
+      <td>
+        <div class="mt-task-title">
+          <a href="/tasks/<%= t.id %>/edit"><%= t.title %></a>
+        </div>
+        <span class="mt-proj-tag"><i class="fas fa-folder" style="font-size:10px;margin-right:3px"></i><%= t.project_name %></span>
+      </td>
+      <td>
+        <span class="mt-due <%= dueClass %>">
+          <% if (dueClass === 'overdue') { %><i class="fas fa-clock"></i> <% } %>
+          <%= dueText %>
+        </span>
+      </td>
+      <td>
+        <span class="mt-badge" style="background:<%= priorityColor[t.priority] %>22;color:<%= priorityColor[t.priority] %>">
+          <%= priorityLabel[t.priority] || t.priority %>
+        </span>
+      </td>
+      <td>
+        <span class="mt-badge" style="background:<%= statusColor[t.status] %>22;color:<%= statusColor[t.status] %>">
+          <%= statusLabel[t.status] || t.status %>
+        </span>
+      </td>
+      <td>
+        <div class="mt-actions">
+          <a href="/tasks/<%= t.id %>/edit" class="mt-btn"><i class="fas fa-pen"></i> Mở</a>
+          <a href="/projects/<%= t.project_id %>/kanban" class="mt-btn"><i class="fas fa-columns"></i></a>
+        </div>
+      </td>
+    </tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <% } %>
+<% } %>
+
+<!-- Overdue -->
+<% if (overdueTasks.length > 0) { %>
+<div class="mt-section">
+  <div class="mt-section-head">
+    <div class="mt-section-icon" style="background:#dc2626"><i class="fas fa-fire-flame-curved"></i></div>
+    <span class="mt-section-title">Quá hạn</span>
+    <span class="mt-section-count"><%= overdueTasks.length %></span>
+  </div>
+  <%- taskTable(overdueTasks, '') %>
+</div>
+<% } %>
+
+<!-- Today -->
+<% if (todayTasks.length > 0) { %>
+<div class="mt-section">
+  <div class="mt-section-head">
+    <div class="mt-section-icon" style="background:#d97706"><i class="fas fa-calendar-day"></i></div>
+    <span class="mt-section-title">Hôm nay</span>
+    <span class="mt-section-count"><%= todayTasks.length %></span>
+  </div>
+  <%- taskTable(todayTasks, '') %>
+</div>
+<% } %>
+
+<!-- Upcoming -->
+<div class="mt-section">
+  <div class="mt-section-head">
+    <div class="mt-section-icon" style="background:#3b82f6"><i class="fas fa-list-check"></i></div>
+    <span class="mt-section-title">Sắp tới</span>
+    <span class="mt-section-count"><%= upcomingTasks.length %></span>
+  </div>
+  <%- taskTable(upcomingTasks, 'Không có task nào sắp đến hạn') %>
+</div>
+
+<!-- Recently done -->
+<% if (doneTasks.length > 0) { %>
+<div class="mt-section">
+  <div class="mt-section-head">
+    <div class="mt-section-icon" style="background:#16a34a"><i class="fas fa-check-double"></i></div>
+    <span class="mt-section-title">Hoàn thành gần đây</span>
+    <span class="mt-section-count"><%= doneTasks.length %></span>
+  </div>
+  <%- taskTable(doneTasks, '') %>
+</div>
+<% } %>

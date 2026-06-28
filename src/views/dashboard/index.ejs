@@ -3,6 +3,8 @@
   const lowStockCount = warehouseStats.low_stock || 0;
   const taskIsAlert   = overdueCount > 0;
   const stockIsAlert  = lowStockCount > 0;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const myTodayCount = (myTasks||[]).filter(t => t.due_date && new Date(t.due_date).toISOString().split('T')[0] === todayStr).length;
 %>
 
 <!-- ═══ KPI STRIP ═══════════════════════════════════════════════ -->
@@ -51,6 +53,26 @@
   </div>
 
 </div>
+
+<!-- ═══ PERSONAL ALERT BANNER ════════════════════════════════════ -->
+<% if (overdueCount > 0 || myTodayCount > 0) { %>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:10px;padding:12px 18px;margin-bottom:16px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:10px">
+    <i class="fas fa-exclamation-triangle" style="color:#dc2626;font-size:18px;flex-shrink:0"></i>
+    <div>
+      <div style="font-size:14px;font-weight:700;color:#b91c1c">
+        <% if (overdueCount > 0) { %>Bạn có <strong><%= overdueCount %> task quá hạn</strong><% } %>
+        <% if (overdueCount > 0 && myTodayCount > 0) { %> và <% } %>
+        <% if (myTodayCount > 0) { %><strong><%= myTodayCount %> task</strong> cần hoàn thành hôm nay<% } %>
+      </div>
+      <div style="font-size:12px;color:#dc2626;margin-top:2px">Xem danh sách công việc để xử lý ngay</div>
+    </div>
+  </div>
+  <a href="/tasks/my-tasks" style="white-space:nowrap;background:#dc2626;color:#fff;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px">
+    <i class="fas fa-tasks"></i> Xem công việc của tôi
+  </a>
+</div>
+<% } %>
 
 <!-- ═══ DASHBOARD BODY ══════════════════════════════════════════ -->
 <div class="db-layout">

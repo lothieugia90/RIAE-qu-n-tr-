@@ -1,6 +1,38 @@
-<div class="page-header">
+<%
+const statusColor = { todo:'#94a3b8', in_progress:'#3b82f6', review:'#d97706', done:'#16a34a' };
+const statusLabel = { todo:'Chưa làm', in_progress:'Đang làm', review:'Chờ duyệt', done:'Hoàn thành' };
+%>
+
+<style>
+.gantt-top { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px }
+.gantt-legend { display:flex;gap:14px;flex-wrap:wrap }
+.gantt-legend-item { display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2) }
+.gantt-legend-dot { width:10px;height:10px;border-radius:3px }
+.gantt-scroller { overflow-x:auto;-webkit-overflow-scrolling:touch }
+.gantt-grid { min-width:800px }
+.gantt-head-row { display:flex;border-bottom:2px solid var(--border);background:var(--bg) }
+.gantt-label-col { width:220px;flex-shrink:0;padding:10px 14px;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em }
+.gantt-timeline-head { flex:1;position:relative;height:38px }
+.gantt-date-tick { position:absolute;top:4px;font-size:10px;color:var(--text-3);white-space:nowrap;transform:translateX(-50%) }
+.gantt-row { display:flex;align-items:center;border-bottom:1px solid var(--border);min-height:44px }
+.gantt-row:hover { background:var(--hover) }
+.gantt-row-label { width:220px;flex-shrink:0;padding:8px 14px }
+.gantt-row-label-title { font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px }
+.gantt-row-label-sub { font-size:11px;color:var(--text-3) }
+.gantt-row-bar-area { flex:1;position:relative;height:44px }
+.gantt-bar { position:absolute;top:50%;transform:translateY(-50%);height:26px;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default;box-shadow:0 2px 6px rgba(0,0,0,.15) }
+.gantt-bar.overdue { background:#dc2626!important;animation:gantt-pulse 2s infinite }
+@keyframes gantt-pulse { 0%,100%{opacity:1} 50%{opacity:.8} }
+.gantt-today-line { position:absolute;top:0;bottom:0;width:2px;background:#ef4444;z-index:10;pointer-events:none }
+.gantt-today-label { position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#ef4444;color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;white-space:nowrap }
+.gantt-deadline { position:absolute;top:0;bottom:0;width:2px;background:#f59e0b;z-index:9;pointer-events:none }
+.gantt-deadline-label { position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;white-space:nowrap }
+.gantt-grid-line { position:absolute;top:0;bottom:0;width:1px;background:var(--border);opacity:.4 }
+</style>
+
+<div class="page-header" style="margin-bottom:16px">
   <div class="page-header-title">
-    <h2><i class="fas fa-chart-gantt text-primary" style="margin-right:8px"></i>Gantt Chart</h2>
+    <h2><i class="fas fa-chart-gantt" style="color:var(--primary);margin-right:8px"></i>Gantt Chart</h2>
     <p><a href="/projects/<%= project.id %>"><%= project.name %></a></p>
   </div>
   <div class="page-header-actions">
@@ -9,60 +41,119 @@
   </div>
 </div>
 
+<% if (tasks.length === 0) { %>
 <div class="card">
-  <div class="card-body" style="padding:0">
-    <% if (tasks.length === 0) { %>
-    <div class="empty-state" style="padding:48px">
-      <div class="empty-state-icon"><i class="fas fa-chart-gantt"></i></div>
-      <h3>Chưa có task nào</h3>
-      <p>Thêm task với ngày bắt đầu/kết thúc để hiển thị Gantt</p>
-      <a href="/projects/<%= project.id %>/kanban" class="btn btn-primary" style="margin-top:16px">Thêm Task</a>
+  <div class="card-body" style="text-align:center;padding:64px 24px">
+    <i class="fas fa-chart-gantt" style="font-size:40px;color:var(--text-3);margin-bottom:12px;display:block"></i>
+    <h3>Chưa có task nào</h3>
+    <p style="color:var(--text-3);margin-bottom:20px">Thêm task với ngày bắt đầu/kết thúc để hiển thị tiến độ</p>
+    <a href="/projects/<%= project.id %>/kanban" class="btn btn-primary">Thêm Task</a>
+  </div>
+</div>
+<% } else { %>
+<%
+  const now = new Date(); now.setHours(0,0,0,0);
+  const allDates = tasks.flatMap(t =>
+    [t.start_date, t.due_date, t.created_at, project.start_date, project.end_date]
+    .filter(Boolean).map(d => new Date(d))
+  );
+  let minDate = allDates.length ? new Date(Math.min(...allDates)) : new Date();
+  let maxDate = allDates.length ? new Date(Math.max(...allDates)) : new Date();
+  minDate.setDate(minDate.getDate() - 2);
+  maxDate.setDate(maxDate.getDate() + 5);
+  const totalMs = maxDate - minDate;
+
+  function pct(date) {
+    if (!date) return null;
+    const d = new Date(date); d.setHours(0,0,0,0);
+    return Math.max(0, Math.min(100, (d - minDate) / totalMs * 100));
+  }
+
+  const ticks = [];
+  const td = new Date(minDate);
+  while (td <= maxDate) { ticks.push(new Date(td)); td.setDate(td.getDate() + 7); }
+
+  const todayPct = pct(now);
+  const deadlinePct = project.end_date ? pct(project.end_date) : null;
+%>
+
+<div class="card">
+  <div class="card-body" style="padding:16px 20px">
+    <div class="gantt-top">
+      <div class="gantt-legend">
+        <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#94a3b8"></div>Chưa làm</div>
+        <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#3b82f6"></div>Đang làm</div>
+        <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#d97706"></div>Chờ duyệt</div>
+        <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#16a34a"></div>Hoàn thành</div>
+        <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#dc2626"></div>Quá hạn</div>
+      </div>
+      <span style="font-size:12px;color:var(--text-3)">
+        <i class="fas fa-calendar-alt"></i>
+        <%= minDate.toLocaleDateString('vi-VN',{month:'short',day:'numeric'}) %> — <%= maxDate.toLocaleDateString('vi-VN',{month:'short',day:'numeric'}) %>
+      </span>
     </div>
-    <% } else { %>
-    <%
-      const allDates = tasks.flatMap(t => [t.start_date, t.due_date, t.created_at].filter(Boolean).map(d => new Date(d)));
-      const minDate = allDates.length ? new Date(Math.min(...allDates)) : new Date(project.start_date || Date.now());
-      const maxDate = allDates.length ? new Date(Math.max(...allDates)) : new Date(project.end_date || Date.now());
-      const totalDays = Math.max(1, Math.ceil((maxDate - minDate) / 86400000)) + 7;
-    %>
-    <div class="gantt-container" style="padding:16px">
-      <div class="gantt-table">
-        <!-- Header -->
-        <div class="gantt-header">
-          <div class="gantt-label-col">Task</div>
-          <div class="gantt-timeline" style="position:relative;height:30px">
-            <% for (let i = 0; i <= totalDays; i += 7) {
-               const d = new Date(minDate); d.setDate(d.getDate() + i);
-               const left = (i / totalDays * 100).toFixed(1);
-            %>
-            <span style="position:absolute;left:<%= left %>%;font-size:10px;color:var(--text-3);white-space:nowrap;transform:translateX(-50%)">
-              <%= d.toLocaleDateString('vi-VN', {month:'short',day:'numeric'}) %>
+
+    <div class="gantt-scroller">
+      <div class="gantt-grid">
+        <div class="gantt-head-row">
+          <div class="gantt-label-col">Công việc (<%= tasks.length %>)</div>
+          <div class="gantt-timeline-head">
+            <% ticks.forEach(tick => {
+              const lp = pct(tick);
+              if (lp >= 0 && lp <= 100) { %>
+            <span class="gantt-date-tick" style="left:<%= lp.toFixed(1) %>%">
+              <%= tick.toLocaleDateString('vi-VN',{month:'numeric',day:'numeric'}) %>
             </span>
-            <% } %>
+            <% } }) %>
           </div>
         </div>
 
-        <!-- Rows -->
-        <% tasks.forEach(task => {
-          const startD = task.start_date ? new Date(task.start_date) : new Date(task.created_at);
-          const endD = task.due_date ? new Date(task.due_date) : startD;
-          const left = Math.max(0, (startD - minDate) / (totalDays * 86400000) * 100);
-          const width = Math.max(1, (endD - startD + 86400000) / (totalDays * 86400000) * 100);
-        %>
-        <div class="gantt-row">
-          <div class="gantt-row-label">
-            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px"><%= task.title %></div>
-            <div style="font-size:11px;color:var(--text-3)"><%= task.assignee_name || '—' %></div>
+        <div style="position:relative">
+          <% ticks.forEach(tick => {
+            const lp = pct(tick);
+            if (lp >= 0 && lp <= 100) { %>
+          <div class="gantt-grid-line" style="left:<%= lp.toFixed(1) %>%"></div>
+          <% } }) %>
+          <% if (todayPct >= 0 && todayPct <= 100) { %>
+          <div class="gantt-today-line" style="left:<%= todayPct.toFixed(1) %>%">
+            <div class="gantt-today-label">Hôm nay</div>
           </div>
-          <div class="gantt-row-bar">
-            <div class="gantt-bar <%= task.status %>" style="left:<%= left.toFixed(1) %>%;width:<%= Math.min(width, 100 - left).toFixed(1) %>%">
-              <span style="overflow:hidden;text-overflow:ellipsis"><%= task.title %></span>
+          <% } %>
+          <% if (deadlinePct !== null && deadlinePct >= 0 && deadlinePct <= 100) { %>
+          <div class="gantt-deadline" style="left:<%= deadlinePct.toFixed(1) %>%">
+            <div class="gantt-deadline-label">Deadline</div>
+          </div>
+          <% } %>
+
+          <% tasks.forEach(task => {
+            const startD = task.start_date ? new Date(task.start_date) : new Date(task.created_at);
+            const endD = task.due_date ? new Date(task.due_date) : startD;
+            const left = pct(startD);
+            const right = pct(new Date(endD.getTime() + 86400000));
+            const width = Math.max(0.5, right - left);
+            const isOverdue = task.due_date && new Date(task.due_date) < now && task.status !== 'done';
+            const color = isOverdue ? '#dc2626' : (statusColor[task.status] || '#94a3b8');
+          %>
+          <div class="gantt-row">
+            <div class="gantt-row-label">
+              <div class="gantt-row-label-title" title="<%= task.title %>"><%= task.title %></div>
+              <div class="gantt-row-label-sub">
+                <% if (task.assignee_name) { %><%= task.assignee_name %> · <% } %>
+                <span style="color:<%= color %>"><%= statusLabel[task.status]||task.status %></span>
+              </div>
+            </div>
+            <div class="gantt-row-bar-area">
+              <div class="gantt-bar <%= isOverdue ? 'overdue' : '' %>"
+                   style="left:<%= left.toFixed(1) %>%;width:<%= Math.min(width, 100-left).toFixed(1) %>%;background:<%= color %>"
+                   title="<%= task.title %> | <%= task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : 'Không có hạn' %>">
+                <%= task.title %>
+              </div>
             </div>
           </div>
+          <% }) %>
         </div>
-        <% }) %>
       </div>
     </div>
-    <% } %>
   </div>
 </div>
+<% } %>

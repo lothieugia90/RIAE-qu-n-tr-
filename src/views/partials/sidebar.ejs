@@ -27,6 +27,10 @@
         <span class="nav-icon"><i class="fas fa-folder-open"></i></span>
         <span class="nav-text">Dự án</span>
       </a>
+      <a href="/tasks/my-tasks" class="nav-link <%= path.startsWith('/tasks/my-tasks') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-list-check"></i></span>
+        <span class="nav-text">Việc của tôi</span>
+      </a>
       <a href="/announcements" class="nav-link <%= path.startsWith('/announcements') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-bell"></i></span>
         <span class="nav-text">Thông báo</span>
