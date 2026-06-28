@@ -126,7 +126,7 @@ function fileIcon(name){
               <select name="assignee_id" class="form-control">
                 <option value="">— Chưa phân công —</option>
                 <% members.forEach(m => { %>
-                <option value="<%= m.id %>" <%= task.assignee_id===m.id ? 'selected' : '' %>><%= m.full_name %> (<%= m.role %>)</option>
+                <option value="<%= m.id %>" <%= task.assignee_id===m.id ? 'selected' : '' %>><%= m.full_name %><%= m.department ? ' — ' + m.department : '' %> (<%= m.role %>)</option>
                 <% }) %>
               </select>
             </div>

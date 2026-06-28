@@ -124,22 +124,22 @@ const detail = async (req, res) => {
 
 const kanban = async (req, res) => {
   try {
-    const [project, tasks, members] = await Promise.all([
+    const [project, tasks, allUsers] = await Promise.all([
       query('SELECT * FROM projects WHERE id=$1', [req.params.id]),
       query(`SELECT t.*, u.full_name as assignee_name, u.avatar_url as assignee_avatar
              FROM tasks t LEFT JOIN users u ON u.id=t.assignee_id
              WHERE t.project_id=$1 ORDER BY
                CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
                t.due_date ASC NULLS LAST`, [req.params.id]),
-      query(`SELECT u.id, u.full_name, u.avatar_url FROM project_members pm
-             JOIN users u ON u.id=pm.user_id WHERE pm.project_id=$1 ORDER BY u.full_name`, [req.params.id])
+      query(`SELECT id, full_name, avatar_url, role, department
+             FROM users WHERE is_active=true ORDER BY full_name`)
     ]);
     if (!project.rows.length) return res.redirect('/projects');
     res.render('projects/kanban', {
       title: 'Kanban - ' + project.rows[0].name,
       project: project.rows[0],
       tasks: tasks.rows,
-      members: members.rows
+      members: allUsers.rows
     });
   } catch (err) { console.error(err); res.redirect('/projects'); }
 };

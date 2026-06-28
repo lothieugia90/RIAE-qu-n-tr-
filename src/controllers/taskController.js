@@ -16,11 +16,18 @@ const createTask = async (req, res) => {
     const newId = result.rows[0].id;
     audit.log(req.session.userId, 'CREATE', 'task', newId,
       `Tạo task: ${title}`, null, { title, project_id, priority }, req.ip);
-    if (assignee_id && assignee_id !== req.session.userId) {
-      notify.create(assignee_id, 'task_assigned', 'work',
-        `Bạn được giao task: ${title}`,
-        `Mức ưu tiên: ${priority || 'medium'}`,
-        `/projects/${project_id}/kanban`);
+    if (assignee_id) {
+      // Auto-add assignee to project members if not already a member
+      await query(
+        'INSERT INTO project_members (project_id, user_id, role) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+        [project_id, assignee_id, 'member']
+      );
+      if (assignee_id !== req.session.userId) {
+        notify.create(assignee_id, 'task_assigned', 'work',
+          `Bạn được giao task: ${title}`,
+          `Mức ưu tiên: ${priority || 'medium'}`,
+          `/projects/${project_id}/kanban`);
+      }
     }
     req.flash('success', 'Đã tạo task mới');
     res.redirect('/projects/' + project_id + '/kanban');
@@ -57,6 +64,15 @@ const updateTask = async (req, res) => {
       }
       if (prev.status !== status && ['review', 'done'].includes(status)) {
         _notifyPM(prev.project_id, title, status, req.params.id, req.session.userId);
+      }
+      // Auto-add new assignee to project members
+      if (assignee_id && assignee_id !== prev.assignee_id) {
+        query('INSERT INTO project_members (project_id, user_id, role) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+          [prev.project_id, assignee_id, 'member']).catch(() => {});
+        if (assignee_id !== req.session.userId) {
+          notify.create(assignee_id, 'task_assigned', 'work',
+            `Bạn được giao task: ${title}`, null, `/tasks/${req.params.id}/edit`);
+        }
       }
     }
     if (req.headers.accept && req.headers.accept.includes('application/json')) {
@@ -155,7 +171,7 @@ const getEdit = async (req, res) => {
     const role = req.session.userRole;
     const [task, members, comments, timeLogs, attachments] = await Promise.all([
       query('SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.id=$1', [req.params.id]),
-      query('SELECT u.id, u.full_name, u.role FROM project_members pm JOIN users u ON u.id=pm.user_id WHERE pm.project_id=(SELECT project_id FROM tasks WHERE id=$1)', [req.params.id]),
+      query('SELECT id, full_name, role, department FROM users WHERE is_active=true ORDER BY full_name'),
       query('SELECT tc.*, u.full_name, u.avatar_url FROM task_comments tc JOIN users u ON u.id=tc.user_id WHERE tc.task_id=$1 ORDER BY tc.created_at ASC', [req.params.id]),
       query('SELECT tl.*, u.full_name FROM time_logs tl JOIN users u ON u.id=tl.user_id WHERE tl.task_id=$1 ORDER BY tl.log_date DESC', [req.params.id]),
       query('SELECT ta.*, u.full_name as uploader_name FROM task_attachments ta JOIN users u ON u.id=ta.uploaded_by WHERE ta.task_id=$1 ORDER BY ta.created_at DESC', [req.params.id])
