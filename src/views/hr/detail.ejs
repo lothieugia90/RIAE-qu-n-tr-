@@ -20,6 +20,9 @@
         <%= employee.is_active ? 'Khoá' : 'Kích hoạt' %>
       </button>
     </form>
+    <button type="button" class="btn btn-outline" onclick="document.getElementById('resetPwdModal').style.display='flex'">
+      <i class="fas fa-key"></i> Đặt lại mật khẩu
+    </button>
     <% } %>
     <a href="/hr" class="btn btn-outline"><i class="fas fa-arrow-left"></i></a>
   </div>
@@ -279,6 +282,27 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" onclick="document.getElementById('leaveModal').classList.remove('open')">Hủy</button>
         <button type="submit" class="btn btn-primary">Gửi đơn</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div id="resetPwdModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:28px;width:400px;max-width:90vw">
+    <h3 style="margin:0 0 16px;font-size:1.1rem">Đặt lại mật khẩu</h3>
+    <p style="color:#6b7280;font-size:.9rem;margin-bottom:16px">Nhân viên: <strong><%= employee.full_name %></strong> (<%= employee.username %>)</p>
+    <form action="/hr/<%= employee.id %>/reset-password" method="POST">
+      <div class="form-group">
+        <label class="form-label">Mật khẩu mới</label>
+        <input type="text" name="new_password" class="form-control" value="Riae@2024" required>
+        <small style="color:#6b7280">Để trống sẽ dùng mặc định: Riae@2024</small>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button type="submit" class="btn btn-primary" onclick="return confirm('Xác nhận đặt lại mật khẩu?')">
+          <i class="fas fa-key"></i> Xác nhận
+        </button>
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('resetPwdModal').style.display='none'">Hủy</button>
       </div>
     </form>
   </div>

@@ -28,5 +28,6 @@ router.post('/:id/documents/:docId/delete', requireRole('admin', 'director'), ct
 router.post('/:id/leave', ctrl.createLeaveRequest);
 router.post('/:id/leave-request', ctrl.createLeaveRequest);
 router.post('/:id/leaves/:leaveId/approve', requireRole('admin', 'director'), ctrl.approveLeave);
+router.post('/:id/reset-password', requireRole('admin', 'director'), ctrl.resetPassword);
 
 module.exports = router;

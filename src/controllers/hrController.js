@@ -254,4 +254,16 @@ const deleteDocument = async (req, res) => {
   res.redirect('/hr/' + req.params.id);
 };
 
-module.exports = { index, getCreate, postCreate, detail, getEdit, postEdit, toggleActive, quickRole, historyJson, createLeaveRequest, approveLeave, uploadDocument, deleteDocument };
+const resetPassword = async (req, res) => {
+  const newPassword = req.body.new_password || 'Riae@2024';
+  try {
+    const hash = await bcrypt.hash(newPassword, 12);
+    await query('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [hash, req.params.id]);
+    req.flash('success', `Đã đặt lại mật khẩu thành: ${newPassword}`);
+  } catch (err) {
+    req.flash('error', 'Lỗi: ' + err.message);
+  }
+  res.redirect('/hr/' + req.params.id);
+};
+
+module.exports = { index, getCreate, postCreate, detail, getEdit, postEdit, toggleActive, quickRole, historyJson, createLeaveRequest, approveLeave, uploadDocument, deleteDocument, resetPassword };
