@@ -144,7 +144,7 @@
       </h3>
       <button class="modal-close" onclick="closeTaskModal()"><i class="fas fa-times"></i></button>
     </div>
-    <form action="/tasks" method="POST" id="taskForm">
+    <form action="/tasks/create" method="POST" id="taskForm">
       <input type="hidden" name="project_id" value="<%= project.id %>">
       <input type="hidden" name="status" id="taskInitialStatus" value="todo">
       <div class="modal-body" style="display:grid;gap:0;padding:0">

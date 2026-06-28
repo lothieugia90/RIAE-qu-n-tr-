@@ -5,8 +5,7 @@
       <a href="/hr" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Quay lại</a>
     </div>
     <div class="card-body">
-      <form action="<%= employee ? '/hr/' + (employee.user_id || employee.id) + '?_method=PUT' : '/hr' %>" method="POST" enctype="multipart/form-data">
-        <% if (employee) { %><input type="hidden" name="_method" value="PUT"><% } %>
+      <form action="<%= employee ? '/hr/' + (employee.user_id || employee.id) + '/edit' : '/hr/create' %>" method="POST" enctype="multipart/form-data">
 
         <!-- Avatar -->
         <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)">

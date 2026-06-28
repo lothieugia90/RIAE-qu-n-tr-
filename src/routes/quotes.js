@@ -24,7 +24,7 @@ router.get('/create', requireRole('admin','director','pm'), async (req, res) => 
   res.render('quotes/form', { title: 'Tạo Báo giá mới', quote: null, items: [], projects: projects.rows });
 });
 
-router.post('/', requireRole('admin','director','pm'), async (req, res) => {
+async function handleCreateQuote(req, res) {
   const { code, title, project_id, client_name, client_contact, valid_until, notes } = req.body;
   try {
     const r = await query(
@@ -37,7 +37,10 @@ router.post('/', requireRole('admin','director','pm'), async (req, res) => {
     req.flash('error', err.code==='23505' ? 'Mã báo giá đã tồn tại' : 'Lỗi: ' + err.message);
     res.redirect('/quotes/create');
   }
-});
+}
+
+router.post('/create', requireRole('admin','director','pm'), handleCreateQuote);
+router.post('/', requireRole('admin','director','pm'), handleCreateQuote);
 
 router.get('/:id', async (req, res) => {
   const [quote, items, projects] = await Promise.all([
@@ -59,7 +62,7 @@ router.get('/:id/edit', requireRole('admin','director','pm'), async (req, res) =
   res.render('quotes/form', { title: 'Chỉnh sửa Báo giá', quote: quote.rows[0], items: items.rows, projects: projects.rows });
 });
 
-router.put('/:id', requireRole('admin','director','pm'), async (req, res) => {
+async function handleEditQuote(req, res) {
   const { title, project_id, client_name, client_contact, status, valid_until, notes } = req.body;
   await query(
     'UPDATE quotes SET title=$1,project_id=$2,client_name=$3,client_contact=$4,status=$5,valid_until=$6,notes=$7,updated_at=NOW() WHERE id=$8',
@@ -67,7 +70,10 @@ router.put('/:id', requireRole('admin','director','pm'), async (req, res) => {
   );
   req.flash('success', 'Đã cập nhật báo giá');
   res.redirect('/quotes/' + req.params.id);
-});
+}
+
+router.post('/:id/edit', requireRole('admin','director','pm'), handleEditQuote);
+router.put('/:id', requireRole('admin','director','pm'), handleEditQuote);
 
 router.post('/:id/items', requireRole('admin','director','pm'), async (req, res) => {
   const { description, unit, quantity, unit_price, discount_percent, notes } = req.body;

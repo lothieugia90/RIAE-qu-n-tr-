@@ -5,6 +5,7 @@ const { requireAuth, requireTaskAccess } = require('../middleware/auth');
 
 router.use(requireAuth);
 
+router.post('/create', ctrl.createTask);
 router.post('/', ctrl.createTask);
 router.put('/:id', requireTaskAccess, ctrl.updateTask);
 router.delete('/:id', ctrl.deleteTask);

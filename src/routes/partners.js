@@ -30,7 +30,22 @@ router.get('/create', requireRole('admin','director'), (req, res) => {
   res.render('partners/form', { title: 'Thêm Đối tác', partner: null });
 });
 
-// Create submit
+// Create submit (alias for Hostinger nginx compatibility)
+router.post('/create', requireRole('admin','director'), async (req, res) => {
+  const { type, name, phone, email, address, tax_code, contact_person, notes } = req.body;
+  try {
+    const r = await query(
+      'INSERT INTO partners (type,name,phone,email,address,tax_code,contact_person,notes,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id',
+      [type||'supplier', name, phone, email, address, tax_code, contact_person, notes, req.session.userId]
+    );
+    req.flash('success', `Đã thêm đối tác "${name}"`);
+    res.redirect('/partners/' + r.rows[0].id);
+  } catch(err) {
+    req.flash('error', 'Lỗi: ' + err.message);
+    res.redirect('/partners/create');
+  }
+});
+
 router.post('/', requireRole('admin','director'), async (req, res) => {
   const { type, name, phone, email, address, tax_code, contact_person, notes } = req.body;
   try {
@@ -70,6 +85,16 @@ router.get('/:id/edit', requireRole('admin','director'), async (req, res) => {
 });
 
 // Edit submit
+router.post('/:id/edit', requireRole('admin','director'), async (req, res) => {
+  const { type, name, phone, email, address, tax_code, contact_person, notes } = req.body;
+  await query(
+    'UPDATE partners SET type=$1,name=$2,phone=$3,email=$4,address=$5,tax_code=$6,contact_person=$7,notes=$8,updated_at=NOW() WHERE id=$9',
+    [type, name, phone, email, address, tax_code, contact_person, notes, req.params.id]
+  );
+  req.flash('success', 'Đã cập nhật đối tác');
+  res.redirect('/partners/' + req.params.id);
+});
+
 router.put('/:id', requireRole('admin','director'), async (req, res) => {
   const { type, name, phone, email, address, tax_code, contact_person, notes } = req.body;
   await query(

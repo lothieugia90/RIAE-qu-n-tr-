@@ -5,8 +5,7 @@
       <a href="/partners" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Quay lại</a>
     </div>
     <div class="card-body">
-      <form action="<%= partner ? '/partners/' + partner.id + '?_method=PUT' : '/partners' %>" method="POST">
-        <% if (partner) { %><input type="hidden" name="_method" value="PUT"><% } %>
+      <form action="<%= partner ? '/partners/' + partner.id + '/edit' : '/partners/create' %>" method="POST">
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label">Loại đối tác <span class="req">*</span></label>
