@@ -5,8 +5,7 @@
       <a href="/projects" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Quay lại</a>
     </div>
     <div class="card-body">
-      <form action="<%= project ? '/projects/' + project.id + '?_method=PUT' : '/projects' %>" method="POST">
-        <% if (project) { %><input type="hidden" name="_method" value="PUT"><% } %>
+      <form action="<%= project ? '/projects/' + project.id + '/edit' : '/projects/create' %>" method="POST">
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label">Mã dự án <span class="req">*</span></label>

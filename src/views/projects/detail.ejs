@@ -178,8 +178,7 @@ const isOverdue = endDate && endDate < now && project.status !== 'completed';
         <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
           <a href="/projects/<%= project.id %>/kanban" class="btn btn-primary btn-full"><i class="fas fa-columns"></i> Mở Kanban Board</a>
           <a href="/projects/<%= project.id %>/edit" class="btn btn-outline btn-full"><i class="fas fa-edit"></i> Chỉnh sửa dự án</a>
-          <form action="/projects/<%= project.id %>?_method=DELETE" method="POST">
-            <input type="hidden" name="_method" value="DELETE">
+          <form action="/projects/<%= project.id %>/delete" method="POST">
             <button type="submit" class="btn btn-danger btn-full" onclick="return confirm('Hủy dự án này?')"><i class="fas fa-times"></i> Hủy dự án</button>
           </form>
         </div>
