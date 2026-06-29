@@ -244,14 +244,17 @@ async function loadNotifications(tab) {
   }
 }
 
-async function readNotif(e, id, href) {
+function readNotif(e, id, href) {
   e.preventDefault();
-  try { await fetch('/notifications/' + id + '/read', {method:'POST'}); } catch(_) {}
-  // Remove unread style
+  // Mark as read in background — do NOT await so navigation is instant
+  fetch('/notifications/' + id + '/read', {method:'POST'}).catch(() => {});
+  // Update UI immediately
   const el = e.currentTarget;
-  el.classList.remove('unread');
-  const dot = el.querySelector('.notif-unread-dot');
-  if (dot) dot.remove();
+  if (el) {
+    el.classList.remove('unread');
+    const dot = el.querySelector('.notif-unread-dot');
+    if (dot) dot.remove();
+  }
   // Navigate or close panel
   if (href && href !== '#') {
     window.location.href = href;
