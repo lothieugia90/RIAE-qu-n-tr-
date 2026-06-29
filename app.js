@@ -21,6 +21,7 @@ require('./src/config/migrate-v8')();
 require('./src/config/migrate-v9')();
 require('./src/config/migrate-v10')();
 require('./src/config/migrate-v11')();
+require('./src/config/migrate-v12')();
 
 const app = express();
 

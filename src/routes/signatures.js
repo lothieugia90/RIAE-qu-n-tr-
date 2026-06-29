@@ -293,6 +293,120 @@ router.post('/request/:id/sign', async (req, res) => {
 });
 
 /* ════════════════════════════════════════════════════
+   WAREHOUSE RETURN — kho ký xác nhận thu hồi
+════════════════════════════════════════════════════ */
+const { requireRole } = require('../middleware/auth');
+const { pool } = require('../config/database');
+
+router.get('/warehouse-return/:id', async (req, res) => {
+  try {
+    const [asgn, recipientSig, returnSig] = await Promise.all([
+      query(`SELECT wa.*, wi.name as item_name, wi.unit, wi.item_type,
+             u.full_name as assignee_name, u.department as assignee_dept,
+             ab.full_name as assigned_by_name
+             FROM warehouse_assignments wa
+             JOIN warehouse_items wi ON wi.id=wa.item_id
+             LEFT JOIN users u  ON u.id=wa.assigned_to_user
+             LEFT JOIN users ab ON ab.id=wa.assigned_by
+             WHERE wa.id=$1`, [req.params.id]),
+      query(`SELECT * FROM document_signatures WHERE document_type='warehouse_assignment' AND document_id=$1`, [req.params.id]),
+      query(`SELECT ds.*, u.full_name FROM document_signatures ds JOIN users u ON u.id=ds.user_id WHERE ds.document_type='warehouse_return' AND ds.document_id=$1`, [req.params.id])
+    ]);
+    if (!asgn.rows.length) return res.redirect('/warehouse/assignments');
+    const assignment = asgn.rows[0];
+    if (assignment.status === 'returned') {
+      req.flash('info', 'Phiếu giao này đã được thu hồi.');
+      return res.redirect('/warehouse/assignments/' + req.params.id);
+    }
+    res.render('signatures/warehouse-return', {
+      title: 'Ký xác nhận thu hồi vật tư',
+      assignment,
+      recipientSig: recipientSig.rows[0] || null,
+      existingSig: returnSig.rows[0] || null
+    });
+  } catch(err) { console.error(err); res.redirect('/warehouse/assignments'); }
+});
+
+router.post('/warehouse-return/:id/sign', requireRole('admin','director','warehouse','warehouse_keeper'), async (req, res) => {
+  const id = req.params.id;
+  try {
+    await doSign({
+      req, res,
+      documentType: 'warehouse_return',
+      documentId: id,
+      redirectOnFail: '/signatures/warehouse-return/' + id,
+      redirectOnSuccess: '/warehouse/assignments/' + id,
+      buildFields: async () => {
+        const r = await query(`SELECT wa.*, wi.name as item_name, wi.unit,
+                               u.full_name as assignee_name
+                               FROM warehouse_assignments wa
+                               JOIN warehouse_items wi ON wi.id=wa.item_id
+                               LEFT JOIN users u ON u.id=wa.assigned_to_user
+                               WHERE wa.id=$1`, [id]);
+        const a = r.rows[0];
+        return {
+          _title: 'Phiếu xác nhận thu hồi vật tư',
+          rows: [
+            { label: 'Vật tư',         value: a.item_name },
+            { label: 'Số lượng',       value: `${a.quantity} ${a.unit||''}` },
+            { label: 'Người trả',      value: a.assignee_name || '—' },
+            { label: 'Ngày trả',       value: new Date().toLocaleDateString('vi-VN') },
+            { label: 'Ghi chú',        value: a.notes || '—' },
+          ]
+        };
+      },
+      updateFn: async (hash, signedAt) => {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          const asgn = await client.query(
+            `SELECT wa.*, wi.item_type FROM warehouse_assignments wa
+             JOIN warehouse_items wi ON wi.id=wa.item_id WHERE wa.id=$1`, [id]
+          );
+          const a = asgn.rows[0];
+
+          await client.query(
+            `UPDATE warehouse_assignments
+             SET status='returned', returned_at=$1, returned_by=$2,
+                 return_signed_at=$1, return_signed_by=$2, return_signature_hash=$3
+             WHERE id=$4`,
+            [signedAt, req.session.userId, hash, id]
+          );
+
+          if (a.item_type === 'tool' || a.item_type === 'asset') {
+            await client.query(
+              `UPDATE warehouse_items SET item_status='available', assigned_to=NULL,
+               assigned_project_id=NULL, assigned_at=NULL, updated_at=NOW() WHERE id=$1`,
+              [a.item_id]
+            );
+          } else {
+            await client.query(
+              'UPDATE warehouse_items SET quantity=quantity+$1, updated_at=NOW() WHERE id=$2',
+              [a.quantity, a.item_id]
+            );
+          }
+
+          await client.query(
+            `INSERT INTO warehouse_transactions (item_id, transaction_type, quantity, performed_by, notes, assignment_id)
+             VALUES ($1,'import',$2,$3,$4,$5)`,
+            [a.item_id, a.quantity, req.session.userId, 'Thu hồi vật tư', id]
+          );
+
+          await client.query('COMMIT');
+        } catch(err) {
+          await client.query('ROLLBACK');
+          throw err;
+        } finally { client.release(); }
+      }
+    });
+  } catch(err) {
+    console.error(err);
+    req.flash('error', 'Lỗi: ' + err.message);
+    res.redirect('/signatures/warehouse-return/' + id);
+  }
+});
+
+/* ════════════════════════════════════════════════════
    VERIFY a signature by hash
 ════════════════════════════════════════════════════ */
 router.get('/verify', async (req, res) => {

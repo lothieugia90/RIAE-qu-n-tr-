@@ -374,22 +374,30 @@ const assignments = async (req, res) => {
 
 const assignmentDetail = async (req, res) => {
   try {
-    const result = await query(
-      `SELECT wa.*, wi.name as item_name, wi.code as item_code, wi.unit, wi.item_type, wi.item_status,
-       u.full_name as assignee_name, u.avatar_url as assignee_avatar,
-       p.name as project_name, ab.full_name as assigner_name, rb.full_name as returner_name
-       FROM warehouse_assignments wa
-       JOIN warehouse_items wi ON wi.id=wa.item_id
-       LEFT JOIN users u ON u.id=wa.assigned_to_user
-       LEFT JOIN projects p ON p.id=wa.assigned_to_project
-       LEFT JOIN users ab ON ab.id=wa.assigned_by
-       LEFT JOIN users rb ON rb.id=wa.returned_by
-       WHERE wa.id=$1`, [req.params.id]
-    );
+    const [result, recipientSig, returnSig] = await Promise.all([
+      query(
+        `SELECT wa.*, wi.name as item_name, wi.code as item_code, wi.unit, wi.item_type, wi.item_status,
+         u.full_name as assignee_name, u.avatar_url as assignee_avatar,
+         p.name as project_name, ab.full_name as assigner_name, rb.full_name as returner_name
+         FROM warehouse_assignments wa
+         JOIN warehouse_items wi ON wi.id=wa.item_id
+         LEFT JOIN users u ON u.id=wa.assigned_to_user
+         LEFT JOIN projects p ON p.id=wa.assigned_to_project
+         LEFT JOIN users ab ON ab.id=wa.assigned_by
+         LEFT JOIN users rb ON rb.id=wa.returned_by
+         WHERE wa.id=$1`, [req.params.id]
+      ),
+      query(`SELECT ds.*, u.full_name FROM document_signatures ds JOIN users u ON u.id=ds.user_id
+             WHERE ds.document_type='warehouse_assignment' AND ds.document_id=$1`, [req.params.id]),
+      query(`SELECT ds.*, u.full_name FROM document_signatures ds JOIN users u ON u.id=ds.user_id
+             WHERE ds.document_type='warehouse_return' AND ds.document_id=$1`, [req.params.id])
+    ]);
     if (!result.rows.length) return res.redirect('/warehouse/assignments');
     res.render('warehouse/assignment-detail', {
       title: 'Chi tiết Phiếu giao',
-      assignment: result.rows[0]
+      assignment: result.rows[0],
+      recipientSig: recipientSig.rows[0] || null,
+      returnSig: returnSig.rows[0] || null
     });
   } catch (err) { console.error(err); res.redirect('/warehouse/assignments'); }
 };
