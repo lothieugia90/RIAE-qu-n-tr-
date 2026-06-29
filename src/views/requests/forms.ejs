@@ -281,13 +281,15 @@ function openEditModal(id) {
   document.getElementById('edit_category').value = f.category || 'other';
   document.getElementById('editFormEl').action = '/requests/forms/' + f.id + '/edit';
 
-  // Populate fields — f.fields may be array (JSONB) or string
+  // Populate fields — handle array (JSONB), string (TEXT), or object
   const fc = document.getElementById('editFieldsContainer');
   fc.innerHTML = '';
-  let fields = Array.isArray(f.fields) ? f.fields : [];
-  if (!Array.isArray(f.fields)) {
-    try { fields = JSON.parse(f.fields || '[]'); } catch(e){ fields = []; }
-  }
+  var fields = [];
+  try {
+    if (Array.isArray(f.fields)) { fields = f.fields; }
+    else if (typeof f.fields === 'string' && f.fields.trim()) { fields = JSON.parse(f.fields); }
+    else if (f.fields && typeof f.fields === 'object') { fields = Object.values(f.fields); }
+  } catch(e) { fields = []; }
   if (fields.length === 0) {
     fc.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:10px;border:1px dashed var(--border);border-radius:6px;text-align:center;margin-bottom:8px">Chưa có trường nào</div>';
   } else {
@@ -298,10 +300,12 @@ function openEditModal(id) {
   const sc = document.getElementById('editStepsContainer');
   sc.innerHTML = '';
   editStepCount = 0;
-  let steps = Array.isArray(f.approval_steps) ? f.approval_steps : [];
-  if (!Array.isArray(f.approval_steps)) {
-    try { steps = JSON.parse(f.approval_steps || '[]'); } catch(e){ steps = []; }
-  }
+  var steps = [];
+  try {
+    if (Array.isArray(f.approval_steps)) { steps = f.approval_steps; }
+    else if (typeof f.approval_steps === 'string' && f.approval_steps.trim()) { steps = JSON.parse(f.approval_steps); }
+    else if (f.approval_steps && typeof f.approval_steps === 'object') { steps = Object.values(f.approval_steps); }
+  } catch(e) { steps = []; }
   if (steps.length === 0) {
     sc.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:10px;border:1px dashed var(--border);border-radius:6px;text-align:center">Nhấn "Thêm bước" để thêm người phê duyệt</div>';
   } else {

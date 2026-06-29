@@ -102,7 +102,13 @@ textarea.form-control { resize:vertical; min-height:80px; }
     </div>
 
     <!-- Dynamic fields -->
-    <% let fields; try { fields = Array.isArray(form.fields) ? form.fields : JSON.parse(form.fields || '[]'); } catch(e){ fields=[]; } %>
+    <% let fields = [];
+       try {
+         if (Array.isArray(form.fields)) { fields = form.fields; }
+         else if (typeof form.fields === 'string' && form.fields.trim()) { fields = JSON.parse(form.fields); }
+         else if (form.fields && typeof form.fields === 'object') { fields = Object.values(form.fields); }
+       } catch(e){ fields = []; }
+    %>
     <% if (fields.length > 0) { %>
     <div class="field-card">
       <div class="field-card-title"><i class="fas fa-list-ul" style="color:var(--primary)"></i> Nội dung yêu cầu</div>
