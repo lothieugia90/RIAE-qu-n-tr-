@@ -77,18 +77,18 @@
           Sau khi ký, trạng thái phiếu sẽ chuyển sang <strong>Đã trả</strong>.
         </p>
 
-        <form action="/signatures/warehouse-return/<%= assignment.id %>/sign" method="POST" id="returnSignForm">
+        <form action="/signatures/warehouse-return/<%= assignment.id %>/sign" method="POST" id="returnSignForm" onsubmit="return window.captureAndSubmit(event)">
           <input type="hidden" name="signature_data" id="sigData">
 
           <div style="margin-bottom:16px">
             <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">Chữ ký của bạn <span style="color:var(--danger)">*</span></label>
-            <div style="position:relative;border:2px dashed var(--border);border-radius:10px;background:#fff;overflow:hidden">
+            <div id="sigWrap" style="position:relative;border:2px dashed var(--border);border-radius:10px;background:#fff;overflow:hidden">
               <canvas id="sigCanvas" style="display:block;cursor:crosshair;width:100%;height:140px"></canvas>
               <button type="button" onclick="window.clearSig()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.85);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;color:var(--text-3)">
                 <i class="fas fa-eraser"></i> Xóa
               </button>
             </div>
-            <div id="sigStatus" style="font-size:11px;color:var(--text-3);margin-top:4px"><i class="fas fa-pen"></i> Vẽ chữ ký vào ô trên</div>
+            <div id="sigHint" style="font-size:11px;color:var(--text-3);margin-top:4px"><i class="fas fa-pen"></i> Vẽ chữ ký vào ô trên</div>
           </div>
 
           <div class="form-group" style="max-width:340px">
@@ -98,7 +98,7 @@
           </div>
 
           <div style="margin-top:20px;display:flex;gap:10px;align-items:center">
-            <button type="button" onclick="window.captureAndSubmit('returnSignForm','sigData')" class="btn btn-primary" style="min-width:200px">
+            <button type="submit" class="btn btn-primary" style="min-width:200px">
               <i class="fas fa-check-double"></i> Xác nhận thu hồi & Ký số
             </button>
             <a href="/warehouse/assignments/<%= assignment.id %>" class="btn btn-outline">Hủy</a>
@@ -163,4 +163,4 @@
   </div>
 </div>
 
-<%- include('../partials/signature-pad-js') %>
+<%- include('../partials/signature-pad-js', { canvasId: 'sigCanvas', wrapId: 'sigWrap', hintId: 'sigHint', dataId: 'sigData', formId: 'returnSignForm' }) %>
