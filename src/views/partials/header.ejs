@@ -252,8 +252,13 @@ async function readNotif(e, id, href) {
   el.classList.remove('unread');
   const dot = el.querySelector('.notif-unread-dot');
   if (dot) dot.remove();
-  // Navigate
-  if (href && href !== '#') window.location.href = href;
+  // Navigate or close panel
+  if (href && href !== '#') {
+    window.location.href = href;
+  } else {
+    document.getElementById('notifPanel').style.display = 'none';
+    notifOpen = false;
+  }
 }
 
 async function markAllNotifRead() {

@@ -38,8 +38,8 @@ const requestUpload = multer({
 async function notify(userId, title, message, link) {
   try {
     await query(
-      `INSERT INTO notifications (user_id, title, message, type, link, created_at)
-       VALUES ($1,$2,$3,'request',$4,NOW())`,
+      `INSERT INTO notifications (user_id, title, body, type, category, link, created_at)
+       VALUES ($1,$2,$3,'request','work',$4,NOW())`,
       [userId, title, message, link]
     );
   } catch (e) { /* silent if notifications table differs */ }

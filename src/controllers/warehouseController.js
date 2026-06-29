@@ -250,8 +250,8 @@ const createAssignment = async (req, res) => {
     try {
       if (assigned_to_user) {
         await query(
-          `INSERT INTO notifications (user_id, title, message, type, link)
-           VALUES ($1,$2,$3,'warehouse',$4)`,
+          `INSERT INTO notifications (user_id, title, body, type, category, link)
+           VALUES ($1,$2,$3,'warehouse','work',$4)`,
           [assigned_to_user, 'Bạn được giao vật tư', `Bạn được giao ${item.name}`, `/warehouse/assignments/${newAssignmentId}`]
         );
       }
@@ -304,8 +304,8 @@ const returnAssignment = async (req, res) => {
     try {
       if (assignment.assigned_by) {
         await query(
-          `INSERT INTO notifications (user_id, title, message, type, link)
-           VALUES ($1,$2,$3,'warehouse',$4)`,
+          `INSERT INTO notifications (user_id, title, body, type, category, link)
+           VALUES ($1,$2,$3,'warehouse','work',$4)`,
           [assignment.assigned_by, 'Vật tư đã được trả', `${assignment.item_name} đã được thu hồi`, `/warehouse/assignments/${id}`]
         );
       }
@@ -338,7 +338,7 @@ const requestReturn = async (req, res) => {
         );
         if (asgn.rows[0]?.assigned_by) {
           await query(
-            `INSERT INTO notifications (user_id, title, message, type, link) VALUES ($1,$2,$3,'warehouse',$4)`,
+            `INSERT INTO notifications (user_id, title, body, type, category, link) VALUES ($1,$2,$3,'warehouse','work',$4)`,
             [asgn.rows[0].assigned_by, 'Yêu cầu trả vật tư', `${asgn.rows[0].item_name} đang chờ xác nhận thu hồi`, `/warehouse/assignments/${id}`]
           );
         }

@@ -60,10 +60,10 @@ const actionItems = async (req, res) => {
     const isWarehouse = ['admin','director','warehouse','warehouse_keeper'].includes(role);
 
     const [approvals, signatures, returns, approved] = await Promise.all([
-      query(`SELECT r.id, r.title, r.category, r.created_at, u.full_name as requester_name
+      query(`SELECT r.id, r.title, r.created_at, u.full_name as requester_name
         FROM requests r
         JOIN request_approvals ra ON ra.request_id = r.id
-        JOIN users u ON u.id = r.user_id
+        JOIN users u ON u.id = r.submitted_by
         WHERE ra.approver_id = $1 AND ra.status = 'pending' AND r.status = 'pending'
         ORDER BY r.created_at ASC LIMIT 5`, [userId]),
 
@@ -81,9 +81,9 @@ const actionItems = async (req, res) => {
         WHERE wa.status = 'pending_return'
         ORDER BY wa.return_requested_at ASC LIMIT 5`) : { rows: [] },
 
-      query(`SELECT r.id, r.title, r.category, r.updated_at
+      query(`SELECT r.id, r.title, r.updated_at
         FROM requests r
-        WHERE r.user_id = $1 AND r.status = 'approved' AND r.updated_at > NOW() - INTERVAL '7 days'
+        WHERE r.submitted_by = $1 AND r.status = 'approved' AND r.updated_at > NOW() - INTERVAL '7 days'
         ORDER BY r.updated_at DESC LIMIT 5`, [userId])
     ]);
 

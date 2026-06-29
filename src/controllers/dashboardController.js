@@ -5,10 +5,10 @@ const index = async (req, res) => {
     const role = req.session.userRole;
     const userId = req.session.userId;
 
+    // Core dashboard data — must all succeed
     const [projectStats, taskStats, userStats, warehouseStats,
            recentProjects, myTasks, recentAnnouncements, projectsByStatus,
-           activeProjects, onlineUsers, urgentTasks,
-           pendingApprovals, needsSignature, pendingReturns, approvedRequests] = await Promise.all([
+           activeProjects, onlineUsers, urgentTasks] = await Promise.all([
       query(`SELECT
         COUNT(*)::int as total,
         COUNT(*) FILTER (WHERE status='active')::int as active,
@@ -72,38 +72,46 @@ const index = async (req, res) => {
         WHERE t.assignee_id=$1 AND t.status != 'done'
           AND (t.due_date < NOW() + INTERVAL '3 days' OR t.priority IN ('urgent','high'))
         ORDER BY t.due_date ASC NULLS LAST, CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END
-        LIMIT 8`, [userId]),
-
-      // Requests waiting for current user to approve
-      query(`SELECT r.id, r.title, r.category, r.created_at, u.full_name as requester_name
-        FROM requests r
-        JOIN request_approvals ra ON ra.request_id = r.id
-        JOIN users u ON u.id = r.user_id
-        WHERE ra.approver_id = $1 AND ra.status = 'pending' AND r.status = 'pending'
-        ORDER BY r.created_at ASC LIMIT 5`, [userId]),
-
-      // Warehouse assignments this user needs to sign (as recipient)
-      query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit, wa.assigned_at
-        FROM warehouse_assignments wa
-        JOIN warehouse_items wi ON wi.id = wa.item_id
-        WHERE wa.assigned_to_user = $1 AND wa.status = 'active' AND wa.recipient_signed_at IS NULL
-        ORDER BY wa.assigned_at DESC LIMIT 5`, [userId]),
-
-      // Pending-return assignments (warehouse/admin sees these to sign off)
-      query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit,
-               u.full_name as assignee_name, wa.return_requested_at
-        FROM warehouse_assignments wa
-        JOIN warehouse_items wi ON wi.id = wa.item_id
-        LEFT JOIN users u ON u.id = wa.assigned_to_user
-        WHERE wa.status = 'pending_return'
-        ORDER BY wa.return_requested_at ASC LIMIT 5`),
-
-      // Requests this user submitted that were recently approved
-      query(`SELECT r.id, r.title, r.category, r.updated_at
-        FROM requests r
-        WHERE r.user_id = $1 AND r.status = 'approved' AND r.updated_at > NOW() - INTERVAL '7 days'
-        ORDER BY r.updated_at DESC LIMIT 5`, [userId])
+        LIMIT 8`, [userId])
     ]);
+
+    // Action items — fetched separately so a failure doesn't crash the whole dashboard
+    let pendingApprovals = [], needsSignature = [], pendingReturns = [], approvedRequests = [];
+    try {
+      const [aRes, sRes, rRes, apRes] = await Promise.all([
+        query(`SELECT r.id, r.title, r.created_at, u.full_name as requester_name
+          FROM requests r
+          JOIN request_approvals ra ON ra.request_id = r.id
+          JOIN users u ON u.id = r.submitted_by
+          WHERE ra.approver_id = $1 AND ra.status = 'pending' AND r.status = 'pending'
+          ORDER BY r.created_at ASC LIMIT 5`, [userId]),
+
+        query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit, wa.assigned_at
+          FROM warehouse_assignments wa
+          JOIN warehouse_items wi ON wi.id = wa.item_id
+          WHERE wa.assigned_to_user = $1 AND wa.status = 'active' AND wa.recipient_signed_at IS NULL
+          ORDER BY wa.assigned_at DESC LIMIT 5`, [userId]),
+
+        query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit,
+                 u.full_name as assignee_name, wa.return_requested_at
+          FROM warehouse_assignments wa
+          JOIN warehouse_items wi ON wi.id = wa.item_id
+          LEFT JOIN users u ON u.id = wa.assigned_to_user
+          WHERE wa.status = 'pending_return'
+          ORDER BY wa.return_requested_at ASC LIMIT 5`),
+
+        query(`SELECT r.id, r.title, r.updated_at
+          FROM requests r
+          WHERE r.submitted_by = $1 AND r.status = 'approved' AND r.updated_at > NOW() - INTERVAL '7 days'
+          ORDER BY r.updated_at DESC LIMIT 5`, [userId])
+      ]);
+      pendingApprovals = aRes.rows;
+      needsSignature   = sRes.rows;
+      pendingReturns   = rRes.rows;
+      approvedRequests = apRes.rows;
+    } catch (actionErr) {
+      console.error('Dashboard action items error:', actionErr.message);
+    }
 
     res.render('dashboard/index', {
       title: 'Tổng quan',
@@ -118,10 +126,10 @@ const index = async (req, res) => {
       activeProjects: activeProjects.rows,
       onlineUsers: onlineUsers.rows,
       urgentTasks: urgentTasks.rows,
-      pendingApprovals: pendingApprovals.rows,
-      needsSignature: needsSignature.rows,
-      pendingReturns: pendingReturns.rows,
-      approvedRequests: approvedRequests.rows
+      pendingApprovals,
+      needsSignature,
+      pendingReturns,
+      approvedRequests
     });
   } catch (err) {
     console.error('Dashboard error:', err);
