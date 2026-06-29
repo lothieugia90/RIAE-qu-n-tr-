@@ -175,15 +175,32 @@ router.post('/forms', requireRole('admin', 'director'), async (req, res) => {
     .map((a, i) => ({ name: stepNames[i] || '', approver_id: a }))
     .filter(s => s.approver_id);
 
+  const fieldsStr = JSON.stringify(fieldsJson);
+  const stepsStr  = JSON.stringify(stepsJson);
+  console.log('[POST /forms] fieldsJson:', fieldsStr, '| stepsJson:', stepsStr);
   try {
-    await query(
-      `INSERT INTO request_forms (name, description, category, fields, approval_steps, created_by)
-       VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6)`,
-      [name, description || null, category || 'other', JSON.stringify(fieldsJson), JSON.stringify(stepsJson), req.session.userId]
-    );
-    req.flash('success', `Đã tạo quy trình "${name}"`);
+    // Try with ::jsonb cast first; fall back to plain text if column is TEXT type
+    let saved = false;
+    try {
+      await query(
+        `INSERT INTO request_forms (name, description, category, fields, approval_steps, created_by)
+         VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6)`,
+        [name, description || null, category || 'other', fieldsStr, stepsStr, req.session.userId]
+      );
+      saved = true;
+    } catch (castErr) {
+      console.log('[POST /forms] ::jsonb cast failed:', castErr.message, '— retrying without cast');
+      await query(
+        `INSERT INTO request_forms (name, description, category, fields, approval_steps, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [name, description || null, category || 'other', fieldsStr, stepsStr, req.session.userId]
+      );
+      saved = true;
+    }
+    if (saved) req.flash('success', `Đã tạo quy trình "${name}"`);
   } catch (err) {
-    req.flash('error', err.message);
+    console.error('[POST /forms] ERROR:', err.message);
+    req.flash('error', 'Lỗi tạo quy trình: ' + err.message);
   }
   res.redirect('/requests/forms');
 });
@@ -210,14 +227,26 @@ router.post('/forms/:id/edit', requireRole('admin', 'director'), async (req, res
     .map((a, i) => ({ name: stepNames[i] || '', approver_id: a }))
     .filter(s => s.approver_id);
 
+  const fieldsStr2 = JSON.stringify(fieldsJson);
+  const stepsStr2  = JSON.stringify(stepsJson);
+  console.log('[POST /forms/edit] fieldsJson:', fieldsStr2);
   try {
-    await query(
-      `UPDATE request_forms SET name=$1, description=$2, category=$3, fields=$4::jsonb, approval_steps=$5::jsonb WHERE id=$6`,
-      [name, description || null, category || 'other', JSON.stringify(fieldsJson), JSON.stringify(stepsJson), req.params.id]
-    );
+    try {
+      await query(
+        `UPDATE request_forms SET name=$1, description=$2, category=$3, fields=$4::jsonb, approval_steps=$5::jsonb WHERE id=$6`,
+        [name, description || null, category || 'other', fieldsStr2, stepsStr2, req.params.id]
+      );
+    } catch (castErr) {
+      console.log('[POST /forms/edit] ::jsonb cast failed:', castErr.message, '— retrying');
+      await query(
+        `UPDATE request_forms SET name=$1, description=$2, category=$3, fields=$4, approval_steps=$5 WHERE id=$6`,
+        [name, description || null, category || 'other', fieldsStr2, stepsStr2, req.params.id]
+      );
+    }
     req.flash('success', `Đã cập nhật quy trình "${name}"`);
   } catch (err) {
-    req.flash('error', err.message);
+    console.error('[POST /forms/edit] ERROR:', err.message);
+    req.flash('error', 'Lỗi cập nhật: ' + err.message);
   }
   res.redirect('/requests/forms');
 });
