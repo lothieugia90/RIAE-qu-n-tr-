@@ -82,7 +82,7 @@
       <span class="form-meta-item"><i class="fas fa-file-alt"></i> <%= f.request_count %> yêu cầu</span>
     </div>
     <div class="form-card-actions" style="justify-content:space-between">
-      <button onclick="openEditModal(<%- JSON.stringify(f) %>)" class="btn btn-sm btn-outline"><i class="fas fa-edit"></i> Sửa</button>
+      <button onclick="openEditModal('<%= f.id %>')" class="btn btn-sm btn-outline"><i class="fas fa-edit"></i> Sửa</button>
       <form action="/requests/forms/<%= f.id %>/delete" method="POST" style="display:inline">
         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Ẩn quy trình này?')"><i class="fas fa-eye-slash"></i> Ẩn</button>
       </form>
@@ -221,6 +221,7 @@
 
 <script>
 const allUsers = <%- JSON.stringify(users.map(u => ({id:u.id, name:u.full_name, role:u.role}))) %>;
+const allForms = <%- JSON.stringify(forms) %>;
 
 function toggleOptions(sel) {
   const row = sel.closest('.field-row');
@@ -263,7 +264,9 @@ function addField() {
 
 let editStepCount = 0;
 
-function openEditModal(f) {
+function openEditModal(id) {
+  const f = allForms.find(function(x) { return x.id === id; });
+  if (!f) return;
   document.getElementById('edit_name').value = f.name || '';
   document.getElementById('edit_desc').value = f.description || '';
   document.getElementById('edit_category').value = f.category || 'other';
