@@ -199,7 +199,10 @@ const createTransaction = async (req, res) => {
 };
 
 const createAssignment = async (req, res) => {
-  const { item_id, assignment_type, assigned_to_user, assigned_to_project, quantity, notes } = req.body;
+  const { item_id, assignment_type, assigned_to_project, quantity, notes } = req.body;
+  const assigned_to_user = assignment_type === 'project'
+    ? (req.body.project_user_id || null)
+    : (Array.isArray(req.body.assigned_to_user) ? req.body.assigned_to_user.find(v => v) : req.body.assigned_to_user) || null;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

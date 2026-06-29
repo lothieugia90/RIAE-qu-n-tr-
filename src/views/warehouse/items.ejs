@@ -25,7 +25,7 @@
   <div class="page-header-actions">
     <a href="/warehouse" class="btn btn-outline"><i class="fas fa-th-large"></i> Tổng quan</a>
     <a href="/warehouse/assignments" class="btn btn-outline"><i class="fas fa-clipboard-list"></i> Phiếu giao</a>
-    <% if (['admin','warehouse'].includes(locals.userRole)) { %>
+    <% if (['admin','director','warehouse','warehouse_keeper'].includes(locals.userRole)) { %>
     <a href="/warehouse/items/create" class="btn btn-primary"><i class="fas fa-plus"></i> Thêm vật tư</a>
     <% } %>
   </div>
@@ -204,7 +204,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Người nhận tại dự án</label>
-            <select name="assigned_to_user" class="form-control">
+            <select name="project_user_id" class="form-control">
               <option value="">— Chọn người —</option>
               <% if (typeof users !== 'undefined') { users.forEach(u => { %>
               <option value="<%= u.id %>"><%= u.full_name %></option>
