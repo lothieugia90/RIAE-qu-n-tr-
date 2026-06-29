@@ -4,14 +4,15 @@ const { DEFAULT_PERMISSIONS } = require('../utils/roles');
 module.exports = async function migrateV8() {
   const client = await pool.connect();
   try {
-    // Add new role ENUM values (safe: checks existence first)
+    // ALTER TYPE ADD VALUE must run outside a transaction block
     const newRoles = ['head_tech', 'head_hr', 'head_sales', 'field_supervisor', 'tech_deploy', 'warehouse_keeper', 'accountant'];
     for (const val of newRoles) {
       const exists = await client.query(
         `SELECT 1 FROM pg_enum WHERE enumtypid = 'user_role'::regtype AND enumlabel = $1`, [val]
       );
       if (!exists.rows.length) {
-        await client.query(`ALTER TYPE user_role ADD VALUE '${val}'`);
+        // Release current client and use pool.query (autocommit, no transaction)
+        await pool.query(`ALTER TYPE user_role ADD VALUE '${val}'`);
         console.log(`[migrate-v8] Added role: ${val}`);
       }
     }
