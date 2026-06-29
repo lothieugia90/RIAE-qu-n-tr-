@@ -1,0 +1,249 @@
+<%
+const PERM_LEVELS = [
+  { value: 'none',   label: 'Không',   color: '#9ca3af' },
+  { value: 'view',   label: 'Xem',     color: '#3b82f6' },
+  { value: 'manage', label: 'Quản lý', color: '#f59e0b' },
+  { value: 'full',   label: 'Toàn quyền', color: '#16a34a' },
+];
+%>
+<style>
+.config-tabs { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px }
+.config-tab  { padding:10px 24px; cursor:pointer; font-weight:600; font-size:.9rem; color:var(--text-2); border-bottom:2px solid transparent; margin-bottom:-2px; transition:.2s }
+.config-tab.active { color:var(--primary); border-bottom-color:var(--primary) }
+.config-panel { display:none }
+.config-panel.active { display:block }
+
+.perm-matrix { width:100%; border-collapse:collapse; font-size:.85rem }
+.perm-matrix th, .perm-matrix td { padding:8px 10px; border:1px solid var(--border); text-align:center }
+.perm-matrix th { background:var(--bg-2); font-weight:600 }
+.perm-matrix th.role-col { text-align:left; min-width:160px }
+.perm-matrix td.role-col { text-align:left; font-weight:600 }
+.perm-select { font-size:.8rem; padding:3px 6px; border:1px solid var(--border); border-radius:4px; cursor:pointer }
+.perm-none   { background:#f9fafb; color:#9ca3af }
+.perm-view   { background:#eff6ff; color:#2563eb }
+.perm-manage { background:#fffbeb; color:#d97706 }
+.perm-full   { background:#f0fdf4; color:#16a34a }
+
+.dept-table { width:100%; border-collapse:collapse }
+.dept-table th, .dept-table td { padding:10px 12px; border-bottom:1px solid var(--border); font-size:.9rem }
+.dept-table th { background:var(--bg-2); font-weight:600; text-align:left }
+.inline-form { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+.inline-edit { display:none }
+</style>
+
+<div class="page-header">
+  <div class="page-header-title"><h2>Cấu hình hệ thống</h2></div>
+  <div class="page-header-actions">
+    <a href="/admin" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Quản trị</a>
+  </div>
+</div>
+
+<div class="config-tabs">
+  <div class="config-tab active" onclick="switchTab('permissions')"><i class="fas fa-shield-alt"></i> Phân quyền vai trò</div>
+  <div class="config-tab" onclick="switchTab('departments')"><i class="fas fa-building"></i> Phòng ban</div>
+  <div class="config-tab" onclick="switchTab('positions')"><i class="fas fa-id-badge"></i> Chức vụ</div>
+</div>
+
+<!-- ═══ TAB: PERMISSIONS ═══ -->
+<div id="panel-permissions" class="config-panel active">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Ma trận phân quyền theo vai trò</span>
+      <div style="display:flex;gap:8px">
+        <form action="/admin/config/permissions/reset" method="POST" style="display:inline">
+          <button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('Khôi phục về mặc định?')">
+            <i class="fas fa-redo"></i> Mặc định
+          </button>
+        </form>
+        <button type="submit" form="permForm" class="btn btn-sm btn-primary">
+          <i class="fas fa-save"></i> Lưu phân quyền
+        </button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <div style="padding:12px 16px;background:var(--bg-2);border-bottom:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap">
+        <% PERM_LEVELS.forEach(p => { %>
+        <span style="font-size:12px;display:flex;align-items:center;gap:4px">
+          <span style="width:10px;height:10px;border-radius:2px;background:<%= p.color %>;display:inline-block"></span>
+          <strong><%= p.label %></strong>
+        </span>
+        <% }) %>
+      </div>
+      <form id="permForm" action="/admin/config/permissions" method="POST">
+        <table class="perm-matrix">
+          <thead>
+            <tr>
+              <th class="role-col">Vai trò</th>
+              <% MODULES.forEach(m => { %><th><%= m.label %></th><% }) %>
+            </tr>
+          </thead>
+          <tbody>
+          <% ROLES.forEach(r => { %>
+            <tr>
+              <td class="role-col">
+                <div style="font-weight:700"><%= r.label %></div>
+                <div style="font-size:11px;color:var(--text-3)"><%= r.value %></div>
+              </td>
+              <% MODULES.forEach(m => {
+                const perm = (permMap[r.value] && permMap[r.value][m.key]) || 'none';
+              %>
+              <td class="perm-<%= perm %>">
+                <select name="<%= r.value %>_<%= m.key %>" class="perm-select" onchange="this.parentElement.className='perm-'+this.value">
+                  <% PERM_LEVELS.forEach(p => { %>
+                  <option value="<%= p.value %>" <%= perm === p.value ? 'selected' : '' %>><%= p.label %></option>
+                  <% }) %>
+                </select>
+              </td>
+              <% }) %>
+            </tr>
+          <% }) %>
+          </tbody>
+        </table>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB: DEPARTMENTS ═══ -->
+<div id="panel-departments" class="config-panel">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Danh sách phòng ban</span>
+    </div>
+    <div class="card-body" style="padding:0">
+      <table class="dept-table">
+        <thead><tr><th>Tên phòng ban</th><th>Mã</th><th>Thứ tự</th><th>Trạng thái</th><th style="width:160px">Thao tác</th></tr></thead>
+        <tbody>
+        <% departments.forEach(d => { %>
+        <tr>
+          <td>
+            <span class="view-mode"><%= d.name %></span>
+            <form class="inline-edit" action="/admin/config/departments/<%= d.id %>/edit" method="POST" style="gap:6px">
+              <input type="text" name="name" value="<%= d.name %>" class="form-control" style="width:140px;height:32px;font-size:.85rem" required>
+              <input type="text" name="code" value="<%= d.code || '' %>" class="form-control" style="width:70px;height:32px;font-size:.85rem" placeholder="Mã">
+              <input type="number" name="sort_order" value="<%= d.sort_order %>" class="form-control" style="width:60px;height:32px;font-size:.85rem">
+              <select name="is_active" class="form-control" style="width:90px;height:32px;font-size:.85rem">
+                <option value="1" <%= d.is_active ? 'selected' : '' %>>Hoạt động</option>
+                <option value="0" <%= !d.is_active ? 'selected' : '' %>>Ẩn</option>
+              </select>
+              <button type="submit" class="btn btn-sm btn-primary">Lưu</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="cancelEdit(this)">Hủy</button>
+            </form>
+          </td>
+          <td class="view-mode"><%= d.code || '—' %></td>
+          <td class="view-mode"><%= d.sort_order %></td>
+          <td class="view-mode">
+            <span class="badge" style="background:<%= d.is_active ? 'var(--success-bg)' : 'var(--bg-2)' %>;color:<%= d.is_active ? 'var(--success)' : 'var(--text-3)' %>">
+              <%= d.is_active ? 'Hoạt động' : 'Ẩn' %>
+            </span>
+          </td>
+          <td class="view-mode" style="white-space:nowrap">
+            <button class="btn btn-sm btn-outline" onclick="startEdit(this)"><i class="fas fa-edit"></i></button>
+            <form action="/admin/config/departments/<%= d.id %>/delete" method="POST" style="display:inline">
+              <button type="submit" class="btn btn-sm btn-outline" style="color:var(--danger)" onclick="return confirm('Xóa phòng ban này?')"><i class="fas fa-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+        </tbody>
+      </table>
+      <!-- Add new department -->
+      <div style="padding:16px;border-top:2px solid var(--border);background:var(--bg-2)">
+        <form action="/admin/config/departments" method="POST" class="inline-form">
+          <input type="text" name="name" class="form-control" style="width:180px" placeholder="Tên phòng ban *" required>
+          <input type="text" name="code" class="form-control" style="width:80px" placeholder="Mã (VD: PKT)">
+          <input type="number" name="sort_order" class="form-control" style="width:80px" placeholder="Thứ tự" value="0">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Thêm</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB: POSITIONS ═══ -->
+<div id="panel-positions" class="config-panel">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Danh sách chức vụ</span></div>
+    <div class="card-body" style="padding:0">
+      <table class="dept-table">
+        <thead><tr><th>Chức vụ</th><th>Phòng ban</th><th>Thứ tự</th><th>TT</th><th style="width:120px">Thao tác</th></tr></thead>
+        <tbody>
+        <% positions.forEach(p => { %>
+        <tr>
+          <td>
+            <span class="view-mode"><%= p.name %></span>
+            <form class="inline-edit" action="/admin/config/positions/<%= p.id %>/edit" method="POST" style="gap:6px">
+              <input type="text" name="name" value="<%= p.name %>" class="form-control" style="width:150px;height:32px;font-size:.85rem" required>
+              <select name="department_id" class="form-control" style="width:160px;height:32px;font-size:.85rem">
+                <option value="">— Không gắn —</option>
+                <% departments.forEach(d => { %>
+                <option value="<%= d.id %>" <%= p.department_id===d.id ? 'selected' : '' %>><%= d.name %></option>
+                <% }) %>
+              </select>
+              <input type="number" name="sort_order" value="<%= p.sort_order %>" class="form-control" style="width:60px;height:32px;font-size:.85rem">
+              <select name="is_active" class="form-control" style="width:90px;height:32px;font-size:.85rem">
+                <option value="1" <%= p.is_active ? 'selected' : '' %>>Hoạt động</option>
+                <option value="0" <%= !p.is_active ? 'selected' : '' %>>Ẩn</option>
+              </select>
+              <button type="submit" class="btn btn-sm btn-primary">Lưu</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="cancelEdit(this)">Hủy</button>
+            </form>
+          </td>
+          <td class="view-mode"><%= p.dept_name || '—' %></td>
+          <td class="view-mode"><%= p.sort_order %></td>
+          <td class="view-mode">
+            <span style="font-size:11px;color:<%= p.is_active ? 'var(--success)' : 'var(--text-3)' %>">
+              <%= p.is_active ? '●' : '○' %>
+            </span>
+          </td>
+          <td class="view-mode" style="white-space:nowrap">
+            <button class="btn btn-sm btn-outline" onclick="startEdit(this)"><i class="fas fa-edit"></i></button>
+            <form action="/admin/config/positions/<%= p.id %>/delete" method="POST" style="display:inline">
+              <button type="submit" class="btn btn-sm btn-outline" style="color:var(--danger)" onclick="return confirm('Xóa chức vụ này?')"><i class="fas fa-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+        </tbody>
+      </table>
+      <!-- Add new position -->
+      <div style="padding:16px;border-top:2px solid var(--border);background:var(--bg-2)">
+        <form action="/admin/config/positions" method="POST" class="inline-form">
+          <input type="text" name="name" class="form-control" style="width:180px" placeholder="Tên chức vụ *" required>
+          <select name="department_id" class="form-control" style="width:180px">
+            <option value="">— Phòng ban (tùy chọn) —</option>
+            <% departments.forEach(d => { %>
+            <option value="<%= d.id %>"><%= d.name %></option>
+            <% }) %>
+          </select>
+          <input type="number" name="sort_order" class="form-control" style="width:80px" placeholder="Thứ tự" value="0">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Thêm</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.config-tab').forEach((t,i) => t.classList.remove('active'));
+  document.querySelectorAll('.config-panel').forEach(p => p.classList.remove('active'));
+  const tabs = ['permissions','departments','positions'];
+  document.querySelectorAll('.config-tab')[tabs.indexOf(name)].classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  history.replaceState(null,'','#'+name);
+}
+function startEdit(btn) {
+  const row = btn.closest('tr');
+  row.querySelectorAll('.view-mode').forEach(el => el.style.display='none');
+  row.querySelector('.inline-edit').style.display='flex';
+}
+function cancelEdit(btn) {
+  const row = btn.closest('tr');
+  row.querySelectorAll('.view-mode').forEach(el => el.style.display='');
+  row.querySelector('.inline-edit').style.display='none';
+}
+// Auto-open tab from hash
+const hash = location.hash.replace('#','');
+if (['departments','positions'].includes(hash)) switchTab(hash);
+</script>

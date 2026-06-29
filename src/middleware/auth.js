@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { ROLE_INHERIT } = require('../utils/roles');
 
 const requireAuth = (req, res, next) => {
   if (req.session && req.session.userId) return next();
@@ -9,11 +10,13 @@ const requireAuth = (req, res, next) => {
 const requireRole = (...roles) => {
   return (req, res, next) => {
     if (!req.session || !req.session.userId) return res.redirect('/auth/login');
-    if (!roles.includes(req.session.userRole)) {
-      req.flash('error', 'Bạn không có quyền truy cập trang này');
-      return res.redirect('/dashboard');
-    }
-    next();
+    const userRole = req.session.userRole;
+    if (roles.includes(userRole)) return next();
+    // Check inherited roles (e.g. head_tech inherits pm, engineer)
+    const inherited = ROLE_INHERIT[userRole] || [];
+    if (inherited.some(r => roles.includes(r))) return next();
+    req.flash('error', 'Bạn không có quyền truy cập trang này');
+    return res.redirect('/dashboard');
   };
 };
 

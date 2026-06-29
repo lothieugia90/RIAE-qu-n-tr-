@@ -29,8 +29,12 @@ const index = async (req, res) => {
   } catch (err) { console.error(err); res.redirect('/dashboard'); }
 };
 
-const getCreate = (req, res) => {
-  res.render('hr/form', { title: 'Thêm Nhân viên mới', employee: null, user: null });
+const getCreate = async (req, res) => {
+  const [depts, positions] = await Promise.all([
+    query('SELECT * FROM departments WHERE is_active=true ORDER BY sort_order, name'),
+    query('SELECT * FROM positions WHERE is_active=true ORDER BY sort_order, name'),
+  ]);
+  res.render('hr/form', { title: 'Thêm Nhân viên mới', employee: null, user: null, departments: depts.rows, positions: positions.rows });
 };
 
 const postCreate = async (req, res) => {
@@ -98,12 +102,13 @@ const detail = async (req, res) => {
 };
 
 const getEdit = async (req, res) => {
-  const user = await query(
-    'SELECT u.*, e.* FROM users u LEFT JOIN employees e ON e.user_id=u.id WHERE u.id=$1',
-    [req.params.id]
-  );
-  if (!user.rows.length) return res.redirect('/hr');
-  res.render('hr/form', { title: 'Chỉnh sửa Nhân viên', employee: user.rows[0], user: user.rows[0] });
+  const [userRes, depts, positions] = await Promise.all([
+    query('SELECT u.*, e.* FROM users u LEFT JOIN employees e ON e.user_id=u.id WHERE u.id=$1', [req.params.id]),
+    query('SELECT * FROM departments WHERE is_active=true ORDER BY sort_order, name'),
+    query('SELECT * FROM positions WHERE is_active=true ORDER BY sort_order, name'),
+  ]);
+  if (!userRes.rows.length) return res.redirect('/hr');
+  res.render('hr/form', { title: 'Chỉnh sửa Nhân viên', employee: userRes.rows[0], user: userRes.rows[0], departments: depts.rows, positions: positions.rows });
 };
 
 const postEdit = async (req, res) => {

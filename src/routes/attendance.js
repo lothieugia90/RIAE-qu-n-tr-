@@ -87,7 +87,7 @@ router.get('/', async (req, res) => {
 });
 
 // ─── AJAX: SAVE SINGLE CELL ─────────────────────────────────────────────────
-router.post('/cell', requireRole('admin', 'director', 'hr'), async (req, res) => {
+router.post('/cell', requireRole('admin', 'director', 'hr', 'head_hr'), async (req, res) => {
   const { user_id, work_date, status, notes, overtime_hours } = req.body;
   const ot = parseFloat(overtime_hours) || 0;
   try {
@@ -120,7 +120,7 @@ router.post('/cell', requireRole('admin', 'director', 'hr'), async (req, res) =>
 });
 
 // ─── AJAX: BULK SAVE ────────────────────────────────────────────────────────
-router.post('/bulk-save', requireRole('admin', 'director', 'hr'), async (req, res) => {
+router.post('/bulk-save', requireRole('admin', 'director', 'hr', 'head_hr'), async (req, res) => {
   const { records } = req.body; // [{ user_id, work_date, status, notes, overtime_hours }]
   if (!Array.isArray(records)) return res.status(400).json({ error: 'Invalid data' });
   try {
@@ -145,7 +145,7 @@ router.post('/bulk-save', requireRole('admin', 'director', 'hr'), async (req, re
 });
 
 // ─── PAYROLL VIEW ────────────────────────────────────────────────────────────
-router.get('/payroll', requireRole('admin', 'director', 'hr'), async (req, res) => {
+router.get('/payroll', requireRole('admin', 'director', 'hr', 'head_hr'), async (req, res) => {
   try {
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year  = parseInt(req.query.year)  || new Date().getFullYear();
@@ -187,7 +187,7 @@ router.get('/payroll', requireRole('admin', 'director', 'hr'), async (req, res) 
   } catch (err) { console.error(err); res.redirect('/attendance'); }
 });
 
-router.post('/payroll', requireRole('admin', 'director', 'hr'), async (req, res) => {
+router.post('/payroll', requireRole('admin', 'director', 'hr', 'head_hr'), async (req, res) => {
   const { user_id, month, year, base_salary, working_days, actual_days,
           overtime_hours, overtime_pay, bonus, deductions, insurance, tax, notes } = req.body;
   const bs  = parseFloat(base_salary)   || 0;
@@ -214,7 +214,7 @@ router.post('/payroll', requireRole('admin', 'director', 'hr'), async (req, res)
   res.redirect(`/attendance/payroll?month=${month}&year=${year}`);
 });
 
-router.post('/payroll/:id/confirm', requireRole('admin', 'director', 'hr'), async (req, res) => {
+router.post('/payroll/:id/confirm', requireRole('admin', 'director', 'hr', 'head_hr'), async (req, res) => {
   await query("UPDATE payroll_records SET status='confirmed', updated_at=NOW() WHERE id=$1", [req.params.id]);
   req.flash('success', 'Đã xác nhận bảng lương');
   res.redirect('back');

@@ -57,7 +57,7 @@
         <span class="nav-icon"><i class="fas fa-calendar-check"></i></span>
         <span class="nav-text">Chấm công</span>
       </a>
-      <% if (['admin','director','hr'].includes(locals.userRole)) { %>
+      <% if (['admin','director','hr','head_hr','accountant'].includes(locals.userRole)) { %>
       <a href="/attendance/payroll" class="nav-link <%= path.startsWith('/attendance/payroll') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-file-invoice-dollar"></i></span>
         <span class="nav-text">Bảng lương</span>
@@ -67,11 +67,13 @@
         <span class="nav-icon"><i class="fas fa-tasks"></i></span>
         <span class="nav-text">Phê duyệt</span>
       </a>
-      <% if (['admin','director','pm','warehouse'].includes(locals.userRole)) { %>
+      <% if (['admin','director','pm','warehouse','warehouse_keeper','head_hr','hr'].includes(locals.userRole)) { %>
       <a href="/hr" class="nav-link <%= path.startsWith('/hr') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-users"></i></span>
         <span class="nav-text">Nhân sự</span>
       </a>
+      <% } %>
+      <% if (['admin','director','pm','warehouse','warehouse_keeper','head_tech'].includes(locals.userRole)) { %>
       <a href="/warehouse" class="nav-link <%= path === '/warehouse' ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-boxes"></i></span>
         <span class="nav-text">Kho bãi</span>
@@ -83,7 +85,7 @@
       <% } %>
     </div>
 
-    <% if (['admin','director','hr'].includes(locals.userRole)) { %>
+    <% if (['admin','director','hr','head_hr'].includes(locals.userRole)) { %>
     <div class="nav-group">
       <span class="nav-group-label">NHÂN SỰ & LƯƠNG</span>
       <a href="/payroll-settings" class="nav-link <%= path.startsWith('/payroll-settings') ? 'active' : '' %>">
@@ -103,6 +105,10 @@
         <span class="nav-icon"><i class="fas fa-history"></i></span>
         <span class="nav-text">Nhật ký</span>
       </a>
+      <a href="/admin/config" class="nav-link <%= path.startsWith('/admin/config') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-sliders-h"></i></span>
+        <span class="nav-text">Cấu hình</span>
+      </a>
     </div>
     <% } %>
   </nav>
@@ -121,7 +127,7 @@
       <a href="/auth/profile" class="sidebar-user-name"><%= locals.currentUser ? currentUser.full_name : '' %></a>
       <span class="sidebar-user-title">
         <% if (locals.currentUser) { %>
-          <% const roleLabels = { admin:'Quản trị viên', director:'Giám đốc', pm:'Quản lý dự án', engineer:'Kỹ sư', warehouse:'Kho bãi', guest:'Khách' }; %>
+          <% const roleLabels = { admin:'Quản trị viên', director:'Ban lãnh đạo', pm:'Quản lý Dự án', head_tech:'Trưởng phòng KT', head_hr:'Trưởng phòng NS', head_sales:'Trưởng phòng KD', engineer:'Kỹ sư', field_supervisor:'Giám sát hiện trường', tech_deploy:'Kỹ thuật triển khai', hr:'Nhân sự', warehouse:'Nhân viên Kho', warehouse_keeper:'Thủ kho', accountant:'Kế toán', guest:'Khách' }; %>
           <%= roleLabels[currentUser.role] || currentUser.role %>
           <% if (currentUser.position) { %> · <%= currentUser.position %><% } %>
         <% } %>

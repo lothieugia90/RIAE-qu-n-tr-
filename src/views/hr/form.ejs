@@ -1,3 +1,31 @@
+<%
+const ROLE_GROUPS = [
+  { group: 'Hệ thống', roles: [
+    { value: 'admin', label: 'Admin' }
+  ]},
+  { group: 'Lãnh đạo', roles: [
+    { value: 'director', label: 'Ban lãnh đạo' }
+  ]},
+  { group: 'Quản lý', roles: [
+    { value: 'pm',          label: 'Quản lý Dự án (PM)' },
+    { value: 'head_tech',   label: 'Trưởng phòng Kỹ thuật' },
+    { value: 'head_hr',     label: 'Trưởng phòng Nhân sự' },
+    { value: 'head_sales',  label: 'Trưởng phòng Kinh doanh' },
+  ]},
+  { group: 'Kỹ thuật', roles: [
+    { value: 'engineer',         label: 'Kỹ sư' },
+    { value: 'field_supervisor', label: 'Giám sát hiện trường' },
+    { value: 'tech_deploy',      label: 'Kỹ thuật triển khai' },
+  ]},
+  { group: 'Hỗ trợ', roles: [
+    { value: 'hr',               label: 'Nhân sự (HR)' },
+    { value: 'warehouse',        label: 'Nhân viên Kho' },
+    { value: 'warehouse_keeper', label: 'Thủ kho' },
+    { value: 'accountant',       label: 'Kế toán' },
+  ]},
+];
+const currentRole = employee ? employee.role : 'engineer';
+%>
 <div style="max-width:900px;margin:0 auto">
   <div class="card">
     <div class="card-header">
@@ -25,6 +53,7 @@
           </div>
         </div>
 
+        <!-- Tài khoản -->
         <h4 style="font-size:13px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px">Tài khoản đăng nhập</h4>
         <div class="form-grid-2" style="margin-bottom:24px">
           <div class="form-group">
@@ -43,18 +72,21 @@
           <% } %>
           <div class="form-group">
             <label class="form-label">Vai trò <span class="req">*</span></label>
-            <select name="role" class="form-control">
-              <option value="engineer" <%= (!employee || employee.role==='engineer') ? 'selected' : '' %>>Kỹ sư</option>
-              <option value="pm" <%= employee && employee.role==='pm' ? 'selected' : '' %>>Quản lý Dự án (PM)</option>
-              <option value="warehouse" <%= employee && employee.role==='warehouse' ? 'selected' : '' %>>Nhân viên Kho</option>
-              <option value="director" <%= employee && employee.role==='director' ? 'selected' : '' %>>Ban lãnh đạo</option>
-              <% if (locals.userRole === 'admin') { %>
-              <option value="admin" <%= employee && employee.role==='admin' ? 'selected' : '' %>>Admin</option>
-              <% } %>
+            <select name="role" class="form-control" id="roleSelect">
+              <% ROLE_GROUPS.forEach(group => { %>
+                <% if (group.group === 'Hệ thống' && locals.userRole !== 'admin') return; %>
+                <optgroup label="── <%= group.group %> ──">
+                  <% group.roles.forEach(r => { %>
+                    <option value="<%= r.value %>" <%= currentRole === r.value ? 'selected' : '' %>><%= r.label %></option>
+                  <% }) %>
+                </optgroup>
+              <% }) %>
             </select>
+            <div id="roleHint" style="font-size:11px;color:var(--text-3);margin-top:4px"></div>
           </div>
         </div>
 
+        <!-- Thông tin cá nhân -->
         <h4 style="font-size:13px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px">Thông tin cá nhân</h4>
         <div class="form-grid-2" style="margin-bottom:24px">
           <div class="form-group">
@@ -67,14 +99,37 @@
           </div>
           <div class="form-group">
             <label class="form-label">Phòng ban</label>
+            <% if (departments && departments.length) { %>
+            <select name="department" class="form-control" id="deptSelect">
+              <option value="">— Chọn phòng ban —</option>
+              <% departments.forEach(d => { %>
+              <option value="<%= d.name %>" <%= (employee && employee.department === d.name) ? 'selected' : '' %>><%= d.name %></option>
+              <% }) %>
+              <option value="__custom__">+ Nhập tên khác...</option>
+            </select>
+            <input type="text" id="deptCustom" name="department_custom" class="form-control" style="display:none;margin-top:6px" placeholder="Nhập tên phòng ban mới">
+            <% } else { %>
             <input type="text" name="department" class="form-control" value="<%= employee ? employee.department || '' : '' %>" placeholder="VD: Phòng Kỹ thuật">
+            <% } %>
           </div>
           <div class="form-group">
             <label class="form-label">Chức vụ</label>
+            <% if (positions && positions.length) { %>
+            <select name="position" class="form-control" id="posSelect">
+              <option value="">— Chọn chức vụ —</option>
+              <% positions.forEach(p => { %>
+              <option value="<%= p.name %>" data-dept="<%= p.department_id || '' %>" <%= (employee && employee.position === p.name) ? 'selected' : '' %>><%= p.name %></option>
+              <% }) %>
+              <option value="__custom__">+ Nhập chức vụ khác...</option>
+            </select>
+            <input type="text" id="posCustom" name="position_custom" class="form-control" style="display:none;margin-top:6px" placeholder="Nhập chức vụ mới">
+            <% } else { %>
             <input type="text" name="position" class="form-control" value="<%= employee ? employee.position || '' : '' %>" placeholder="VD: Kỹ sư điện">
+            <% } %>
           </div>
         </div>
 
+        <!-- Hợp đồng & Nhân sự -->
         <h4 style="font-size:13px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px">Thông tin hợp đồng & nhân sự</h4>
         <div class="form-grid-2">
           <div class="form-group">
@@ -93,11 +148,11 @@
             <label class="form-label">Loại hợp đồng</label>
             <select name="contract_type" class="form-control">
               <option value="">— Chọn —</option>
-              <option value="full_time" <%= employee && employee.contract_type==='full_time' ? 'selected' : '' %>>Toàn thời gian</option>
-              <option value="part_time" <%= employee && employee.contract_type==='part_time' ? 'selected' : '' %>>Bán thời gian</option>
-              <option value="contract" <%= employee && employee.contract_type==='contract' ? 'selected' : '' %>>Hợp đồng có thời hạn</option>
-              <option value="intern" <%= employee && employee.contract_type==='intern' ? 'selected' : '' %>>Thực tập sinh</option>
-              <option value="probation" <%= employee && employee.contract_type==='probation' ? 'selected' : '' %>>Thử việc</option>
+              <option value="full_time"  <%= employee && employee.contract_type==='full_time'  ? 'selected' : '' %>>Toàn thời gian</option>
+              <option value="part_time"  <%= employee && employee.contract_type==='part_time'  ? 'selected' : '' %>>Bán thời gian</option>
+              <option value="contract"   <%= employee && employee.contract_type==='contract'   ? 'selected' : '' %>>Hợp đồng có thời hạn</option>
+              <option value="intern"     <%= employee && employee.contract_type==='intern'     ? 'selected' : '' %>>Thực tập sinh</option>
+              <option value="probation"  <%= employee && employee.contract_type==='probation'  ? 'selected' : '' %>>Thử việc</option>
             </select>
           </div>
           <div class="form-group">
@@ -123,6 +178,7 @@
           </div>
           <% } %>
         </div>
+
         <div style="margin-top:24px;display:flex;gap:10px">
           <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <%= employee ? 'Lưu thay đổi' : 'Thêm nhân viên' %></button>
           <a href="/hr" class="btn btn-outline">Hủy</a>
@@ -137,10 +193,58 @@ function previewAvatar(input) {
   if (input.files && input.files[0]) {
     const reader = new FileReader();
     reader.onload = e => {
-      const preview = document.getElementById('avatarPreview');
-      preview.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+      document.getElementById('avatarPreview').innerHTML =
+        '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
     };
     reader.readAsDataURL(input.files[0]);
   }
+}
+
+const ROLE_HINTS = {
+  admin:            'Toàn quyền hệ thống',
+  director:         'Xem và quản lý toàn bộ, không sửa cấu hình',
+  pm:               'Quản lý dự án, giao việc, báo giá',
+  head_tech:        'Quản lý team kỹ thuật, dự án, task',
+  head_hr:          'Quản lý nhân sự, chấm công, lương',
+  head_sales:       'Quản lý đối tác, báo giá, kinh doanh',
+  engineer:         'Xem dự án, thực hiện task được giao',
+  field_supervisor: 'Quản lý task ngoài hiện trường',
+  tech_deploy:      'Thực hiện triển khai kỹ thuật',
+  hr:               'Quản lý hồ sơ nhân sự, chấm công',
+  warehouse:        'Quản lý xuất nhập kho',
+  warehouse_keeper: 'Toàn quyền kho, quản lý tồn kho',
+  accountant:       'Quản lý lương, kế toán',
+};
+const roleSelect = document.getElementById('roleSelect');
+const roleHint = document.getElementById('roleHint');
+if (roleSelect) {
+  const updateHint = () => { roleHint.textContent = ROLE_HINTS[roleSelect.value] || ''; };
+  roleSelect.addEventListener('change', updateHint);
+  updateHint();
+}
+
+// Department custom input toggle
+const deptSelect = document.getElementById('deptSelect');
+const deptCustom = document.getElementById('deptCustom');
+const posSelect  = document.getElementById('posSelect');
+const posCustom  = document.getElementById('posCustom');
+
+if (deptSelect) {
+  deptSelect.addEventListener('change', function() {
+    const isCustom = this.value === '__custom__';
+    deptCustom.style.display = isCustom ? 'block' : 'none';
+    deptCustom.name = isCustom ? 'department' : 'department_custom';
+    if (!isCustom) deptSelect.name = 'department';
+    else deptSelect.name = 'department_select_unused';
+  });
+}
+if (posSelect) {
+  posSelect.addEventListener('change', function() {
+    const isCustom = this.value === '__custom__';
+    posCustom.style.display = isCustom ? 'block' : 'none';
+    posCustom.name = isCustom ? 'position' : 'position_custom';
+    if (!isCustom) posSelect.name = 'position';
+    else posSelect.name = 'position_select_unused';
+  });
 }
 </script>
