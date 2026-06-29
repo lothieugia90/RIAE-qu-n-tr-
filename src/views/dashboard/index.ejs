@@ -7,141 +7,178 @@
   const myTodayCount = (myTasks||[]).filter(t => t.due_date && new Date(t.due_date).toISOString().split('T')[0] === todayStr).length;
 %>
 
-<!-- ═══ KPI STRIP ═══════════════════════════════════════════════ -->
-<div class="kpi-strip">
-
-  <div class="kpi-card">
-    <div class="kpi-icon kpi-blue"><i class="fas fa-layer-group"></i></div>
-    <div class="kpi-body">
-      <div class="kpi-label">Dự án hoạt động</div>
-      <div class="kpi-value"><%= projectStats.active || 0 %></div>
-      <div class="kpi-sub"><%= projectStats.total || 0 %> tổng dự án</div>
-    </div>
-  </div>
-
-  <div class="kpi-card <%= taskIsAlert ? 'kpi-alert kpi-breathe' : '' %>">
-    <% if (taskIsAlert) { %><div class="kpi-chip-alert"><i class="fas fa-exclamation-triangle"></i> <%= overdueCount %> quá hạn</div><% } %>
-    <div class="kpi-icon <%= taskIsAlert ? 'kpi-red' : 'kpi-orange' %>"><i class="fas fa-check-square"></i></div>
-    <div class="kpi-body">
-      <div class="kpi-label">Task đang thực hiện</div>
-      <div class="kpi-value"><%= taskStats.in_progress || 0 %></div>
-      <div class="kpi-sub <%= taskIsAlert ? 'kpi-sub-danger' : '' %>">
-        <% if (taskIsAlert) { %><i class="fas fa-clock"></i> <%= overdueCount %> quá hạn<% } else { %><i class="fas fa-check"></i> Đúng tiến độ<% } %>
-      </div>
-    </div>
-  </div>
-
-  <div class="kpi-card">
-    <div class="kpi-icon kpi-green"><i class="fas fa-users"></i></div>
-    <div class="kpi-body">
-      <div class="kpi-label">Nhân viên</div>
-      <div class="kpi-value"><%= userStats.active || 0 %></div>
-      <div class="kpi-sub"><%= userStats.total || 0 %> tài khoản</div>
-    </div>
-  </div>
-
-  <div class="kpi-card <%= stockIsAlert ? 'kpi-alert kpi-breathe' : '' %>">
-    <% if (stockIsAlert) { %><div class="kpi-chip-alert"><i class="fas fa-exclamation-triangle"></i> Cần bổ sung</div><% } %>
-    <div class="kpi-icon <%= stockIsAlert ? 'kpi-red' : 'kpi-purple' %>"><i class="fas fa-<%= stockIsAlert ? 'exclamation-triangle' : 'boxes' %>"></i></div>
-    <div class="kpi-body">
-      <div class="kpi-label">Vật tư sắp hết</div>
-      <div class="kpi-value"><%= lowStockCount %></div>
-      <div class="kpi-sub <%= stockIsAlert ? 'kpi-sub-danger' : '' %>">
-        <% if (stockIsAlert) { %><i class="fas fa-box-open"></i> Cần nhập kho<% } else { %><%= warehouseStats.total_items || 0 %> mặt hàng<% } %>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- ═══ VIỆC CẦN LÀM (ACTION ITEMS) ════════════════════════════ -->
+<!-- ═══ KPI WRAPPER (KPI cards + Việc cần làm gộp chung) ════════ -->
 <%
   const totalActionItems = (pendingApprovals||[]).length + (needsSignature||[]).length
     + (pendingReturns||[]).length + (approvedRequests||[]).length;
   const isWarehouseRole = ['admin','director','warehouse','warehouse_keeper'].includes(locals.userRole);
 %>
-<% if (totalActionItems > 0) { %>
-<div class="action-strip">
-  <div class="action-strip-header">
-    <span class="action-strip-title"><i class="fas fa-bolt"></i> Việc cần làm</span>
-    <span class="action-strip-badge"><%= totalActionItems %></span>
+<div class="kpi-wrapper">
+
+  <!-- 4 KPI cards -->
+  <div class="kpi-strip">
+
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-blue"><i class="fas fa-layer-group"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Dự án hoạt động</div>
+        <div class="kpi-value"><%= projectStats.active || 0 %></div>
+        <div class="kpi-sub"><%= projectStats.total || 0 %> tổng dự án</div>
+      </div>
+    </div>
+
+    <div class="kpi-card <%= taskIsAlert ? 'kpi-alert kpi-breathe' : '' %>">
+      <% if (taskIsAlert) { %><div class="kpi-chip-alert"><i class="fas fa-exclamation-triangle"></i> <%= overdueCount %> quá hạn</div><% } %>
+      <div class="kpi-icon <%= taskIsAlert ? 'kpi-red' : 'kpi-orange' %>"><i class="fas fa-check-square"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Task đang thực hiện</div>
+        <div class="kpi-value"><%= taskStats.in_progress || 0 %></div>
+        <div class="kpi-sub <%= taskIsAlert ? 'kpi-sub-danger' : '' %>">
+          <% if (taskIsAlert) { %><i class="fas fa-clock"></i> <%= overdueCount %> quá hạn<% } else { %><i class="fas fa-check"></i> Đúng tiến độ<% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-green"><i class="fas fa-users"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Nhân viên</div>
+        <div class="kpi-value"><%= userStats.active || 0 %></div>
+        <div class="kpi-sub"><%= userStats.total || 0 %> tài khoản</div>
+      </div>
+    </div>
+
+    <div class="kpi-card <%= stockIsAlert ? 'kpi-alert kpi-breathe' : '' %>">
+      <% if (stockIsAlert) { %><div class="kpi-chip-alert"><i class="fas fa-exclamation-triangle"></i> Cần bổ sung</div><% } %>
+      <div class="kpi-icon <%= stockIsAlert ? 'kpi-red' : 'kpi-purple' %>"><i class="fas fa-<%= stockIsAlert ? 'exclamation-triangle' : 'boxes' %>"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Vật tư sắp hết</div>
+        <div class="kpi-value"><%= lowStockCount %></div>
+        <div class="kpi-sub <%= stockIsAlert ? 'kpi-sub-danger' : '' %>">
+          <% if (stockIsAlert) { %><i class="fas fa-box-open"></i> Cần nhập kho<% } else { %><%= warehouseStats.total_items || 0 %> mặt hàng<% } %>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.kpi-strip -->
+
+  <!-- Việc cần làm — chỉ hiện khi có items, ngăn cách bằng border-top -->
+  <% if (totalActionItems > 0) { %>
+  <div class="action-strip">
+    <div class="action-strip-header">
+      <span class="action-strip-title"><i class="fas fa-bolt"></i> Việc cần làm</span>
+      <span class="action-strip-badge"><%= totalActionItems %></span>
+    </div>
+    <div class="action-strip-items">
+
+      <% (pendingApprovals||[]).forEach(r => { %>
+      <a href="/requests/<%= r.id %>" class="action-item action-item-approval">
+        <div class="action-item-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="action-item-body">
+          <div class="action-item-label">Phê duyệt</div>
+          <div class="action-item-text"><%= r.title %></div>
+          <div class="action-item-meta"><i class="fas fa-user"></i> <%= r.requester_name %></div>
+        </div>
+        <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
+      </a>
+      <% }) %>
+
+      <% (needsSignature||[]).forEach(wa => { %>
+      <a href="/warehouse/assignments/<%= wa.id %>" class="action-item action-item-sign">
+        <div class="action-item-icon"><i class="fas fa-signature"></i></div>
+        <div class="action-item-body">
+          <div class="action-item-label">Cần ký nhận</div>
+          <div class="action-item-text"><%= wa.item_name %></div>
+          <div class="action-item-meta"><i class="fas fa-box"></i> <%= wa.quantity %> <%= wa.unit %></div>
+        </div>
+        <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
+      </a>
+      <% }) %>
+
+      <% if (isWarehouseRole) { %>
+      <% (pendingReturns||[]).forEach(wa => { %>
+      <a href="/signatures/warehouse-return/<%= wa.id %>" class="action-item action-item-return">
+        <div class="action-item-icon"><i class="fas fa-undo"></i></div>
+        <div class="action-item-body">
+          <div class="action-item-label">Chờ ký thu hồi</div>
+          <div class="action-item-text"><%= wa.item_name %></div>
+          <div class="action-item-meta"><i class="fas fa-user"></i> <%= wa.assignee_name %></div>
+        </div>
+        <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
+      </a>
+      <% }) %>
+      <% } %>
+
+      <% (approvedRequests||[]).forEach(r => { %>
+      <a href="/requests/<%= r.id %>" class="action-item action-item-approved">
+        <div class="action-item-icon"><i class="fas fa-check-double"></i></div>
+        <div class="action-item-body">
+          <div class="action-item-label">Đã được duyệt</div>
+          <div class="action-item-text"><%= r.title %></div>
+          <div class="action-item-meta"><i class="fas fa-clock"></i> <%= new Date(r.updated_at).toLocaleDateString('vi-VN') %></div>
+        </div>
+        <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
+      </a>
+      <% }) %>
+
+    </div>
   </div>
-  <div class="action-strip-items">
+  <% } %>
 
-    <% (pendingApprovals||[]).forEach(r => { %>
-    <a href="/requests/<%= r.id %>" class="action-item action-item-approval">
-      <div class="action-item-icon"><i class="fas fa-check-circle"></i></div>
-      <div class="action-item-body">
-        <div class="action-item-label">Phê duyệt</div>
-        <div class="action-item-text"><%= r.title %></div>
-        <div class="action-item-meta"><i class="fas fa-user"></i> <%= r.requester_name %></div>
-      </div>
-      <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
-    </a>
-    <% }) %>
-
-    <% (needsSignature||[]).forEach(wa => { %>
-    <a href="/warehouse/assignments/<%= wa.id %>" class="action-item action-item-sign">
-      <div class="action-item-icon"><i class="fas fa-signature"></i></div>
-      <div class="action-item-body">
-        <div class="action-item-label">Cần ký nhận</div>
-        <div class="action-item-text"><%= wa.item_name %></div>
-        <div class="action-item-meta"><i class="fas fa-box"></i> <%= wa.quantity %> <%= wa.unit %></div>
-      </div>
-      <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
-    </a>
-    <% }) %>
-
-    <% if (isWarehouseRole) { %>
-    <% (pendingReturns||[]).forEach(wa => { %>
-    <a href="/signatures/warehouse-return/<%= wa.id %>" class="action-item action-item-return">
-      <div class="action-item-icon"><i class="fas fa-undo"></i></div>
-      <div class="action-item-body">
-        <div class="action-item-label">Chờ ký thu hồi</div>
-        <div class="action-item-text"><%= wa.item_name %></div>
-        <div class="action-item-meta"><i class="fas fa-user"></i> <%= wa.assignee_name %></div>
-      </div>
-      <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
-    </a>
-    <% }) %>
-    <% } %>
-
-    <% (approvedRequests||[]).forEach(r => { %>
-    <a href="/requests/<%= r.id %>" class="action-item action-item-approved">
-      <div class="action-item-icon"><i class="fas fa-check-double"></i></div>
-      <div class="action-item-body">
-        <div class="action-item-label">Đã được duyệt</div>
-        <div class="action-item-text"><%= r.title %></div>
-        <div class="action-item-meta"><i class="fas fa-clock"></i> <%= new Date(r.updated_at).toLocaleDateString('vi-VN') %></div>
-      </div>
-      <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
-    </a>
-    <% }) %>
-
-  </div>
-</div>
-<% } %>
+</div><!-- /.kpi-wrapper -->
 
 <style>
-.action-strip { background:var(--card); border:1.5px solid var(--border); border-radius:12px; margin-bottom:16px; overflow:hidden; }
-.action-strip-header { display:flex; align-items:center; gap:8px; padding:11px 18px; border-bottom:1px solid var(--border); background:var(--bg); }
-.action-strip-title { font-size:13px; font-weight:700; color:var(--text); }
-.action-strip-badge { background:var(--primary); color:#fff; border-radius:12px; padding:1px 9px; font-size:12px; font-weight:700; margin-left:4px; }
+/* KPI wrapper — bao gồm cả KPI cards và Việc cần làm */
+.kpi-wrapper {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+/* KPI cards row bên trong wrapper */
+.kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:0; }
+.kpi-card {
+  background: var(--card); border-radius: 0; border: none;
+  border-right: 1px solid var(--border);
+  border-bottom: 3px solid transparent;
+  padding: 16px 18px;
+  display: flex; align-items: flex-start; gap: 12px;
+  box-shadow: none; transition: var(--transition); position: relative; overflow: hidden;
+}
+.kpi-card:last-child { border-right: none; }
+.kpi-card:hover { background: var(--border-light); transform: none; box-shadow: none; }
+.kpi-card.kpi-alert { border-bottom-color: #ef4444; background: linear-gradient(135deg, var(--card), #fff5f5); }
+.kpi-card.kpi-breathe { animation: kpiBreathe 2.4s ease-in-out infinite; }
+@keyframes kpiBreathe { 0%,100%{opacity:1} 50%{opacity:.82} }
+/* Action strip bên trong wrapper — ngăn cách bằng border-top */
+.action-strip { border-top: 1px solid var(--border); background: var(--card); overflow: hidden; }
+.action-strip-header { display:flex; align-items:center; gap:8px; padding:9px 18px; border-bottom:1px solid var(--border); background:var(--bg); }
+.action-strip-title { font-size:12px; font-weight:700; color:var(--text); }
+.action-strip-badge { background:var(--primary); color:#fff; border-radius:12px; padding:1px 9px; font-size:11px; font-weight:700; margin-left:4px; }
 .action-strip-items { display:flex; gap:0; overflow-x:auto; }
-.action-item { display:flex; align-items:center; gap:10px; padding:12px 16px; text-decoration:none; border-right:1px solid var(--border); min-width:200px; flex:1; transition:background .15s; }
+.action-item { display:flex; align-items:center; gap:10px; padding:11px 16px; text-decoration:none; border-right:1px solid var(--border); min-width:190px; flex:1; transition:background .15s; }
 .action-item:last-child { border-right:none; }
 .action-item:hover { background:var(--border-light); }
-.action-item-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
+.action-item-icon { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; }
 .action-item-approval .action-item-icon { background:#ede9fe; color:#7c3aed; }
 .action-item-sign .action-item-icon { background:#dbeafe; color:#2563eb; }
 .action-item-return .action-item-icon { background:#fff7ed; color:#ea580c; }
 .action-item-approved .action-item-icon { background:#dcfce7; color:#16a34a; }
 .action-item-body { flex:1; min-width:0; }
 .action-item-label { font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--text-3); margin-bottom:2px; }
-.action-item-text { font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.action-item-text { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .action-item-meta { font-size:11px; color:var(--text-3); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .action-item-arrow { color:var(--text-3); font-size:11px; flex-shrink:0; }
-@media (max-width:768px) { .action-strip-items { flex-direction:column; } .action-item { border-right:none; border-bottom:1px solid var(--border); min-width:unset; } .action-item:last-child { border-bottom:none; } }
+@media (max-width:768px) {
+  .kpi-strip { grid-template-columns:repeat(2,1fr); }
+  .kpi-card { border-right:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .kpi-card:nth-child(2n) { border-right:none; }
+  .action-strip-items { flex-direction:column; }
+  .action-item { border-right:none; border-bottom:1px solid var(--border); min-width:unset; }
+  .action-item:last-child { border-bottom:none; }
+}
+@media (max-width:480px) { .kpi-strip { grid-template-columns:1fr; } .kpi-card { border-right:none; } }
 </style>
 
 <!-- ═══ PERSONAL ALERT BANNER ════════════════════════════════════ -->
@@ -501,18 +538,7 @@
 </div>
 
 <style>
-/* ══ KPI STRIP ════════════════════════════════════════════════ */
-.kpi-strip { display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px }
-.kpi-card {
-  background:var(--card);border-radius:var(--radius);border:1.5px solid var(--border);
-  border-bottom:3px solid transparent;padding:16px 18px;
-  display:flex;align-items:flex-start;gap:12px;
-  box-shadow:var(--shadow);transition:var(--transition);position:relative;overflow:hidden;
-}
-.kpi-card:hover { box-shadow:var(--shadow-md);transform:translateY(-2px) }
-.kpi-card.kpi-alert { border-bottom-color:#ef4444;background:linear-gradient(135deg,var(--card),#fff5f5) }
-.kpi-card.kpi-breathe { animation:kpiBreathe 2.4s ease-in-out infinite }
-@keyframes kpiBreathe { 0%,100%{box-shadow:var(--shadow)} 50%{box-shadow:0 0 0 4px rgba(239,68,68,.15),var(--shadow-md)} }
+/* ══ KPI ICON COLORS (shared utilities) ══════════════════════ */
 .kpi-chip-alert { position:absolute;top:8px;right:8px;background:#fee2e2;color:#b91c1c;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;display:flex;align-items:center;gap:3px }
 .kpi-icon { width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0 }
 .kpi-blue   { background:#eff6ff;color:#2563eb } .kpi-green  { background:#f0fdf4;color:#16a34a }
@@ -674,8 +700,7 @@
 /* ══ RESPONSIVE ══════════════════════════════════════════════ */
 @media (max-width:1200px) { .db-layout { grid-template-columns:1fr 300px } }
 @media (max-width:1024px) { .db-layout { grid-template-columns:1fr } .db-right { position:static } }
-@media (max-width:768px)  { .kpi-strip { grid-template-columns:repeat(2,1fr) } }
-@media (max-width:480px)  { .kpi-strip { grid-template-columns:1fr } }
+/* kpi-strip responsive handled in wrapper style block above */
 </style>
 
 <script>
