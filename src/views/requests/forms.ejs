@@ -81,7 +81,8 @@
       <span class="form-meta-item"><i class="fas fa-check-double"></i> <%= stepCount %> bước</span>
       <span class="form-meta-item"><i class="fas fa-file-alt"></i> <%= f.request_count %> yêu cầu</span>
     </div>
-    <div class="form-card-actions">
+    <div class="form-card-actions" style="justify-content:space-between">
+      <button onclick="openEditModal(<%- JSON.stringify(f) %>)" class="btn btn-sm btn-outline"><i class="fas fa-edit"></i> Sửa</button>
       <form action="/requests/forms/<%= f.id %>/delete" method="POST" style="display:inline">
         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Ẩn quy trình này?')"><i class="fas fa-eye-slash"></i> Ẩn</button>
       </form>
@@ -90,6 +91,57 @@
   <% }) %>
 </div>
 <% } %>
+
+<!-- Edit Form Modal -->
+<div class="fm-modal-overlay" id="editFormModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="fm-modal">
+    <div class="fm-modal-header">
+      <strong style="font-size:16px">Sửa Quy trình duyệt</strong>
+      <button class="btn-icon-sm" onclick="document.getElementById('editFormModal').classList.remove('open')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-2);cursor:pointer"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="editFormEl" action="" method="POST">
+      <div class="fm-modal-body">
+
+        <div class="form-group mb-3">
+          <label class="form-label">Tên quy trình <span style="color:var(--danger)">*</span></label>
+          <input type="text" name="name" id="edit_name" class="form-control" required>
+        </div>
+
+        <div class="form-group mb-3">
+          <label class="form-label">Danh mục</label>
+          <select name="category" id="edit_category" class="form-control">
+            <option value="admin">Hành chính</option>
+            <option value="finance">Tài chính</option>
+            <option value="project">Dự án</option>
+            <option value="other">Khác</option>
+          </select>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label">Mô tả</label>
+          <textarea name="description" id="edit_desc" class="form-control" rows="2"></textarea>
+        </div>
+
+        <div class="section-header">
+          <span><i class="fas fa-list" style="color:var(--primary)"></i> Các trường thông tin</span>
+          <button type="button" onclick="addEditField()" class="btn btn-sm btn-outline"><i class="fas fa-plus"></i> Thêm trường</button>
+        </div>
+        <div id="editFieldsContainer" style="margin-bottom:20px"></div>
+
+        <div class="section-header">
+          <span><i class="fas fa-check-double" style="color:var(--success)"></i> Bước phê duyệt</span>
+          <button type="button" onclick="addEditStep()" class="btn btn-sm btn-outline"><i class="fas fa-plus"></i> Thêm bước</button>
+        </div>
+        <div id="editStepsContainer"></div>
+
+      </div>
+      <div class="fm-modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('editFormModal').classList.remove('open')">Hủy</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu thay đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- Create Form Modal -->
 <div class="fm-modal-overlay" id="newFormModal" onclick="if(event.target===this)this.classList.remove('open')">
@@ -206,6 +258,82 @@ function addField() {
       <textarea name="foptions[]" class="options-textarea" placeholder="Các lựa chọn, mỗi dòng một giá trị..."></textarea>
     </div>
   </div>`;
+  c.appendChild(div);
+}
+
+let editStepCount = 0;
+
+function openEditModal(f) {
+  document.getElementById('edit_name').value = f.name || '';
+  document.getElementById('edit_desc').value = f.description || '';
+  document.getElementById('edit_category').value = f.category || 'other';
+  document.getElementById('editFormEl').action = '/requests/forms/' + f.id + '/edit';
+
+  // Populate fields
+  const fc = document.getElementById('editFieldsContainer');
+  fc.innerHTML = '';
+  let fields = [];
+  try { fields = JSON.parse(f.fields || '[]'); } catch(e){}
+  fields.forEach(function(fld) { addEditField(fld); });
+
+  // Populate steps
+  const sc = document.getElementById('editStepsContainer');
+  sc.innerHTML = '';
+  editStepCount = 0;
+  let steps = [];
+  try { steps = JSON.parse(f.approval_steps || '[]'); } catch(e){}
+  if (steps.length === 0) {
+    sc.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:10px;border:1px dashed var(--border);border-radius:6px;text-align:center">Nhấn "Thêm bước" để thêm người phê duyệt</div>';
+  } else {
+    steps.forEach(function(s) { addEditStep(s); });
+  }
+
+  document.getElementById('editFormModal').classList.add('open');
+}
+
+function addEditField(data) {
+  const c = document.getElementById('editFieldsContainer');
+  const fld = data || {};
+  const typeOpts = ['text','textarea','number','date','select'].map(function(t) {
+    return '<option value="' + t + '"' + (fld.type === t ? ' selected' : '') + '>' + {text:'Văn bản',textarea:'Đoạn văn',number:'Số',date:'Ngày',select:'Lựa chọn'}[t] + '</option>';
+  }).join('');
+  const div = document.createElement('div');
+  div.className = 'field-row';
+  const showOpts = fld.type === 'select' ? 'block' : 'none';
+  const optVal = (fld.options || []).join('\n');
+  div.innerHTML = '<div class="field-row-main">' +
+    '<div style="display:flex;gap:6px;align-items:center">' +
+      '<input type="text" name="fields[]" class="form-control" placeholder="Tên trường" style="flex:2" value="' + (fld.label||'').replace(/"/g,'&quot;') + '">' +
+      '<select name="ftypes[]" class="form-control" style="flex:1" onchange="toggleOptions(this)">' + typeOpts + '</select>' +
+      '<select name="freqs[]" class="form-control" style="flex:1">' +
+        '<option value="true"' + (fld.required ? ' selected' : '') + '>Bắt buộc</option>' +
+        '<option value="false"' + (!fld.required ? ' selected' : '') + '>Tuỳ chọn</option>' +
+      '</select>' +
+      '<button type="button" onclick="this.closest(\'.field-row\').remove()" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>' +
+    '</div>' +
+    '<div class="options-row"><textarea name="foptions[]" class="options-textarea" placeholder="Các lựa chọn, mỗi dòng một giá trị..." style="display:' + showOpts + '">' + optVal + '</textarea></div>' +
+  '</div>';
+  c.appendChild(div);
+}
+
+function addEditStep(data) {
+  const c = document.getElementById('editStepsContainer');
+  // Remove placeholder if present
+  if (editStepCount === 0) {
+    const placeholder = c.querySelector('div[style*="dashed"]');
+    if (placeholder) c.innerHTML = '';
+  }
+  editStepCount++;
+  const s = data || {};
+  const opts = allUsers.map(function(u) {
+    return '<option value="' + u.id + '"' + (s.approver_id === u.id ? ' selected' : '') + '>' + u.name + ' (' + u.role + ')</option>';
+  }).join('');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = '<div style="width:26px;height:26px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">' + editStepCount + '</div>' +
+    '<input type="text" name="step_name[]" class="form-control" placeholder="Tên bước" style="flex:1" value="' + (s.name||'').replace(/"/g,'&quot;') + '">' +
+    '<select name="step_approver[]" class="form-control" style="flex:2"><option value="">— Chọn người duyệt —</option>' + opts + '</select>' +
+    '<button type="button" onclick="this.closest(\'div\').remove();editStepCount--" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>';
   c.appendChild(div);
 }
 

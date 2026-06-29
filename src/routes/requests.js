@@ -187,6 +187,39 @@ router.post('/forms', requireRole('admin', 'director'), async (req, res) => {
   res.redirect('/requests/forms');
 });
 
+// ── POST /forms/:id/edit ────────────────────────────────────────────────────
+router.post('/forms/:id/edit', requireRole('admin', 'director'), async (req, res) => {
+  const { name, description, category } = req.body;
+  const fields        = req.body['fields[]']        ? (Array.isArray(req.body['fields[]'])        ? req.body['fields[]']        : [req.body['fields[]']])        : [];
+  const ftypes        = req.body['ftypes[]']        ? (Array.isArray(req.body['ftypes[]'])        ? req.body['ftypes[]']        : [req.body['ftypes[]']])        : [];
+  const freqs         = req.body['freqs[]']         ? (Array.isArray(req.body['freqs[]'])         ? req.body['freqs[]']         : [req.body['freqs[]']])         : [];
+  const foptions      = req.body['foptions[]']      ? (Array.isArray(req.body['foptions[]'])      ? req.body['foptions[]']      : [req.body['foptions[]']])      : [];
+  const stepApprovers = req.body['step_approver[]'] ? (Array.isArray(req.body['step_approver[]']) ? req.body['step_approver[]'] : [req.body['step_approver[]']]) : [];
+  const stepNames     = req.body['step_name[]']     ? (Array.isArray(req.body['step_name[]'])     ? req.body['step_name[]']     : [req.body['step_name[]']])     : [];
+
+  const fieldsJson = fields.map((f, i) => {
+    const obj = { label: f, type: ftypes[i] || 'text', required: freqs[i] === 'true' };
+    if (foptions[i] && foptions[i].trim()) {
+      obj.options = foptions[i].split('\n').map(o => o.trim()).filter(Boolean);
+    }
+    return obj;
+  });
+  const stepsJson = stepApprovers
+    .map((a, i) => ({ name: stepNames[i] || '', approver_id: a }))
+    .filter(s => s.approver_id);
+
+  try {
+    await query(
+      `UPDATE request_forms SET name=$1, description=$2, category=$3, fields=$4, approval_steps=$5 WHERE id=$6`,
+      [name, description || null, category || 'other', JSON.stringify(fieldsJson), JSON.stringify(stepsJson), req.params.id]
+    );
+    req.flash('success', `Đã cập nhật quy trình "${name}"`);
+  } catch (err) {
+    req.flash('error', err.message);
+  }
+  res.redirect('/requests/forms');
+});
+
 // ── POST /forms/:id/delete ───────────────────────────────────────────────────
 router.post('/forms/:id/delete', requireRole('admin'), async (req, res) => {
   await query('UPDATE request_forms SET is_active=false WHERE id=$1', [req.params.id]);
