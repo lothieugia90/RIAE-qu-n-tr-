@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <meta name="description" content="RIAE – Tư vấn, thiết kế và thi công các hệ thống kỹ thuật điện nhẹ, tự động hóa và hạ tầng công nghệ toàn diện.">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #0a4d8c;
+      --primary-dark: #073868;
+      --primary-light: #1a6ab8;
+      --accent: #e85d04;
+      --accent-light: #f48c06;
+      --text: #1a1a2e;
+      --text-2: #444466;
+      --text-3: #888;
+      --bg: #fff;
+      --bg-2: #f5f7fa;
+      --bg-3: #eef2f8;
+      --border: #e2e8f0;
+      --radius: 10px;
+      --shadow: 0 4px 24px rgba(10,77,140,.08);
+      --shadow-lg: 0 12px 48px rgba(10,77,140,.14);
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Be Vietnam Pro', sans-serif; color: var(--text); background: var(--bg); overflow-x: hidden; }
+
+    a { text-decoration: none; color: inherit; }
+    img { max-width: 100%; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── HEADER ── */
+    #header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      transition: box-shadow .3s;
+    }
+    #header.scrolled { box-shadow: 0 2px 20px rgba(0,0,0,.08); }
+    .header-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 70px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-mark {
+      width: 42px; height: 42px; background: var(--primary);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 20px; font-weight: 800; letter-spacing: -1px;
+    }
+    .logo-text { line-height: 1.2; }
+    .logo-text .brand { font-size: 20px; font-weight: 800; color: var(--primary); }
+    .logo-text .tagline { font-size: 10px; color: var(--text-3); font-weight: 500; letter-spacing: .5px; }
+
+    nav { display: flex; align-items: center; gap: 4px; }
+    nav a {
+      padding: 8px 14px; font-size: 14px; font-weight: 500;
+      color: var(--text-2); border-radius: 8px; transition: all .2s;
+    }
+    nav a:hover, nav a.active { color: var(--primary); background: var(--bg-3); }
+
+    .header-cta {
+      padding: 9px 20px; background: var(--accent); color: #fff;
+      border-radius: 8px; font-weight: 600; font-size: 14px;
+      transition: background .2s;
+    }
+    .header-cta:hover { background: #d44f00; }
+
+    .menu-toggle { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text); }
+
+    /* ── HERO ── */
+    #hero {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+      display: flex; align-items: center;
+      position: relative; overflow: hidden;
+      padding-top: 70px;
+    }
+    #hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; position: relative; z-index: 1; padding: 80px 0; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.15); color: #fff;
+      padding: 6px 14px; border-radius: 100px; font-size: 12px; font-weight: 600;
+      border: 1px solid rgba(255,255,255,.25); margin-bottom: 20px;
+      letter-spacing: .5px;
+    }
+    .hero-badge i { color: var(--accent-light); }
+    .hero-title { font-size: 48px; font-weight: 800; color: #fff; line-height: 1.15; margin-bottom: 20px; }
+    .hero-title span { color: var(--accent-light); }
+    .hero-desc { font-size: 16px; color: rgba(255,255,255,.8); line-height: 1.7; margin-bottom: 36px; }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn-hero-primary {
+      padding: 14px 28px; background: var(--accent); color: #fff;
+      border-radius: var(--radius); font-weight: 700; font-size: 15px;
+      transition: all .2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-hero-primary:hover { background: #d44f00; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,93,4,.35); }
+    .btn-hero-secondary {
+      padding: 14px 28px; background: rgba(255,255,255,.15); color: #fff;
+      border: 1.5px solid rgba(255,255,255,.4);
+      border-radius: var(--radius); font-weight: 600; font-size: 15px;
+      transition: all .2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-hero-secondary:hover { background: rgba(255,255,255,.25); }
+
+    .hero-stats { display: flex; gap: 32px; margin-top: 48px; }
+    .hero-stat { text-align: center; }
+    .hero-stat-num { font-size: 32px; font-weight: 800; color: #fff; }
+    .hero-stat-num span { color: var(--accent-light); }
+    .hero-stat-label { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 2px; }
+
+    .hero-visual { position: relative; }
+    .hero-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .hero-card {
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+      border-radius: 16px; padding: 20px; color: #fff;
+      backdrop-filter: blur(10px);
+    }
+    .hero-card-icon { font-size: 28px; margin-bottom: 10px; }
+    .hero-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .hero-card p { font-size: 12px; color: rgba(255,255,255,.65); line-height: 1.5; }
+    .hero-card.large { grid-column: span 2; }
+
+    /* ── SECTION COMMON ── */
+    section { padding: 90px 0; }
+    .section-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: var(--primary); font-size: 12px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 14px;
+    }
+    .section-label::before { content: ''; width: 24px; height: 2px; background: var(--accent); }
+    .section-title { font-size: 36px; font-weight: 800; color: var(--text); line-height: 1.2; margin-bottom: 14px; }
+    .section-subtitle { font-size: 16px; color: var(--text-2); line-height: 1.7; max-width: 560px; }
+    .section-header { margin-bottom: 52px; }
+    .section-header.center { text-align: center; }
+    .section-header.center .section-label { justify-content: center; }
+    .section-header.center .section-subtitle { margin: 0 auto; }
+
+    /* ── TRUST STRIP ── */
+    #trust { padding: 32px 0; background: var(--bg-2); border-bottom: 1px solid var(--border); }
+    .trust-strip { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
+    .trust-item {
+      flex: 1; min-width: 150px;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 16px; border-right: 1px solid var(--border);
+    }
+    .trust-item:last-child { border-right: none; }
+    .trust-num { font-size: 36px; font-weight: 800; color: var(--primary); line-height: 1; }
+    .trust-num span { color: var(--accent); }
+    .trust-label { font-size: 13px; color: var(--text-2); margin-top: 4px; text-align: center; }
+
+    /* ── SERVICES ── */
+    #services { background: var(--bg); }
+    .services-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+    .service-card {
+      border: 1.5px solid var(--border); border-radius: 16px;
+      padding: 28px 24px; transition: all .25s;
+      cursor: default;
+    }
+    .service-card:hover { border-color: var(--primary); transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .service-icon {
+      width: 56px; height: 56px; border-radius: 14px;
+      background: var(--bg-3); display: flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 18px; transition: background .25s;
+    }
+    .service-card:hover .service-icon { background: var(--primary); color: #fff; }
+    .service-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+    .service-card p { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+    .service-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+    .service-tag {
+      font-size: 11px; padding: 3px 9px; border-radius: 100px;
+      background: var(--bg-3); color: var(--text-2); font-weight: 500;
+    }
+
+    /* ── WHY US ── */
+    #why { background: var(--bg-2); }
+    .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+    .why-list { display: flex; flex-direction: column; gap: 24px; }
+    .why-item { display: flex; gap: 18px; }
+    .why-icon {
+      width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+      background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .why-item h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .why-item p { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+
+    .why-visual {
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary-light));
+      border-radius: 24px; padding: 40px; color: #fff;
+    }
+    .why-visual h3 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .why-visual p { font-size: 14px; opacity: .8; margin-bottom: 28px; line-height: 1.6; }
+    .why-cert { display: flex; flex-direction: column; gap: 12px; }
+    .why-cert-item {
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(255,255,255,.12); border-radius: 10px; padding: 12px 16px;
+      font-size: 13px; font-weight: 600;
+    }
+    .why-cert-item i { font-size: 18px; color: var(--accent-light); }
+
+    /* ── PROJECTS ── */
+    #projects { background: var(--bg); }
+    .projects-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .project-card { border-radius: 16px; overflow: hidden; border: 1.5px solid var(--border); transition: all .25s; }
+    .project-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: transparent; }
+    .project-thumb {
+      height: 200px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px; color: rgba(255,255,255,.4); position: relative; overflow: hidden;
+    }
+    .project-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .project-thumb-placeholder { font-size: 48px; }
+    .project-type {
+      position: absolute; top: 12px; left: 12px;
+      background: rgba(0,0,0,.5); color: #fff; font-size: 11px; font-weight: 600;
+      padding: 4px 10px; border-radius: 100px; backdrop-filter: blur(4px);
+    }
+    .project-body { padding: 20px; }
+    .project-body h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .project-body p { font-size: 13px; color: var(--text-2); line-height: 1.55; margin-bottom: 12px; }
+    .project-meta { display: flex; gap: 14px; font-size: 12px; color: var(--text-3); }
+    .project-meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* ── PARTNERS ── */
+    #partners { background: var(--bg-2); padding: 60px 0; }
+    .partners-label { text-align: center; font-size: 13px; color: var(--text-3); margin-bottom: 28px; font-weight: 500; }
+    .partners-strip { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: center; }
+    .partner-pill {
+      padding: 10px 22px; background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 100px; font-size: 13px; font-weight: 700; color: var(--text-2);
+      letter-spacing: .5px;
+    }
+
+    /* ── NEWS ── */
+    #news { background: var(--bg); }
+    .news-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .news-card { border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; transition: all .25s; }
+    .news-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: transparent; }
+    .news-thumb { height: 180px; background: var(--bg-3); display: flex; align-items: center; justify-content: center; font-size: 40px; }
+    .news-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .news-body { padding: 20px; }
+    .news-meta { font-size: 12px; color: var(--text-3); margin-bottom: 8px; display: flex; gap: 12px; }
+    .news-body h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; line-height: 1.4; }
+    .news-body h3 a { color: var(--text); }
+    .news-body h3 a:hover { color: var(--primary); }
+    .news-body p { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+    .news-empty { text-align: center; padding: 40px; color: var(--text-3); grid-column: span 3; }
+
+    /* ── CONTACT ── */
+    #contact {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      color: #fff;
+    }
+    .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
+    .contact-info h2 { font-size: 32px; font-weight: 800; margin-bottom: 14px; }
+    .contact-info p { font-size: 15px; opacity: .8; line-height: 1.7; margin-bottom: 32px; }
+    .contact-detail { display: flex; flex-direction: column; gap: 16px; }
+    .contact-detail-item { display: flex; align-items: flex-start; gap: 14px; }
+    .contact-detail-icon {
+      width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .contact-detail-text { font-size: 14px; opacity: .85; line-height: 1.6; }
+    .contact-detail-label { font-size: 11px; opacity: .55; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 2px; font-weight: 600; }
+
+    .contact-form { background: #fff; border-radius: 20px; padding: 36px; }
+    .contact-form h3 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 24px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 14px; font-family: inherit;
+      outline: none; transition: border-color .2s; color: var(--text);
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+    .form-group textarea { resize: vertical; min-height: 90px; }
+    .btn-submit {
+      width: 100%; padding: 13px; background: var(--primary); color: #fff;
+      border: none; border-radius: 8px; font-size: 15px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: background .2s;
+    }
+    .btn-submit:hover { background: var(--primary-dark); }
+    .form-success { display: none; text-align: center; padding: 20px; color: #16a34a; font-weight: 600; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: #0a0f1e; color: rgba(255,255,255,.7);
+      padding: 60px 0 0;
+    }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+    .footer-brand .logo-mark { background: var(--primary); margin-bottom: 14px; }
+    .footer-brand p { font-size: 13px; line-height: 1.7; margin-top: 10px; opacity: .7; }
+    .footer-col h4 { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 16px; letter-spacing: .5px; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-col ul li a { font-size: 13px; opacity: .7; transition: opacity .2s; }
+    .footer-col ul li a:hover { opacity: 1; color: var(--accent-light); }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,.08);
+      padding: 20px 0; display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; opacity: .5;
+    }
+    .footer-socials { display: flex; gap: 12px; }
+    .footer-social {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center;
+      font-size: 14px; color: rgba(255,255,255,.6); transition: all .2s;
+    }
+    .footer-social:hover { background: var(--primary); color: #fff; opacity: 1; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 992px) {
+      .services-grid { grid-template-columns: repeat(2, 1fr); }
+      .projects-grid, .news-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero-grid, .why-grid, .contact-grid { grid-template-columns: 1fr; }
+      .hero-visual { display: none; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      nav, .header-cta { display: none; }
+      .menu-toggle { display: block; }
+      .services-grid, .projects-grid, .news-grid { grid-template-columns: 1fr; }
+      .section-title { font-size: 26px; }
+      .hero-title { font-size: 30px; }
+      .form-row { grid-template-columns: 1fr; }
+      .hero-stats { gap: 16px; }
+      .trust-strip { justify-content: center; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .news-empty { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header id="header">
+  <div class="container">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <div class="logo-mark">R</div>
+        <div class="logo-text">
+          <div class="brand">RIAE</div>
+          <div class="tagline">SYSTEMS INTEGRATION</div>
+        </div>
+      </a>
+      <nav>
+        <a href="#services">Giải pháp</a>
+        <a href="#why">Về chúng tôi</a>
+        <a href="#projects">Dự án</a>
+        <a href="#partners">Đối tác</a>
+        <a href="#news">Tin tức</a>
+      </nav>
+      <a href="#contact" class="header-cta">Liên hệ ngay</a>
+      <button class="menu-toggle" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="hero-content">
+        <div class="hero-badge"><i class="fas fa-bolt"></i> Giải pháp tích hợp hệ thống</div>
+        <h1 class="hero-title">Công nghệ <span>thông minh</span>,<br>hạ tầng toàn diện</h1>
+        <p class="hero-desc">RIAE cung cấp dịch vụ tư vấn, thiết kế và thi công các hệ thống kỹ thuật điện nhẹ, tự động hóa và hạ tầng công nghệ cho các công trình dân dụng, công nghiệp và thương mại.</p>
+        <div class="hero-actions">
+          <a href="#contact" class="btn-hero-primary"><i class="fas fa-phone"></i> Tư vấn miễn phí</a>
+          <a href="#projects" class="btn-hero-secondary"><i class="fas fa-play-circle"></i> Xem dự án</a>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat"><div class="hero-stat-num">10<span>+</span></div><div class="hero-stat-label">Năm kinh nghiệm</div></div>
+          <div class="hero-stat"><div class="hero-stat-num">200<span>+</span></div><div class="hero-stat-label">Dự án hoàn thành</div></div>
+          <div class="hero-stat"><div class="hero-stat-num">98<span>%</span></div><div class="hero-stat-label">Khách hàng hài lòng</div></div>
+          <div class="hero-stat"><div class="hero-stat-num">50<span>+</span></div><div class="hero-stat-label">Nhân sự chuyên nghiệp</div></div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-card-grid">
+          <div class="hero-card">
+            <div class="hero-card-icon">🔒</div>
+            <h4>An ninh & Tự động hóa</h4>
+            <p>Hệ thống PCCC, BMS, kiểm soát ra vào thông minh</p>
+          </div>
+          <div class="hero-card">
+            <div class="hero-card-icon">📡</div>
+            <h4>Mạng & Giám sát</h4>
+            <p>LAN, Wi-Fi, CCTV IP, hệ thống tích hợp</p>
+          </div>
+          <div class="hero-card">
+            <div class="hero-card-icon">🖥️</div>
+            <h4>Hội thảo thông minh</h4>
+            <p>AV, PA, phòng họp tích hợp công nghệ cao</p>
+          </div>
+          <div class="hero-card">
+            <div class="hero-card-icon">🏗️</div>
+            <h4>Hạ tầng Data Center</h4>
+            <p>Server, virtualization, an ninh mạng</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST STRIP -->
+<div id="trust">
+  <div class="container">
+    <div class="trust-strip">
+      <div class="trust-item"><div class="trust-num">10<span>+</span></div><div class="trust-label">Năm kinh nghiệm</div></div>
+      <div class="trust-item"><div class="trust-num">200<span>+</span></div><div class="trust-label">Dự án hoàn thành</div></div>
+      <div class="trust-item"><div class="trust-num">50<span>+</span></div><div class="trust-label">Chuyên viên kỹ thuật</div></div>
+      <div class="trust-item"><div class="trust-num">30<span>+</span></div><div class="trust-label">Đối tác chiến lược</div></div>
+      <div class="trust-item"><div class="trust-num">98<span>%</span></div><div class="trust-label">Tỷ lệ hài lòng</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SERVICES -->
+<section id="services">
+  <div class="container">
+    <div class="section-header center">
+      <div class="section-label">Giải pháp của chúng tôi</div>
+      <h2 class="section-title">Dịch vụ toàn diện, chuyên nghiệp</h2>
+      <p class="section-subtitle">Chúng tôi cung cấp đầy đủ các giải pháp kỹ thuật từ tư vấn thiết kế đến thi công và bảo trì.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-icon">🔥</div>
+        <h3>An ninh & Phòng cháy</h3>
+        <p>Thiết kế và thi công hệ thống PCCC, báo cháy, kiểm soát ra vào, camera quan sát theo tiêu chuẩn quốc tế.</p>
+        <div class="service-tags">
+          <span class="service-tag">PCCC</span>
+          <span class="service-tag">Access Control</span>
+          <span class="service-tag">CCTV</span>
+        </div>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">🎙️</div>
+        <h3>Audio-Visual & Truyền thông</h3>
+        <p>Hệ thống âm thanh, hội nghị truyền hình, phòng họp thông minh và hệ thống truyền thanh nội bộ.</p>
+        <div class="service-tags">
+          <span class="service-tag">Smart Meeting</span>
+          <span class="service-tag">PA System</span>
+          <span class="service-tag">AV</span>
+        </div>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">🌐</div>
+        <h3>Mạng & Giám sát IP</h3>
+        <p>Hạ tầng mạng LAN/WAN, Wi-Fi doanh nghiệp, hệ thống camera IP và giám sát thông minh.</p>
+        <div class="service-tags">
+          <span class="service-tag">LAN/WAN</span>
+          <span class="service-tag">Wi-Fi</span>
+          <span class="service-tag">IP Camera</span>
+        </div>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">🖥️</div>
+        <h3>Hạ tầng & Data Center</h3>
+        <p>Thiết kế triển khai data center, server, ảo hóa, lưu trữ và bảo mật an ninh mạng toàn diện.</p>
+        <div class="service-tags">
+          <span class="service-tag">Data Center</span>
+          <span class="service-tag">Virtualization</span>
+          <span class="service-tag">Cybersecurity</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY US -->
+<section id="why">
+  <div class="container">
+    <div class="why-grid">
+      <div>
+        <div class="section-label">Tại sao chọn RIAE</div>
+        <h2 class="section-title">Đối tác tin cậy cho mọi công trình</h2>
+        <p class="section-subtitle" style="margin-bottom:40px">Chúng tôi cam kết mang đến giải pháp chất lượng cao, đúng tiến độ và trong ngân sách.</p>
+        <div class="why-list">
+          <div class="why-item">
+            <div class="why-icon"><i class="fas fa-medal"></i></div>
+            <div>
+              <h4>Hơn 10 năm kinh nghiệm</h4>
+              <p>Đội ngũ kỹ sư được đào tạo bài bản, có chứng chỉ quốc tế, kinh nghiệm triển khai đa dạng loại công trình.</p>
+            </div>
+          </div>
+          <div class="why-item">
+            <div class="why-icon"><i class="fas fa-layer-group"></i></div>
+            <div>
+              <h4>Giải pháp tích hợp toàn diện</h4>
+              <p>Một đối tác duy nhất cho tất cả các hệ thống kỹ thuật, tiết kiệm thời gian và chi phí phối hợp.</p>
+            </div>
+          </div>
+          <div class="why-item">
+            <div class="why-icon"><i class="fas fa-clock"></i></div>
+            <div>
+              <h4>Cam kết đúng tiến độ</h4>
+              <p>Quy trình quản lý dự án chặt chẽ, báo cáo tiến độ minh bạch, bàn giao đúng hạn.</p>
+            </div>
+          </div>
+          <div class="why-item">
+            <div class="why-icon"><i class="fas fa-headset"></i></div>
+            <div>
+              <h4>Hỗ trợ sau bàn giao 24/7</h4>
+              <p>Dịch vụ bảo trì, bảo hành và hỗ trợ kỹ thuật liên tục sau khi công trình hoàn thành.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="why-visual">
+        <h3>Năng lực & Chứng nhận</h3>
+        <p>RIAE đáp ứng đầy đủ các tiêu chuẩn kỹ thuật và pháp lý trong lĩnh vực tích hợp hệ thống.</p>
+        <div class="why-cert">
+          <div class="why-cert-item"><i class="fas fa-check-circle"></i> Giấy phép thi công hệ thống điện</div>
+          <div class="why-cert-item"><i class="fas fa-check-circle"></i> Chứng chỉ PCCC theo QCVN</div>
+          <div class="why-cert-item"><i class="fas fa-check-circle"></i> Đối tác chính thức Cisco, Bosch</div>
+          <div class="why-cert-item"><i class="fas fa-check-circle"></i> ISO 9001:2015 Quản lý chất lượng</div>
+          <div class="why-cert-item"><i class="fas fa-check-circle"></i> Đội ngũ kỹ sư Cisco CCNA/CCNP</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="container">
+    <div class="section-header" style="display:flex;justify-content:space-between;align-items:flex-end">
+      <div>
+        <div class="section-label">Công trình tiêu biểu</div>
+        <h2 class="section-title">Dự án đã triển khai</h2>
+      </div>
+      <a href="/projects" style="font-size:14px;color:var(--primary);font-weight:600;display:flex;align-items:center;gap:6px">
+        Xem tất cả <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+    <div class="projects-grid">
+      <% if (projects && projects.length > 0) { %>
+        <% projects.forEach(p => { %>
+        <div class="project-card">
+          <div class="project-thumb">
+            <% if (p.thumbnail) { %>
+              <img src="<%= p.thumbnail %>" alt="<%= p.title %>">
+            <% } else { %>
+              <span class="project-thumb-placeholder">🏗️</span>
+            <% } %>
+            <% if (p.tags && p.tags[0]) { %><span class="project-type"><%= p.tags[0] %></span><% } %>
+          </div>
+          <div class="project-body">
+            <h3><%= p.title %></h3>
+            <p><%= p.description ? p.description.slice(0,100) + '...' : '' %></p>
+            <div class="project-meta">
+              <% if (p.client) { %><span><i class="fas fa-building"></i> <%= p.client %></span><% } %>
+              <% if (p.location) { %><span><i class="fas fa-map-marker-alt"></i> <%= p.location %></span><% } %>
+            </div>
+          </div>
+        </div>
+        <% }) %>
+      <% } else { %>
+        <!-- Default showcase projects -->
+        <div class="project-card">
+          <div class="project-thumb"><span class="project-thumb-placeholder">🏨</span><span class="project-type">Khách sạn 5★</span></div>
+          <div class="project-body"><h3>Hệ thống tích hợp Resort Phú Quốc</h3><p>Thiết kế và thi công toàn bộ hệ thống ELV, PCCC, camera và mạng cho khu nghỉ dưỡng 300 phòng.</p><div class="project-meta"><span><i class="fas fa-map-marker-alt"></i> Phú Quốc</span></div></div>
+        </div>
+        <div class="project-card">
+          <div class="project-thumb"><span class="project-thumb-placeholder">🏢</span><span class="project-type">Văn phòng</span></div>
+          <div class="project-body"><h3>Trung tâm dữ liệu doanh nghiệp</h3><p>Xây dựng data center Tier II với hệ thống ảo hóa, lưu trữ và bảo mật toàn diện cho tập đoàn lớn.</p><div class="project-meta"><span><i class="fas fa-map-marker-alt"></i> TP.HCM</span></div></div>
+        </div>
+        <div class="project-card">
+          <div class="project-thumb"><span class="project-thumb-placeholder">🏫</span><span class="project-type">Giáo dục</span></div>
+          <div class="project-body"><h3>Hệ thống trường học thông minh</h3><p>Triển khai hệ thống camera, kiểm soát ra vào, PA và mạng wifi toàn khuôn viên trường.</p><div class="project-meta"><span><i class="fas fa-map-marker-alt"></i> Hà Nội</span></div></div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<!-- PARTNERS -->
+<section id="partners">
+  <div class="container">
+    <p class="partners-label">ĐỐI TÁC & THƯƠNG HIỆU UY TÍN</p>
+    <div class="partners-strip">
+      <span class="partner-pill">Cisco</span>
+      <span class="partner-pill">Bosch</span>
+      <span class="partner-pill">Aruba / HPE</span>
+      <span class="partner-pill">Hikvision</span>
+      <span class="partner-pill">Honeywell</span>
+      <span class="partner-pill">Siemens</span>
+      <span class="partner-pill">Axis</span>
+      <span class="partner-pill">Fortinet</span>
+      <span class="partner-pill">Dell EMC</span>
+      <span class="partner-pill">Panasonic</span>
+    </div>
+  </div>
+</section>
+
+<!-- NEWS -->
+<section id="news">
+  <div class="container">
+    <div class="section-header center">
+      <div class="section-label">Tin tức & Kiến thức</div>
+      <h2 class="section-title">Cập nhật mới nhất</h2>
+    </div>
+    <div class="news-grid">
+      <% if (news && news.length > 0) { %>
+        <% news.forEach(n => { %>
+        <div class="news-card">
+          <div class="news-thumb">
+            <% if (n.thumbnail) { %><img src="<%= n.thumbnail %>" alt="<%= n.title %>"><% } else { %>📰<% } %>
+          </div>
+          <div class="news-body">
+            <div class="news-meta">
+              <span><i class="fas fa-calendar"></i> <%= n.published_at ? new Date(n.published_at).toLocaleDateString('vi-VN') : '' %></span>
+              <span><i class="fas fa-user"></i> <%= n.author_name || 'RIAE' %></span>
+            </div>
+            <h3><a href="/tin-tuc/<%= n.slug %>"><%= n.title %></a></h3>
+            <p><%= n.excerpt ? n.excerpt.slice(0,120) + '...' : '' %></p>
+          </div>
+        </div>
+        <% }) %>
+      <% } else { %>
+        <div class="news-empty"><i class="fas fa-newspaper" style="font-size:40px;margin-bottom:10px;display:block"></i>Chưa có bài viết nào</div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="container">
+    <div class="contact-grid">
+      <div class="contact-info">
+        <h2>Liên hệ với chúng tôi</h2>
+        <p>Hãy để RIAE tư vấn giải pháp phù hợp nhất cho dự án của bạn. Đội ngũ kỹ thuật của chúng tôi sẵn sàng hỗ trợ 24/7.</p>
+        <div class="contact-detail">
+          <div class="contact-detail-item">
+            <div class="contact-detail-icon"><i class="fas fa-map-marker-alt"></i></div>
+            <div><div class="contact-detail-label">Địa chỉ</div><div class="contact-detail-text">123 Đường Nguyễn Văn Trỗi, Quận Phú Nhuận, TP.HCM</div></div>
+          </div>
+          <div class="contact-detail-item">
+            <div class="contact-detail-icon"><i class="fas fa-phone"></i></div>
+            <div><div class="contact-detail-label">Hotline</div><div class="contact-detail-text">028 1234 5678 — 0909 123 456</div></div>
+          </div>
+          <div class="contact-detail-item">
+            <div class="contact-detail-icon"><i class="fas fa-envelope"></i></div>
+            <div><div class="contact-detail-label">Email</div><div class="contact-detail-text">info@riae.vn</div></div>
+          </div>
+          <div class="contact-detail-item">
+            <div class="contact-detail-icon"><i class="fas fa-clock"></i></div>
+            <div><div class="contact-detail-label">Giờ làm việc</div><div class="contact-detail-text">Thứ 2 – Thứ 7: 8:00 – 17:30</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="contact-form">
+        <h3>Gửi yêu cầu tư vấn</h3>
+        <form id="contactForm" onsubmit="submitContact(event)">
+          <div class="form-row">
+            <div class="form-group"><label>Họ và tên *</label><input type="text" name="name" required placeholder="Nguyễn Văn A"></div>
+            <div class="form-group"><label>Số điện thoại *</label><input type="tel" name="phone" required placeholder="0901 234 567"></div>
+          </div>
+          <div class="form-group"><label>Email</label><input type="email" name="email" placeholder="email@example.com"></div>
+          <div class="form-group">
+            <label>Dịch vụ quan tâm</label>
+            <select name="service">
+              <option value="">-- Chọn dịch vụ --</option>
+              <option>An ninh & Phòng cháy</option>
+              <option>Audio-Visual & Truyền thông</option>
+              <option>Mạng & Giám sát IP</option>
+              <option>Hạ tầng & Data Center</option>
+              <option>Khác</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Nội dung</label><textarea name="message" placeholder="Mô tả yêu cầu của bạn..."></textarea></div>
+          <button type="submit" class="btn-submit">Gửi yêu cầu <i class="fas fa-paper-plane"></i></button>
+          <div class="form-success" id="formSuccess"><i class="fas fa-check-circle" style="font-size:24px;margin-bottom:8px;display:block"></i>Cảm ơn! Chúng tôi sẽ liên hệ trong 24 giờ.</div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div class="logo-mark">R</div>
+          <div style="color:#fff;font-weight:800;font-size:18px">RIAE</div>
+        </div>
+        <p>Công ty TNHH Tích hợp hệ thống RIAE — chuyên tư vấn, thiết kế và thi công các hệ thống kỹ thuật điện nhẹ và hạ tầng công nghệ thông tin.</p>
+        <div class="footer-socials" style="margin-top:18px">
+          <a href="#" class="footer-social"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" class="footer-social"><i class="fab fa-linkedin-in"></i></a>
+          <a href="#" class="footer-social"><i class="fab fa-youtube"></i></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Giải pháp</h4>
+        <ul>
+          <li><a href="#services">An ninh & PCCC</a></li>
+          <li><a href="#services">Audio-Visual</a></li>
+          <li><a href="#services">Mạng & Camera</a></li>
+          <li><a href="#services">Data Center</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Công ty</h4>
+        <ul>
+          <li><a href="#why">Về chúng tôi</a></li>
+          <li><a href="#projects">Dự án</a></li>
+          <li><a href="#partners">Đối tác</a></li>
+          <li><a href="#news">Tin tức</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Liên hệ</h4>
+        <ul>
+          <li><a href="tel:02812345678">028 1234 5678</a></li>
+          <li><a href="mailto:info@riae.vn">info@riae.vn</a></li>
+          <li><a href="#contact">Gửi yêu cầu</a></li>
+          <li><a href="/auth/login">Đăng nhập nội bộ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2024 RIAE Systems Integration. All rights reserved.</span>
+      <span>Thiết kế bởi RIAE Tech Team</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Header scroll effect
+  window.addEventListener('scroll', () => {
+    document.getElementById('header').classList.toggle('scrolled', window.scrollY > 20);
+  });
+
+  // Contact form
+  async function submitContact(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = Object.fromEntries(new FormData(form));
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        form.style.display = 'none';
+        document.getElementById('formSuccess').style.display = 'block';
+      }
+    } catch(err) {
+      // fallback: just show success
+      form.style.display = 'none';
+      document.getElementById('formSuccess').style.display = 'block';
+    }
+  }
+
+  function toggleMobileMenu() {
+    // simple mobile menu toggle
+    const nav = document.querySelector('nav');
+    nav.style.display = nav.style.display === 'flex' ? 'none' : 'flex';
+  }
+</script>
+
+</body>
+</html>

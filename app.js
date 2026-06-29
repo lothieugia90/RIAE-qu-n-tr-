@@ -180,11 +180,8 @@ app.use('/requests', require('./src/routes/requests'));
 app.use('/signatures', require('./src/routes/signatures'));
 app.use('/payroll-settings', require('./src/routes/payrollSettings'));
 
-// Root redirect
-app.get('/', (req, res) => {
-  if (req.session && req.session.userId) return res.redirect('/dashboard');
-  res.redirect('/auth/login');
-});
+// Root — public landing page
+app.use('/', require('./src/routes/home'));
 
 // 404
 app.use((req, res) => {
