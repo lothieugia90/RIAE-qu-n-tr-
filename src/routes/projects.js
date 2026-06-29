@@ -46,4 +46,7 @@ router.get('/:id/members-json', ctrl.membersJson);
 router.post('/:id/progress', ctrl.updateProgress);
 router.post('/:id/update-progress', ctrl.updateProgress);
 
+// Assign workflow
+router.post('/:id/set-workflow', requireRole('admin', 'director', 'pm'), ctrl.setWorkflow);
+
 module.exports = router;

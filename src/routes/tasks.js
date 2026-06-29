@@ -54,4 +54,12 @@ router.post('/:id/log-time', ctrl.logTime);
 router.post('/:id/attach', taskUpload.single('file'), ctrl.uploadAttachment);
 router.post('/:id/attach/:attachId/delete', ctrl.deleteAttachment);
 
+// Workflow stage move
+router.post('/:id/move-stage', ctrl.moveStage);
+
+// Checklist CRUD (AJAX JSON)
+router.post('/:id/checklist',                  ctrl.addChecklist);
+router.post('/:id/checklist/:cid/toggle',      ctrl.toggleChecklist);
+router.post('/:id/checklist/:cid/delete',      ctrl.deleteChecklist);
+
 module.exports = router;

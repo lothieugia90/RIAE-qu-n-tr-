@@ -3,15 +3,16 @@ const audit = require('../utils/audit');
 const notify = require('../utils/notify');
 
 const createTask = async (req, res) => {
-  const { project_id, title, description, assignee_id, priority, due_date, estimated_hours, status } = req.body;
+  const { project_id, title, description, assignee_id, priority, due_date, estimated_hours, status, workflow_stage_id } = req.body;
   try {
     const validStatuses = ['todo', 'in_progress', 'review', 'done'];
     const taskStatus = validStatuses.includes(status) ? status : 'todo';
     const result = await query(
-      `INSERT INTO tasks (project_id,title,description,assignee_id,priority,status,due_date,estimated_hours,created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      `INSERT INTO tasks (project_id,title,description,assignee_id,priority,status,due_date,estimated_hours,workflow_stage_id,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
       [project_id, title, description || null, assignee_id || null,
-       priority || 'medium', taskStatus, due_date || null, estimated_hours || null, req.session.userId]
+       priority || 'medium', taskStatus, due_date || null, estimated_hours || null,
+       workflow_stage_id || null, req.session.userId]
     );
     const newId = result.rows[0].id;
     audit.log(req.session.userId, 'CREATE', 'task', newId,
@@ -169,12 +170,20 @@ const addComment = async (req, res) => {
 const getEdit = async (req, res) => {
   try {
     const role = req.session.userRole;
-    const [task, members, comments, timeLogs, attachments] = await Promise.all([
-      query('SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.id=$1', [req.params.id]),
+    const [task, members, comments, timeLogs, attachments, checklists] = await Promise.all([
+      query(`SELECT t.*, p.name as project_name, p.workflow_id,
+             ws.name as stage_name, ws.color as stage_color, ws.is_approval_gate, ws.stage_order,
+             cu.full_name as co_assignee_name
+             FROM tasks t
+             JOIN projects p ON p.id=t.project_id
+             LEFT JOIN workflow_stages ws ON ws.id=t.workflow_stage_id
+             LEFT JOIN users cu ON cu.id=t.co_assignee_id
+             WHERE t.id=$1`, [req.params.id]),
       query('SELECT id, full_name, role, department FROM users WHERE is_active=true ORDER BY full_name'),
       query('SELECT tc.*, u.full_name, u.avatar_url FROM task_comments tc JOIN users u ON u.id=tc.user_id WHERE tc.task_id=$1 ORDER BY tc.created_at ASC', [req.params.id]),
       query('SELECT tl.*, u.full_name FROM time_logs tl JOIN users u ON u.id=tl.user_id WHERE tl.task_id=$1 ORDER BY tl.log_date DESC', [req.params.id]),
-      query('SELECT ta.*, u.full_name as uploader_name FROM task_attachments ta JOIN users u ON u.id=ta.uploaded_by WHERE ta.task_id=$1 ORDER BY ta.created_at DESC', [req.params.id])
+      query('SELECT ta.*, u.full_name as uploader_name FROM task_attachments ta JOIN users u ON u.id=ta.uploaded_by WHERE ta.task_id=$1 ORDER BY ta.created_at DESC', [req.params.id]),
+      query('SELECT tc.*, u.full_name as done_by_name FROM task_checklists tc LEFT JOIN users u ON u.id=tc.done_by WHERE tc.task_id=$1 ORDER BY tc.sort_order', [req.params.id]),
     ]);
     if (!task.rows.length) return res.redirect('/projects');
     const t = task.rows[0];
@@ -182,12 +191,19 @@ const getEdit = async (req, res) => {
       req.flash('error', 'Bạn không có quyền');
       return res.redirect('back');
     }
-    if (!['admin', 'director', 'pm'].includes(role)) {
-      if (t.assignee_id !== req.session.userId && t.created_by !== req.session.userId) {
+    if (!['admin', 'director', 'pm', 'head_tech', 'head_hr', 'head_sales'].includes(role)) {
+      if (t.assignee_id !== req.session.userId && t.created_by !== req.session.userId && t.co_assignee_id !== req.session.userId) {
         req.flash('error', 'Bạn chỉ có thể chỉnh sửa task được giao cho mình');
         return res.redirect('back');
       }
     }
+    // Load workflow stages if project has workflow
+    let workflowStages = [];
+    if (t.workflow_id) {
+      const stRes = await query('SELECT * FROM workflow_stages WHERE workflow_id=$1 ORDER BY stage_order', [t.workflow_id]);
+      workflowStages = stRes.rows;
+    }
+    const canApproveGate = ['admin','director','pm','head_tech','head_hr','head_sales','field_supervisor'].includes(role);
     const totalHours = timeLogs.rows.reduce((s, r) => s + parseFloat(r.hours_spent || 0), 0);
     res.render('tasks/edit', {
       title: 'Chi tiết Task: ' + t.title,
@@ -196,7 +212,10 @@ const getEdit = async (req, res) => {
       comments: comments.rows,
       timeLogs: timeLogs.rows,
       totalHours,
-      attachments: attachments.rows
+      attachments: attachments.rows,
+      checklists: checklists.rows,
+      workflowStages,
+      canApproveGate,
     });
   } catch (err) { console.error(err); res.redirect('/projects'); }
 };
@@ -284,7 +303,124 @@ const myTasks = async (req, res) => {
   } catch (err) { console.error(err); res.redirect('/dashboard'); }
 };
 
+// ── Move workflow stage ───────────────────────────────────────────────────────
+const moveStage = async (req, res) => {
+  const { stage_id, comment } = req.body;
+  try {
+    const taskRes = await query(
+      `SELECT t.*, ws.is_approval_gate as cur_gate, ws.name as cur_stage_name,
+              p.manager_id
+       FROM tasks t
+       LEFT JOIN workflow_stages ws ON ws.id=t.workflow_stage_id
+       LEFT JOIN projects p ON p.id=t.project_id
+       WHERE t.id=$1`, [req.params.id]
+    );
+    if (!taskRes.rows.length) throw new Error('Task không tồn tại');
+    const task = taskRes.rows[0];
+
+    // Leaving an approval gate requires PM/manager role
+    if (task.cur_gate) {
+      const role = req.session.userRole;
+      const canPass = ['admin','director','pm','head_tech','head_hr','head_sales','field_supervisor'].includes(role)
+                   || req.session.userId === task.manager_id;
+      if (!canPass) {
+        if (req.xhr || req.headers.accept?.includes('json')) {
+          return res.status(403).json({ success: false, error: 'Bạn không có quyền phê duyệt bước này' });
+        }
+        req.flash('error', 'Chỉ PM hoặc quản lý mới có thể phê duyệt bước này');
+        return res.redirect('/tasks/' + req.params.id + '/edit');
+      }
+    }
+
+    // Get target stage info
+    let newStatus = 'in_progress', stageName = 'Không có stage';
+    let targetStage = null;
+    if (stage_id) {
+      const stRes = await query('SELECT * FROM workflow_stages WHERE id=$1', [stage_id]);
+      targetStage = stRes.rows[0];
+      if (targetStage) {
+        newStatus = targetStage.maps_to_status || 'in_progress';
+        stageName = targetStage.name;
+      }
+    }
+    if (!stage_id) newStatus = 'done';
+
+    const completedAt = newStatus === 'done' ? new Date() : null;
+    await query(
+      `UPDATE tasks SET workflow_stage_id=$1, status=$2, stage_changed_at=NOW(),
+       completed_at=$3, updated_at=NOW() WHERE id=$4`,
+      [stage_id || null, newStatus, completedAt, req.params.id]
+    );
+
+    // Log to activity
+    audit.log(req.session.userId, 'STAGE_MOVE', 'task', req.params.id,
+      `Chuyển bước → ${stageName}${comment ? ': ' + comment : ''}`,
+      { stage: task.cur_stage_name }, { stage: stageName }, req.ip);
+
+    // Notify PM if approval gate or done
+    if (targetStage?.is_approval_gate || newStatus === 'done') {
+      if (task.manager_id && task.manager_id !== req.session.userId) {
+        await notify.create(task.manager_id, 'info', 'project',
+          `Task cần phê duyệt: ${task.title}`,
+          `Task "${task.title}" đã chuyển sang bước "${stageName}" — cần phê duyệt`,
+          '/tasks/' + req.params.id + '/edit'
+        );
+      }
+    }
+
+    if (req.xhr || req.headers.accept?.includes('json')) {
+      return res.json({ success: true, message: `Đã chuyển sang: ${stageName}`, stageName, status: newStatus });
+    }
+    req.flash('success', `Đã chuyển sang: ${stageName}`);
+    res.redirect('/tasks/' + req.params.id + '/edit');
+  } catch (err) {
+    console.error(err);
+    if (req.xhr || req.headers.accept?.includes('json')) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    req.flash('error', err.message);
+    res.redirect('/tasks/' + req.params.id + '/edit');
+  }
+};
+
+// ── Checklist CRUD ────────────────────────────────────────────────────────────
+const addChecklist = async (req, res) => {
+  const { title } = req.body;
+  if (!title?.trim()) return res.json({ success: false, error: 'Tiêu đề không được trống' });
+  try {
+    const r = await query(
+      `INSERT INTO task_checklists (task_id, title, created_by, sort_order)
+       VALUES ($1,$2,$3,
+         COALESCE((SELECT MAX(sort_order)+1 FROM task_checklists WHERE task_id=$1), 0))
+       RETURNING *`,
+      [req.params.id, title.trim(), req.session.userId]
+    );
+    res.json({ success: true, item: r.rows[0] });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+};
+
+const toggleChecklist = async (req, res) => {
+  try {
+    const cur = await query('SELECT * FROM task_checklists WHERE id=$1 AND task_id=$2', [req.params.cid, req.params.id]);
+    if (!cur.rows.length) return res.json({ success: false });
+    const isDone = !cur.rows[0].is_done;
+    await query(
+      `UPDATE task_checklists SET is_done=$1, done_by=$2, done_at=$3 WHERE id=$4`,
+      [isDone, isDone ? req.session.userId : null, isDone ? new Date() : null, req.params.cid]
+    );
+    res.json({ success: true, item: { id: req.params.cid, is_done: isDone } });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+};
+
+const deleteChecklist = async (req, res) => {
+  try {
+    await query('DELETE FROM task_checklists WHERE id=$1 AND task_id=$2', [req.params.cid, req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+};
+
 module.exports = {
   createTask, updateTask, deleteTask, addComment, updateStatus, getEdit,
-  logTime, uploadAttachment, deleteAttachment, myTasks
+  logTime, uploadAttachment, deleteAttachment, myTasks,
+  moveStage, addChecklist, toggleChecklist, deleteChecklist
 };

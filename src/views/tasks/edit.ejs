@@ -173,6 +173,68 @@ function fileIcon(name){
       </div>
     </div>
 
+    <!-- Checklist -->
+    <div class="te-card">
+      <div class="te-card-head">
+        <h3><i class="fas fa-check-square" style="color:#22c55e"></i> Checklist
+          <% const checkTotal = (checklists||[]).length, checkDone = (checklists||[]).filter(c=>c.is_done).length; %>
+          <% if (checkTotal > 0) { %>
+          <span style="font-size:11px;font-weight:600;color:<%= checkDone===checkTotal?'#22c55e':'var(--text-3)' %>;margin-left:6px"><%= checkDone %>/<%= checkTotal %></span>
+          <% } %>
+        </h3>
+      </div>
+      <div class="te-card-body">
+        <% if (checkTotal > 0) { %>
+        <div style="height:4px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:12px">
+          <div style="height:100%;width:<%= Math.round(checkDone/checkTotal*100) %>%;background:#22c55e;border-radius:3px;transition:width .3s"></div>
+        </div>
+        <% } %>
+        <div id="checklistItems" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+          <% (checklists||[]).forEach(item => { %>
+          <div class="cl-item" id="cl-<%= item.id %>" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg)">
+            <button onclick="toggleCheck('<%= item.id %>',this)" style="width:18px;height:18px;border-radius:4px;border:2px solid <%= item.is_done?'#22c55e':'var(--border)' %>;background:<%= item.is_done?'#22c55e':'transparent' %>;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s">
+              <% if (item.is_done) { %><i class="fas fa-check" style="color:#fff;font-size:9px"></i><% } %>
+            </button>
+            <span style="flex:1;font-size:13px;color:var(--text);text-decoration:<%= item.is_done?'line-through':'none' %>;opacity:<%= item.is_done?'0.6':'1' %>"><%= item.title %></span>
+            <button onclick="deleteCheck('<%= item.id %>')" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px 4px;border-radius:4px;font-size:11px;opacity:0.6" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6"><i class="fas fa-times"></i></button>
+          </div>
+          <% }) %>
+        </div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="newCheckItem" class="form-control form-control-sm" placeholder="Thêm mục checklist..." style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCheckItem()}">
+          <button onclick="addCheckItem()" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workflow stage move (only when project has workflow) -->
+    <% if (workflowStages && workflowStages.length > 0) { %>
+    <div class="te-card">
+      <div class="te-card-head">
+        <h3><i class="fas fa-project-diagram" style="color:#8b5cf6"></i> Bước quy trình</h3>
+        <% if (task.stage_name) { %>
+        <span style="font-size:12px;padding:3px 10px;border-radius:8px;font-weight:600;background:<%= task.stage_color||'#6b7280' %>22;color:<%= task.stage_color||'#6b7280' %>"><%= task.stage_name %></span>
+        <% } %>
+      </div>
+      <div class="te-card-body" style="display:flex;flex-direction:column;gap:6px">
+        <% workflowStages.forEach(s => { %>
+        <button onclick="moveToStage('<%= s.id %>','<%= s.name.replace(/'/g,'\\'') %>')"
+          style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;cursor:pointer;transition:all .15s;text-align:left;
+                 border:1.5px solid <%= task.workflow_stage_id===s.id?s.color:'var(--border)' %>;
+                 background:<%= task.workflow_stage_id===s.id ? (s.color||'#8b5cf6')+'22' : 'var(--bg)' %>">
+          <span style="width:10px;height:10px;border-radius:50%;background:<%= s.color %>;flex-shrink:0"></span>
+          <span style="font-size:13px;font-weight:<%= task.workflow_stage_id===s.id?'700':'500' %>;color:var(--text);flex:1"><%= s.name %></span>
+          <% if (s.is_approval_gate) { %><span style="font-size:10px;color:#d97706"><i class="fas fa-lock"></i> Cần duyệt</span><% } %>
+          <% if (task.workflow_stage_id===s.id) { %><i class="fas fa-check" style="color:<%= s.color %>;font-size:11px"></i><% } %>
+        </button>
+        <% }) %>
+        <% if (!canApproveGate) { %>
+        <p style="font-size:11px;color:var(--text-3);margin-top:4px"><i class="fas fa-info-circle"></i> Các bước có <i class="fas fa-lock"></i> cần PM hoặc quản lý phê duyệt.</p>
+        <% } %>
+      </div>
+    </div>
+    <% } %>
+
     <!-- File attachments -->
     <div class="te-card">
       <div class="te-card-head">
@@ -354,7 +416,6 @@ function fileIcon(name){
 
 <script>
 function updateStatus(status) {
-  if (!confirm('Chuyển trạng thái task sang "' + status + '"?')) return;
   fetch('/tasks/<%= task.id %>/status', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -364,4 +425,81 @@ function updateStatus(status) {
   .then(d => { if (d.success) location.reload(); else alert('Lỗi: ' + d.error); })
   .catch(() => alert('Không thể cập nhật'));
 }
+
+/* ===== CHECKLIST ===== */
+async function addCheckItem() {
+  const input = document.getElementById('newCheckItem');
+  const title = input.value.trim();
+  if (!title) return;
+  try {
+    const r = await fetch('/tasks/<%= task.id %>/checklist', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ title })
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error);
+    input.value = '';
+    const item = d.item;
+    const container = document.getElementById('checklistItems');
+    const div = document.createElement('div');
+    div.className = 'cl-item';
+    div.id = 'cl-' + item.id;
+    div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg)';
+    div.innerHTML = `
+      <button onclick="toggleCheck('${item.id}',this)" style="width:18px;height:18px;border-radius:4px;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s"></button>
+      <span style="flex:1;font-size:13px;color:var(--text)">${item.title}</span>
+      <button onclick="deleteCheck('${item.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px 4px;border-radius:4px;font-size:11px;opacity:0.6"><i class="fas fa-times"></i></button>
+    `;
+    container.appendChild(div);
+  } catch(err) { alert('Lỗi: ' + err.message); }
+}
+
+async function toggleCheck(id, btn) {
+  try {
+    const r = await fetch('/tasks/<%= task.id %>/checklist/' + id + '/toggle', {method:'POST'});
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error);
+    const isDone = d.item.is_done;
+    btn.style.borderColor = isDone ? '#22c55e' : 'var(--border)';
+    btn.style.background  = isDone ? '#22c55e' : 'transparent';
+    btn.innerHTML = isDone ? '<i class="fas fa-check" style="color:#fff;font-size:9px"></i>' : '';
+    const label = btn.nextElementSibling;
+    if (label) { label.style.textDecoration = isDone ? 'line-through' : 'none'; label.style.opacity = isDone ? '0.6' : '1'; }
+  } catch(err) { console.error(err); }
+}
+
+async function deleteCheck(id) {
+  if (!confirm('Xóa mục này?')) return;
+  try {
+    const r = await fetch('/tasks/<%= task.id %>/checklist/' + id + '/delete', {method:'POST'});
+    const d = await r.json();
+    if (d.success) { document.getElementById('cl-' + id)?.remove(); }
+  } catch(err) { console.error(err); }
+}
+
+/* ===== WORKFLOW STAGE ===== */
+async function moveToStage(stageId, stageName) {
+  if (!confirm('Chuyển task sang bước "' + stageName + '"?')) return;
+  try {
+    const r = await fetch('/tasks/<%= task.id %>/move-stage', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ stage_id: stageId })
+    });
+    const d = await r.json();
+    if (d.success) { location.reload(); }
+    else { alert(d.error || 'Không thể chuyển bước'); }
+  } catch(err) { alert('Lỗi kết nối'); }
+}
+
+// Keyboard shortcut: Ctrl+Enter to submit comment form
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') {
+    const ta = document.activeElement;
+    if (ta && ta.tagName === 'TEXTAREA' && ta.name === 'content') {
+      ta.closest('form')?.submit();
+    }
+  }
+});
 </script>

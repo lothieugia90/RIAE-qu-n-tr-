@@ -124,22 +124,70 @@ const detail = async (req, res) => {
 
 const kanban = async (req, res) => {
   try {
-    const [project, tasks, allUsers] = await Promise.all([
-      query('SELECT * FROM projects WHERE id=$1', [req.params.id]),
-      query(`SELECT t.*, u.full_name as assignee_name, u.avatar_url as assignee_avatar
-             FROM tasks t LEFT JOIN users u ON u.id=t.assignee_id
-             WHERE t.project_id=$1 ORDER BY
-               CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
+    const [projectRes, tasks, allUsers, stagesRes, workflowsRes] = await Promise.all([
+      query(`SELECT p.*, w.name as workflow_name
+             FROM projects p LEFT JOIN workflows w ON w.id=p.workflow_id
+             WHERE p.id=$1`, [req.params.id]),
+      query(`SELECT t.*, u.full_name as assignee_name, u.avatar_url as assignee_avatar,
+             cu.full_name as co_assignee_name,
+             ws.name as stage_name, ws.color as stage_color, ws.is_approval_gate,
+             ws.stage_order,
+             (SELECT COUNT(*)::int FROM task_checklists WHERE task_id=t.id) as checklist_total,
+             (SELECT COUNT(*)::int FROM task_checklists WHERE task_id=t.id AND is_done=true) as checklist_done
+             FROM tasks t
+             LEFT JOIN users u  ON u.id=t.assignee_id
+             LEFT JOIN users cu ON cu.id=t.co_assignee_id
+             LEFT JOIN workflow_stages ws ON ws.id=t.workflow_stage_id
+             WHERE t.project_id=$1
+             ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
                t.due_date ASC NULLS LAST`, [req.params.id]),
-      query(`SELECT id, full_name, avatar_url, role, department
-             FROM users WHERE is_active=true ORDER BY full_name`)
+      query(`SELECT id, full_name, avatar_url, role, department FROM users WHERE is_active=true ORDER BY full_name`),
+      query(`SELECT ws.* FROM workflow_stages ws
+             JOIN workflows w ON w.id=ws.workflow_id
+             JOIN projects p ON p.workflow_id=w.id
+             WHERE p.id=$1 ORDER BY ws.stage_order`, [req.params.id]),
+      query(`SELECT id, name FROM workflows ORDER BY name`),
     ]);
-    if (!project.rows.length) return res.redirect('/projects');
+    if (!projectRes.rows.length) return res.redirect('/projects');
+    const project = projectRes.rows[0];
+    const stages = stagesRes.rows;
+
+    // Build columns
+    let columns, isWorkflow;
+    if (stages.length > 0) {
+      isWorkflow = true;
+      columns = stages.map(s => ({
+        ...s,
+        tasks: tasks.rows.filter(t => t.workflow_stage_id === s.id)
+      }));
+      // Unassigned tasks go to first stage visually
+      const unassigned = tasks.rows.filter(t => !t.workflow_stage_id);
+      if (unassigned.length > 0 && columns.length > 0) {
+        columns[0].tasks = [...unassigned, ...columns[0].tasks];
+      }
+    } else {
+      isWorkflow = false;
+      const DEFAULT_COLS = [
+        { id: 'todo',        name: 'Cần làm',    color: '#64748b', is_approval_gate: false, maps_to_status: 'todo' },
+        { id: 'in_progress', name: 'Đang làm',   color: '#3b82f6', is_approval_gate: false, maps_to_status: 'in_progress' },
+        { id: 'review',      name: 'Kiểm tra',   color: '#f59e0b', is_approval_gate: true,  maps_to_status: 'review' },
+        { id: 'done',        name: 'Hoàn thành', color: '#22c55e', is_approval_gate: false, maps_to_status: 'done' },
+      ];
+      columns = DEFAULT_COLS.map(col => ({
+        ...col,
+        tasks: tasks.rows.filter(t => t.status === col.id)
+      }));
+    }
+
     res.render('projects/kanban', {
-      title: 'Kanban - ' + project.rows[0].name,
-      project: project.rows[0],
+      title: 'Kanban — ' + project.name,
+      project,
       tasks: tasks.rows,
-      members: allUsers.rows
+      columns,
+      stages,
+      workflows: workflowsRes.rows,
+      members: allUsers.rows,
+      isWorkflow,
     });
   } catch (err) { console.error(err); res.redirect('/projects'); }
 };
@@ -256,4 +304,17 @@ const deleteDocument = async (req, res) => {
   res.redirect('/projects/' + req.params.id + '?tab=documents');
 };
 
-module.exports = { index, getCreate, postCreate, detail, kanban, gantt, getEdit, postEdit, deleteProject, addMember, removeMember, updateProgress, membersJson, uploadDocument, deleteDocument };
+const setWorkflow = async (req, res) => {
+  const { workflow_id } = req.body;
+  try {
+    await query('UPDATE projects SET workflow_id=$1, updated_at=NOW() WHERE id=$2',
+      [workflow_id || null, req.params.id]);
+    if (!workflow_id) {
+      await query('UPDATE tasks SET workflow_stage_id=NULL WHERE project_id=$1', [req.params.id]);
+    }
+    req.flash('success', workflow_id ? 'Đã áp dụng quy trình' : 'Đã bỏ quy trình');
+  } catch (err) { req.flash('error', 'Lỗi: ' + err.message); }
+  res.redirect('/projects/' + req.params.id + '/kanban');
+};
+
+module.exports = { index, getCreate, postCreate, detail, kanban, gantt, getEdit, postEdit, deleteProject, addMember, removeMember, updateProgress, membersJson, uploadDocument, deleteDocument, setWorkflow };
