@@ -1,58 +1,49 @@
-<div style="max-width:900px;margin:0 auto">
+<div style="max-width:860px;margin:0 auto">
   <div class="card">
     <div class="card-header">
-      <span class="card-title"><%= quote ? 'Chỉnh sửa Báo giá' : 'Tạo Báo giá mới' %></span>
-      <a href="/quotes" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Quay lại</a>
+      <span class="card-title"><%= quote ? 'Chỉnh sửa thông tin Báo giá' : 'Tạo Báo giá mới' %></span>
+      <a href="<%= quote ? '/quotes/'+quote.id : '/quotes' %>" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Quay lại</a>
     </div>
     <div class="card-body">
       <form action="<%= quote ? '/quotes/' + quote.id + '/edit' : '/quotes/create' %>" method="POST">
         <div class="form-grid-2">
+          <% if (!quote) { %>
           <div class="form-group">
-            <label class="form-label">Mã báo giá <span class="req">*</span></label>
-            <input type="text" name="code" class="form-control" value="<%= quote ? quote.code : '' %>" required placeholder="VD: BG-2024-001">
+            <label class="form-label">Mã báo giá <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="code" class="form-control" required placeholder="VD: BG-2025-001">
           </div>
-          <div class="form-group">
-            <label class="form-label">Tiêu đề <span class="req">*</span></label>
-            <input type="text" name="title" class="form-control" value="<%= quote ? quote.title : '' %>" required>
+          <% } %>
+          <div class="form-group <%= quote ? '' : '' %>">
+            <label class="form-label">Tiêu đề <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="title" class="form-control" value="<%= quote ? quote.title : '' %>" required placeholder="VD: Báo giá hệ thống camera dự án ABC">
           </div>
           <div class="form-group">
             <label class="form-label">Khách hàng</label>
-            <input type="text" name="client_name" class="form-control" value="<%= quote ? quote.client_name||'' : '' %>">
+            <input type="text" name="client_name" class="form-control" value="<%= quote ? quote.client_name||'' : '' %>" placeholder="Tên công ty / cá nhân">
           </div>
           <div class="form-group">
-            <label class="form-label">Liên hệ KH</label>
-            <input type="text" name="client_contact" class="form-control" value="<%= quote ? quote.client_contact||'' : '' %>">
+            <label class="form-label">Liên hệ khách hàng</label>
+            <input type="text" name="client_contact" class="form-control" value="<%= quote ? quote.client_contact||'' : '' %>" placeholder="SĐT, email, tên người liên hệ...">
           </div>
           <div class="form-group">
             <label class="form-label">Dự án liên quan</label>
             <select name="project_id" class="form-control">
               <option value="">— Không có —</option>
-              <% projects.forEach(p => { %><option value="<%= p.id %>" <%= quote && quote.project_id===p.id ? 'selected' : '' %>><%= p.name %></option><% }) %>
+              <% projects.forEach(function(p) { %><option value="<%= p.id %>" <%= quote && quote.project_id===p.id ? 'selected' : '' %>><%= p.name %></option><% }) %>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Hiệu lực đến</label>
             <input type="date" name="valid_until" class="form-control" value="<%= quote && quote.valid_until ? new Date(quote.valid_until).toISOString().split('T')[0] : '' %>">
           </div>
-          <% if (quote) { %>
-          <div class="form-group">
-            <label class="form-label">Trạng thái</label>
-            <select name="status" class="form-control">
-              <option value="draft" <%= quote.status==='draft'?'selected':'' %>>Nháp</option>
-              <option value="sent" <%= quote.status==='sent'?'selected':'' %>>Đã gửi</option>
-              <option value="approved" <%= quote.status==='approved'?'selected':'' %>>Đã duyệt</option>
-              <option value="rejected" <%= quote.status==='rejected'?'selected':'' %>>Từ chối</option>
-            </select>
-          </div>
-          <% } %>
           <div class="form-group col-span-2">
             <label class="form-label">Ghi chú</label>
-            <textarea name="notes" class="form-control"><%= quote ? quote.notes||'' : '' %></textarea>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Điều kiện thanh toán, bảo hành, giao hàng..."><%= quote ? quote.notes||'' : '' %></textarea>
           </div>
         </div>
         <div style="margin-top:20px;display:flex;gap:10px">
-          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <%= quote ? 'Lưu' : 'Tạo báo giá' %></button>
-          <a href="/quotes" class="btn btn-outline">Hủy</a>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <%= quote ? 'Lưu thay đổi' : 'Tạo & nhập hạng mục' %></button>
+          <a href="<%= quote ? '/quotes/'+quote.id : '/quotes' %>" class="btn btn-outline">Hủy</a>
         </div>
       </form>
     </div>
