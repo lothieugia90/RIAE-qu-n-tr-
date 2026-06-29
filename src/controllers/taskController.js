@@ -312,7 +312,7 @@ const myTasks = async (req, res) => {
           FROM warehouse_assignments wa
           JOIN warehouse_items wi ON wi.id = wa.item_id
           LEFT JOIN users u2 ON u2.id = wa.assigned_by
-          WHERE wa.assigned_to_user = $1 AND wa.status = 'active' AND wa.recipient_signed_at IS NULL
+          WHERE wa.assigned_to_user = $1 AND wa.status = 'active' AND wa.signed_at IS NULL
           ORDER BY wa.assigned_at DESC`, [userId]),
 
         isWarehouse ? query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit,

@@ -70,7 +70,7 @@ const actionItems = async (req, res) => {
       query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit, wa.assigned_at
         FROM warehouse_assignments wa
         JOIN warehouse_items wi ON wi.id = wa.item_id
-        WHERE wa.assigned_to_user = $1 AND wa.status = 'active' AND wa.recipient_signed_at IS NULL
+        WHERE wa.assigned_to_user = $1 AND wa.status = 'active' AND wa.signed_at IS NULL
         ORDER BY wa.assigned_at DESC LIMIT 5`, [userId]),
 
       isWarehouse ? query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit,
