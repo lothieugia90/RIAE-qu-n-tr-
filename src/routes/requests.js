@@ -198,41 +198,90 @@ router.post('/forms/:id/delete', requireRole('admin'), async (req, res) => {
 router.get('/new/:formId', async (req, res) => {
   const form = await query('SELECT * FROM request_forms WHERE id=$1 AND is_active=true', [req.params.formId]);
   if (!form.rows.length) return res.redirect('/requests');
+  let financeApprovers = null;
+  if (form.rows[0].category === 'finance') {
+    // Auto-determine 3-step approvers for finance requests
+    const submitter = await query('SELECT department FROM users WHERE id=$1', [req.session.userId]);
+    const dept = submitter.rows[0]?.department;
+    const [headRes, dirRes, accRes] = await Promise.all([
+      dept ? query(`SELECT id, full_name, role, department FROM users
+                    WHERE role IN ('head_tech','head_hr','head_sales') AND department=$1 AND is_active=true LIMIT 1`, [dept])
+           : { rows: [] },
+      query(`SELECT id, full_name FROM users WHERE role='director' AND is_active=true LIMIT 1`),
+      query(`SELECT id, full_name FROM users WHERE role='accountant' AND is_active=true LIMIT 1`),
+    ]);
+    financeApprovers = {
+      head:      headRes.rows[0] || null,
+      director:  dirRes.rows[0]  || null,
+      accountant: accRes.rows[0] || null,
+    };
+  }
   res.render('requests/new', {
     title: 'Tạo yêu cầu mới',
     form: form.rows[0],
-    categoryMeta: CATEGORY_META
+    categoryMeta: CATEGORY_META,
+    financeApprovers,
   });
 });
 
 // ── POST /submit ─────────────────────────────────────────────────────────────
 router.post('/submit', requestUpload.array('attachments', 5), async (req, res) => {
-  const { form_id, title, priority } = req.body;
-  // Build data object from all other fields
+  const { form_id, title, priority,
+          payment_recipient, payment_account, payment_bank, payment_amount, payment_note } = req.body;
   const data = {};
   for (const [k, v] of Object.entries(req.body)) {
-    if (!['form_id', 'title', 'priority'].includes(k)) data[k] = v;
+    if (!['form_id','title','priority','payment_recipient','payment_account','payment_bank','payment_amount','payment_note'].includes(k))
+      data[k] = v;
   }
   try {
     const formResult = await query('SELECT * FROM request_forms WHERE id=$1', [form_id]);
     if (!formResult.rows.length) throw new Error('Không tìm thấy quy trình');
     const form = formResult.rows[0];
+    const isFinance = form.category === 'finance';
 
     const attachmentUrls = (req.files || []).map(f => '/uploads/requests/' + f.filename);
 
     const r = await query(
-      `INSERT INTO requests (form_id, title, data, submitted_by, priority, attachment_urls)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb) RETURNING id`,
-      [form_id, title, JSON.stringify(data), req.session.userId, priority || 'normal', JSON.stringify(attachmentUrls)]
+      `INSERT INTO requests (form_id, title, data, submitted_by, priority, attachment_urls,
+         payment_recipient, payment_account, payment_bank, payment_amount, payment_note)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11) RETURNING id`,
+      [form_id, title, JSON.stringify(data), req.session.userId, priority || 'normal',
+       JSON.stringify(attachmentUrls),
+       payment_recipient || null, payment_account || null, payment_bank || null,
+       payment_amount ? parseFloat(payment_amount) : null, payment_note || null]
     );
     const reqId = r.rows[0].id;
 
-    const steps = form.approval_steps || [];
+    // Build approval steps
+    let steps;
+    if (isFinance) {
+      // Auto 3-step for finance: Trưởng bộ phận → Giám đốc → Kế toán
+      const submitter = await query('SELECT department FROM users WHERE id=$1', [req.session.userId]);
+      const dept = submitter.rows[0]?.department;
+      const [headRes, dirRes, accRes] = await Promise.all([
+        dept ? query(`SELECT id FROM users WHERE role IN ('head_tech','head_hr','head_sales') AND department=$1 AND is_active=true LIMIT 1`, [dept])
+             : { rows: [] },
+        query(`SELECT id FROM users WHERE role='director' AND is_active=true LIMIT 1`),
+        query(`SELECT id FROM users WHERE role='accountant' AND is_active=true LIMIT 1`),
+      ]);
+      steps = [];
+      if (headRes.rows[0] && headRes.rows[0].id !== req.session.userId)
+        steps.push({ approver_id: headRes.rows[0].id, name: 'Trưởng bộ phận' });
+      if (dirRes.rows[0])
+        steps.push({ approver_id: dirRes.rows[0].id, name: 'Giám đốc' });
+      if (accRes.rows[0])
+        steps.push({ approver_id: accRes.rows[0].id, name: 'Kế toán' });
+    } else {
+      steps = Array.isArray(form.approval_steps) ? form.approval_steps
+            : JSON.parse(form.approval_steps || '[]');
+    }
+
     for (let i = 0; i < steps.length; i++) {
       if (steps[i].approver_id) {
         await query(
-          'INSERT INTO request_approvals (request_id, step_order, approver_id) VALUES ($1,$2,$3)',
-          [reqId, i, steps[i].approver_id]
+          `INSERT INTO request_approvals (request_id, step_order, approver_id, step_name)
+           VALUES ($1,$2,$3,$4)`,
+          [reqId, i, steps[i].approver_id, steps[i].name || null]
         );
         await notify(
           steps[i].approver_id,
@@ -242,12 +291,8 @@ router.post('/submit', requestUpload.array('attachments', 5), async (req, res) =
         );
       }
     }
-    await notify(
-      req.session.userId,
-      'Yêu cầu đã được gửi',
-      `Yêu cầu "${title}" đã được gửi thành công và đang chờ duyệt`,
-      '/requests/' + reqId
-    );
+    await notify(req.session.userId, 'Yêu cầu đã được gửi',
+      `Yêu cầu "${title}" đã gửi thành công và đang chờ duyệt`, '/requests/' + reqId);
 
     req.flash('success', 'Đã gửi yêu cầu thành công');
     res.redirect('/requests/' + reqId);
@@ -322,7 +367,7 @@ router.get('/:id', async (req, res) => {
         [req.params.id]
       ),
       query(
-        `SELECT ra.*, u.full_name as approver_name, u.role as approver_role
+        `SELECT ra.*, u.full_name as approver_name, u.role as approver_role, u.department as approver_dept
          FROM request_approvals ra
          JOIN users u ON u.id = ra.approver_id
          WHERE ra.request_id = $1

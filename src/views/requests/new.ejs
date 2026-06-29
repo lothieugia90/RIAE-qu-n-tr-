@@ -134,6 +134,64 @@ textarea.form-control { resize:vertical; min-height:80px; }
     </div>
     <% } %>
 
+    <!-- Payment info (finance only) -->
+    <% if (form.category === 'finance') { %>
+    <div class="field-card" style="border:2px solid #86efac">
+      <div class="field-card-title" style="color:#15803d">
+        <i class="fas fa-university" style="color:#16a34a"></i> Thông tin thanh toán
+      </div>
+      <div class="form-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">
+        <div class="form-group">
+          <label class="form-label">Người nhận <span class="req-star">*</span></label>
+          <input type="text" name="payment_recipient" class="form-control" placeholder="Họ và tên người nhận" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Số tiền (VNĐ) <span class="req-star">*</span></label>
+          <input type="number" name="payment_amount" class="form-control" placeholder="0" min="0" step="1000" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Số tài khoản <span class="req-star">*</span></label>
+          <input type="text" name="payment_account" class="form-control" placeholder="VD: 0123456789" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ngân hàng / Chi nhánh <span class="req-star">*</span></label>
+          <input type="text" name="payment_bank" class="form-control" placeholder="VD: Vietcombank - CN Hà Nội" required>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Nội dung chuyển khoản</label>
+          <input type="text" name="payment_note" class="form-control" placeholder="VD: Tạm ứng chi phí dự án tháng 7/2026">
+        </div>
+      </div>
+      <!-- Auto approvers preview -->
+      <% if (financeApprovers) { %>
+      <div style="margin-top:12px;padding:12px;background:#f0fdf4;border-radius:8px;border:1px solid #86efac">
+        <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:8px"><i class="fas fa-route"></i> Quy trình duyệt tự động</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px">
+          <% if (financeApprovers.head) { %>
+          <span style="background:#fff;border:1px solid #86efac;padding:4px 10px;border-radius:6px;color:#15803d">
+            <strong>1.</strong> Trưởng BP · <%= financeApprovers.head.full_name %>
+          </span>
+          <i class="fas fa-arrow-right" style="color:#86efac"></i>
+          <% } %>
+          <% if (financeApprovers.director) { %>
+          <span style="background:#fff;border:1px solid #86efac;padding:4px 10px;border-radius:6px;color:#15803d">
+            <strong><%= financeApprovers.head ? '2' : '1' %>.</strong> Giám đốc · <%= financeApprovers.director.full_name %>
+          </span>
+          <i class="fas fa-arrow-right" style="color:#86efac"></i>
+          <% } %>
+          <% if (financeApprovers.accountant) { %>
+          <span style="background:#fff;border:1px solid #86efac;padding:4px 10px;border-radius:6px;color:#15803d">
+            <strong><%= (financeApprovers.head ? 3 : 2) - (financeApprovers.director ? 0 : 1) %>.</strong> Kế toán · <%= financeApprovers.accountant.full_name %>
+          </span>
+          <% } else { %>
+          <span style="color:#d97706;font-size:11px"><i class="fas fa-exclamation-triangle"></i> Chưa có kế toán trong hệ thống</span>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+    </div>
+    <% } %>
+
     <!-- Attachments -->
     <div class="field-card">
       <div class="field-card-title"><i class="fas fa-paperclip" style="color:var(--primary)"></i> Tệp đính kèm (tối đa 5 file)</div>

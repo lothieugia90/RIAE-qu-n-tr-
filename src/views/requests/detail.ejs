@@ -121,6 +121,48 @@
       </div>
     </div>
 
+    <!-- Payment info (finance only) -->
+    <% if (request.category === 'finance' && (request.payment_recipient || request.payment_amount)) { %>
+    <div class="d-card" style="border:2px solid #86efac">
+      <div class="d-card-header" style="background:#f0fdf4;color:#15803d">
+        <i class="fas fa-university"></i> Thông tin thanh toán
+      </div>
+      <div class="d-card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px">
+          <div class="field-pair">
+            <div class="field-key">Người nhận</div>
+            <div class="field-val" style="font-weight:600"><%= request.payment_recipient || '—' %></div>
+          </div>
+          <div class="field-pair">
+            <div class="field-key">Số tiền</div>
+            <div class="field-val" style="font-weight:700;color:#15803d;font-size:16px">
+              <%= request.payment_amount ? Number(request.payment_amount).toLocaleString('vi-VN') + ' đ' : '—' %>
+            </div>
+          </div>
+          <div class="field-pair">
+            <div class="field-key">Số tài khoản</div>
+            <div class="field-val" style="font-family:monospace;font-size:15px"><%= request.payment_account || '—' %></div>
+          </div>
+          <div class="field-pair">
+            <div class="field-key">Ngân hàng / Chi nhánh</div>
+            <div class="field-val"><%= request.payment_bank || '—' %></div>
+          </div>
+          <% if (request.payment_note) { %>
+          <div class="field-pair" style="grid-column:1/-1">
+            <div class="field-key">Nội dung chuyển khoản</div>
+            <div class="field-val"><%= request.payment_note %></div>
+          </div>
+          <% } %>
+        </div>
+        <% if (request.status === 'approved') { %>
+        <div style="margin-top:12px;padding:10px 14px;background:#dcfce7;border-radius:8px;display:flex;align-items:center;gap:8px;font-size:13px;color:#15803d;font-weight:600">
+          <i class="fas fa-check-circle"></i> Đã được phê duyệt đầy đủ — Kế toán có thể thực hiện thanh toán
+        </div>
+        <% } %>
+      </div>
+    </div>
+    <% } %>
+
     <!-- Attachments -->
     <% let attachments; try { attachments = Array.isArray(request.attachment_urls) ? request.attachment_urls : JSON.parse(request.attachment_urls || '[]'); } catch(e){ attachments=[]; } %>
     <% if (attachments.length > 0) { %>
@@ -166,8 +208,12 @@
               <% if (i < approvals.length - 1) { %><div class="tl-line"></div><% } %>
             </div>
             <div class="tl-right">
-              <div class="tl-step-name">Bước <%= a.step_order + 1 %></div>
-              <div class="tl-approver"><i class="fas fa-user" style="margin-right:4px"></i><%= a.approver_name %></div>
+              <div class="tl-step-name">
+                <%= a.step_name || ('Bước ' + (a.step_order + 1)) %>
+              </div>
+              <div class="tl-approver"><i class="fas fa-user" style="margin-right:4px"></i><%= a.approver_name %>
+                <% if (a.approver_dept) { %><span style="color:var(--text-3)"> · <%= a.approver_dept %></span><% } %>
+              </div>
               <% if (a.status === 'approved') { %>
                 <div class="tl-status" style="color:#15803D"><i class="fas fa-check-circle"></i> Đã phê duyệt</div>
               <% } else if (a.status === 'rejected') { %>
