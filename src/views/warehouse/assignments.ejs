@@ -3,6 +3,7 @@
 .chip-active { background:#E3F2FD; color:#1565C0; }
 .chip-returned { background:#F5F5F5; color:#757575; }
 .chip-overdue { background:#FFEBEE; color:#C62828; }
+.chip-signed { background:#E8F5E9; color:#2E7D32; }
 .stat-strip { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
 .stat-strip-card { flex:1; min-width:140px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 18px; }
 .type-tabs { display:flex; gap:4px; margin-bottom:16px; }
@@ -98,20 +99,21 @@
           <% if (isOverdue) { %><div style="font-size:10px;color:var(--danger)">Quá hạn!</div><% } %>
         </td>
         <td>
-          <% if (a.signature_data) { %>
+          <% if (a.recipient_signed_at || a.signature_data) { %>
           <span style="color:var(--success);font-size:12px"><i class="fas fa-check-circle"></i> Đã ký</span>
           <% } else { %>
           <span style="color:var(--text-3);font-size:12px"><i class="fas fa-clock"></i> Chưa ký</span>
           <% } %>
         </td>
         <td>
-          <% if (a.status === 'active') { %>
-          <span class="status-chip <%= isOverdue ? 'chip-overdue' : 'chip-active' %>">
-            <i class="fas fa-circle" style="font-size:7px"></i>
-            <%= isOverdue ? 'Quá hạn' : 'Đang giao' %>
-          </span>
-          <% } else { %>
+          <% if (a.status === 'returned') { %>
           <span class="status-chip chip-returned"><i class="fas fa-check" style="font-size:9px"></i> Đã trả</span>
+          <% } else if (a.recipient_signed_at) { %>
+          <span class="status-chip chip-signed"><i class="fas fa-check-circle" style="font-size:9px"></i> Đã ký nhận</span>
+          <% } else if (isOverdue) { %>
+          <span class="status-chip chip-overdue"><i class="fas fa-exclamation-circle" style="font-size:9px"></i> Quá hạn</span>
+          <% } else { %>
+          <span class="status-chip chip-active"><i class="fas fa-circle" style="font-size:7px"></i> Đang giao</span>
           <% } %>
         </td>
         <td style="white-space:nowrap">

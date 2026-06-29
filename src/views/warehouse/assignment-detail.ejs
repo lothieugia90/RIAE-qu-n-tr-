@@ -24,10 +24,12 @@
     <div class="card mb-4">
       <div class="card-header">
         <span class="card-title">Thông tin phiếu giao</span>
-        <% if (assignment.status === 'active') { %>
-        <span class="status-chip chip-active"><i class="fas fa-circle" style="font-size:7px"></i> Đang giao</span>
-        <% } else { %>
+        <% if (assignment.status === 'returned') { %>
         <span class="status-chip chip-returned"><i class="fas fa-check" style="font-size:9px"></i> Đã trả</span>
+        <% } else if (assignment.recipient_signed_at) { %>
+        <span class="status-chip" style="background:#E8F5E9;color:#2E7D32"><i class="fas fa-check-circle" style="font-size:9px"></i> Đã ký nhận</span>
+        <% } else { %>
+        <span class="status-chip chip-active"><i class="fas fa-circle" style="font-size:7px"></i> Đang giao</span>
         <% } %>
       </div>
       <div class="card-body">
