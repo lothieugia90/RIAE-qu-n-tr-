@@ -218,7 +218,7 @@ function fileIcon(name){
       </div>
       <div class="te-card-body" style="display:flex;flex-direction:column;gap:6px">
         <% workflowStages.forEach(s => { %>
-        <button onclick="moveToStage('<%= s.id %>','<%= s.name.replace(/'/g,'\\'') %>')"
+        <button data-sid="<%= s.id %>" data-sname="<%= s.name %>" onclick="moveToStage(this.dataset.sid,this.dataset.sname)"
           style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;cursor:pointer;transition:all .15s;text-align:left;
                  border:1.5px solid <%= task.workflow_stage_id===s.id?s.color:'var(--border)' %>;
                  background:<%= task.workflow_stage_id===s.id ? (s.color||'#8b5cf6')+'22' : 'var(--bg)' %>">
