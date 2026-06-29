@@ -155,8 +155,13 @@
           <% } %>
         </div>
         <% if (request.status === 'approved') { %>
-        <div style="margin-top:12px;padding:10px 14px;background:#dcfce7;border-radius:8px;display:flex;align-items:center;gap:8px;font-size:13px;color:#15803d;font-weight:600">
-          <i class="fas fa-check-circle"></i> Đã được phê duyệt đầy đủ — Kế toán có thể thực hiện thanh toán
+        <div style="margin-top:12px;padding:10px 14px;background:#dcfce7;border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:#15803d;font-weight:600">
+          <span><i class="fas fa-check-circle"></i> Đã được phê duyệt đầy đủ — Kế toán có thể thực hiện thanh toán</span>
+          <% if (!request.approval_signature_hash) { %>
+          <a href="/signatures/request/<%= request.id %>" class="btn btn-sm" style="background:#15803d;color:#fff;border:none;white-space:nowrap"><i class="fas fa-stamp"></i> Ký phê duyệt</a>
+          <% } else { %>
+          <a href="/signatures/verify?hash=<%= request.approval_signature_hash %>" class="btn btn-sm btn-outline" style="border-color:#15803d;color:#15803d;white-space:nowrap;font-size:11px"><i class="fas fa-shield-check"></i> Đã ký số</a>
+          <% } %>
         </div>
         <% } %>
       </div>

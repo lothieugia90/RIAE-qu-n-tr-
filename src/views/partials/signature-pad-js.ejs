@@ -1,0 +1,71 @@
+<script>
+(function() {
+  const canvas  = document.getElementById('<%= canvasId %>');
+  const sigWrap = document.getElementById('<%= wrapId %>');
+  const sigHint = document.getElementById('<%= hintId %>');
+  const sigData = document.getElementById('<%= dataId %>');
+  const sigForm = document.getElementById('<%= formId %>');
+  if (!canvas || !sigForm) return;
+
+  const ctx = canvas.getContext('2d');
+  let drawing = false, hasSig = false;
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const w   = sigWrap.clientWidth;
+    const h   = 160;
+    canvas.width  = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = '#1a237e';
+    ctx.lineWidth   = 2.2;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    if (e.touches) return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  function startDraw(e) {
+    drawing = true; hasSig = true;
+    const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    if (sigHint) sigHint.style.display = 'none';
+    if (sigWrap) sigWrap.style.borderColor = 'var(--primary)';
+  }
+  function draw(e) { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }
+  function stopDraw() { drawing = false; }
+
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup',   stopDraw);
+  canvas.addEventListener('mouseleave',stopDraw);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e); }, { passive:false });
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); draw(e); }, { passive:false });
+  canvas.addEventListener('touchend',   stopDraw);
+
+  window.clearSig = function() {
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    hasSig = false;
+    if (sigHint) sigHint.style.display = 'flex';
+    if (sigWrap) sigWrap.style.borderColor = 'var(--border)';
+  };
+
+  window.captureAndSubmit = function(e) {
+    if (!hasSig) {
+      e.preventDefault();
+      alert('Vui lòng ký tên trước khi xác nhận.');
+      return false;
+    }
+    sigData.value = canvas.toDataURL('image/png');
+    return true;
+  };
+})();
+</script>

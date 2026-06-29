@@ -67,6 +67,10 @@
         <span class="nav-icon"><i class="fas fa-tasks"></i></span>
         <span class="nav-text">Phê duyệt</span>
       </a>
+      <a href="/signatures" class="nav-link <%= path.startsWith('/signatures') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-file-signature"></i></span>
+        <span class="nav-text">Chữ ký số</span>
+      </a>
       <% if (['admin','director','pm','warehouse','warehouse_keeper','head_hr','hr'].includes(locals.userRole)) { %>
       <a href="/hr" class="nav-link <%= path.startsWith('/hr') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-users"></i></span>

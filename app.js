@@ -20,6 +20,7 @@ require('./src/config/migrate-v7')();
 require('./src/config/migrate-v8')();
 require('./src/config/migrate-v9')();
 require('./src/config/migrate-v10')();
+require('./src/config/migrate-v11')();
 
 const app = express();
 
