@@ -3,6 +3,7 @@
 .chip-active { background:#E3F2FD; color:#1565C0; }
 .chip-returned { background:#F5F5F5; color:#757575; }
 .chip-signed { background:#E8F5E9; color:#2E7D32; }
+.chip-pending { background:#FFF3E0; color:#E65100; }
 .info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
 .info-row:last-child { border-bottom:none; }
 .sig-panel { border:1px solid var(--border); border-radius:10px; overflow:hidden; }
@@ -23,18 +24,45 @@
 </div>
 
 <%/* ── Banner trả về kho: hiển thị nổi bật cho người nhận khi vật tư đang active */%>
+<%/* ── Banner: active → recipient requests return */%>
 <% if (assignment.status === 'active') { %>
 <div class="return-banner">
   <div style="width:44px;height:44px;border-radius:50%;background:#FF8F00;display:flex;align-items:center;justify-content:center;flex-shrink:0">
     <i class="fas fa-undo" style="color:#fff;font-size:18px"></i>
   </div>
   <div style="flex:1">
-    <div style="font-weight:700;font-size:15px;color:#E65100">Cần trả vật tư? Ấn nút bên phải →</div>
-    <div style="font-size:12px;color:#BF360C;margin-top:2px">Sau khi sử dụng xong, mang vật tư đến quầy kho và yêu cầu nhân viên kho ký xác nhận thu hồi.</div>
+    <div style="font-weight:700;font-size:15px;color:#E65100">Cần trả vật tư?</div>
+    <div style="font-size:12px;color:#BF360C;margin-top:2px">Bấm nút để gửi yêu cầu. Sau đó mang vật tư đến quầy kho — nhân viên kho sẽ ký xác nhận thu hồi.</div>
   </div>
+  <% if (['admin','director','warehouse','warehouse_keeper'].includes(locals.userRole)) { %>
   <a href="/signatures/warehouse-return/<%= assignment.id %>" class="btn btn-primary" style="background:#E65100;border-color:#E65100;white-space:nowrap;flex-shrink:0">
-    <i class="fas fa-undo"></i> Trả về kho
+    <i class="fas fa-pen-nib"></i> Ký thu hồi ngay
   </a>
+  <% } else { %>
+  <form action="/warehouse/assignments/<%= assignment.id %>/request-return" method="POST" style="flex-shrink:0">
+    <button type="submit" class="btn btn-primary" style="background:#E65100;border-color:#E65100;white-space:nowrap">
+      <i class="fas fa-undo"></i> Gửi yêu cầu trả
+    </button>
+  </form>
+  <% } %>
+</div>
+<% } %>
+
+<%/* ── Banner: pending_return → waiting for warehouse to sign */%>
+<% if (assignment.status === 'pending_return') { %>
+<div style="background:linear-gradient(135deg,#fff8e1,#fffde7);border:2px solid #FFC107;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px">
+  <div style="width:44px;height:44px;border-radius:50%;background:#FFC107;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+    <i class="fas fa-hourglass-half" style="color:#fff;font-size:18px"></i>
+  </div>
+  <div style="flex:1">
+    <div style="font-weight:700;font-size:15px;color:#E65100">Đang chờ nhân viên kho xác nhận thu hồi</div>
+    <div style="font-size:12px;color:#BF360C;margin-top:2px">Yêu cầu trả vật tư đã được gửi lúc <%= assignment.return_requested_at ? new Date(assignment.return_requested_at).toLocaleString('vi-VN') : '—' %>. Vui lòng mang vật tư đến quầy kho.</div>
+  </div>
+  <% if (['admin','director','warehouse','warehouse_keeper'].includes(locals.userRole)) { %>
+  <a href="/signatures/warehouse-return/<%= assignment.id %>" class="btn btn-primary" style="background:#E65100;border-color:#E65100;white-space:nowrap;flex-shrink:0">
+    <i class="fas fa-pen-nib"></i> Ký xác nhận thu hồi
+  </a>
+  <% } %>
 </div>
 <% } %>
 
@@ -46,6 +74,8 @@
         <span class="card-title">Thông tin phiếu giao</span>
         <% if (assignment.status === 'returned') { %>
         <span class="status-chip chip-returned"><i class="fas fa-check" style="font-size:9px"></i> Đã trả</span>
+        <% } else if (assignment.status === 'pending_return') { %>
+        <span class="status-chip chip-pending"><i class="fas fa-hourglass-half" style="font-size:9px"></i> Chờ thu hồi</span>
         <% } else if (assignment.recipient_signed_at) { %>
         <span class="status-chip chip-signed"><i class="fas fa-check-circle" style="font-size:9px"></i> Đã ký nhận</span>
         <% } else { %>
@@ -123,11 +153,14 @@
               <% } %>
             </div>
           </div>
-          <% } else if (assignment.status === 'active') { %>
-          <div style="display:flex;align-items:center;gap:12px">
-            <span style="color:var(--text-3);font-size:13px"><i class="fas fa-clock"></i> Chưa thu hồi</span>
+          <% } else if (assignment.status === 'active' || assignment.status === 'pending_return') { %>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="color:<%= assignment.status==='pending_return' ? '#E65100' : 'var(--text-3)' %>;font-size:13px">
+              <i class="fas fa-<%= assignment.status==='pending_return' ? 'hourglass-half' : 'clock' %>"></i>
+              <%= assignment.status==='pending_return' ? 'Đang chờ kho xác nhận' : 'Chưa thu hồi' %>
+            </span>
             <% if (['admin','director','warehouse','warehouse_keeper'].includes(locals.userRole)) { %>
-            <a href="/signatures/warehouse-return/<%= assignment.id %>" class="btn btn-sm btn-outline" style="color:var(--warning);border-color:var(--warning)"><i class="fas fa-undo"></i> Ký thu hồi</a>
+            <a href="/signatures/warehouse-return/<%= assignment.id %>" class="btn btn-sm btn-primary" style="background:#E65100;border-color:#E65100"><i class="fas fa-pen-nib"></i> Ký thu hồi</a>
             <% } %>
           </div>
           <% } else { %>
@@ -170,8 +203,21 @@
         </div>
         <% if (assignment.status === 'active') { %>
         <div class="divider"></div>
-        <a href="/signatures/warehouse-return/<%= assignment.id %>" class="btn btn-outline" style="width:100%;color:#E65100;border-color:#E65100;justify-content:center">
-          <i class="fas fa-undo"></i> Trả về kho
+        <% if (['admin','director','warehouse','warehouse_keeper'].includes(locals.userRole)) { %>
+        <a href="/signatures/warehouse-return/<%= assignment.id %>" class="btn btn-outline" style="width:100%;color:#E65100;border-color:#E65100;justify-content:center;margin-bottom:8px">
+          <i class="fas fa-pen-nib"></i> Ký thu hồi ngay
+        </a>
+        <% } else { %>
+        <form action="/warehouse/assignments/<%= assignment.id %>/request-return" method="POST">
+          <button type="submit" class="btn btn-outline" style="width:100%;color:#E65100;border-color:#E65100;justify-content:center">
+            <i class="fas fa-undo"></i> Gửi yêu cầu trả
+          </button>
+        </form>
+        <% } %>
+        <% } else if (assignment.status === 'pending_return' && ['admin','director','warehouse','warehouse_keeper'].includes(locals.userRole)) { %>
+        <div class="divider"></div>
+        <a href="/signatures/warehouse-return/<%= assignment.id %>" class="btn btn-primary" style="width:100%;background:#E65100;border-color:#E65100;justify-content:center">
+          <i class="fas fa-pen-nib"></i> Ký xác nhận thu hồi
         </a>
         <% } %>
       </div>

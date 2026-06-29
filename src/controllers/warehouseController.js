@@ -319,6 +319,38 @@ const returnAssignment = async (req, res) => {
   } finally { client.release(); }
 };
 
+const requestReturn = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await query(
+      `UPDATE warehouse_assignments
+       SET status='pending_return', return_requested_at=NOW(), return_requested_by=$1
+       WHERE id=$2 AND status='active' RETURNING id`,
+      [req.session.userId, id]
+    );
+    if (!result.rows.length) {
+      req.flash('error', 'Không thể gửi yêu cầu — phiếu này không ở trạng thái đang giao.');
+    } else {
+      req.flash('success', 'Đã gửi yêu cầu trả vật tư. Vui lòng mang vật tư đến quầy kho để nhân viên ký xác nhận.');
+      try {
+        const asgn = await query(
+          `SELECT wa.*, wi.name as item_name FROM warehouse_assignments wa JOIN warehouse_items wi ON wi.id=wa.item_id WHERE wa.id=$1`, [id]
+        );
+        if (asgn.rows[0]?.assigned_by) {
+          await query(
+            `INSERT INTO notifications (user_id, title, message, type, link) VALUES ($1,$2,$3,'warehouse',$4)`,
+            [asgn.rows[0].assigned_by, 'Yêu cầu trả vật tư', `${asgn.rows[0].item_name} đang chờ xác nhận thu hồi`, `/warehouse/assignments/${id}`]
+          );
+        }
+      } catch(e) { /* notification failure is non-fatal */ }
+    }
+    res.redirect('/warehouse/assignments/' + id);
+  } catch (err) {
+    req.flash('error', 'Lỗi: ' + err.message);
+    res.redirect('/warehouse/assignments/' + id);
+  }
+};
+
 const signAssignment = async (req, res) => {
   const { id } = req.params;
   const { signature_data } = req.body;
@@ -354,9 +386,10 @@ const assignments = async (req, res) => {
     }
     sql += ' ORDER BY wa.assigned_at DESC LIMIT 200';
 
-    const [assignmentsRes, activeRes, overdueRes, returnedMonthRes] = await Promise.all([
+    const [assignmentsRes, activeRes, pendingReturnRes, overdueRes, returnedMonthRes] = await Promise.all([
       query(sql, params),
       query(`SELECT COUNT(*)::int as count FROM warehouse_assignments WHERE status='active'`),
+      query(`SELECT COUNT(*)::int as count FROM warehouse_assignments WHERE status='pending_return'`),
       query(`SELECT COUNT(*)::int as count FROM warehouse_assignments WHERE status='active' AND assigned_at < NOW() - INTERVAL '30 days'`),
       query(`SELECT COUNT(*)::int as count FROM warehouse_assignments WHERE status='returned' AND returned_at >= date_trunc('month', NOW())`)
     ]);
@@ -365,6 +398,7 @@ const assignments = async (req, res) => {
       title: 'Phiếu Giao Vật tư',
       assignments: assignmentsRes.rows,
       activeCount: activeRes.rows[0].count,
+      pendingReturnCount: pendingReturnRes.rows[0].count,
       overdueCount: overdueRes.rows[0].count,
       returnedThisMonthCount: returnedMonthRes.rows[0].count,
       filters: req.query
@@ -429,5 +463,5 @@ const transactions = async (req, res) => {
 module.exports = {
   index, items, getCreateItem, postCreateItem, itemDetail, editItem,
   createTransaction, transactions,
-  createAssignment, returnAssignment, signAssignment, assignments, assignmentDetail
+  createAssignment, requestReturn, returnAssignment, signAssignment, assignments, assignmentDetail
 };

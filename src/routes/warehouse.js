@@ -20,7 +20,9 @@ router.post('/items', requireRole('admin', 'director', 'warehouse', 'warehouse_k
 router.post('/assignments', requireRole('admin', 'warehouse', 'director'), ctrl.createAssignment);
 router.get('/assignments', ctrl.assignments);
 router.get('/assignments/:id', ctrl.assignmentDetail);
-// Return now requires warehouse e-signature — redirect to signature page
+// Recipient requests return — sets status to pending_return, no signing yet
+router.post('/assignments/:id/request-return', ctrl.requestReturn);
+// Warehouse/admin direct return via signature page
 router.post('/assignments/:id/return', requireRole('admin', 'warehouse', 'director', 'warehouse_keeper'), (req, res) => {
   res.redirect('/signatures/warehouse-return/' + req.params.id);
 });
