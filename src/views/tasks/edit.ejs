@@ -446,11 +446,10 @@ async function addCheckItem() {
     div.className = 'cl-item';
     div.id = 'cl-' + item.id;
     div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg)';
-    div.innerHTML = `
-      <button onclick="toggleCheck('${item.id}',this)" style="width:18px;height:18px;border-radius:4px;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s"></button>
-      <span style="flex:1;font-size:13px;color:var(--text)">${item.title}</span>
-      <button onclick="deleteCheck('${item.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px 4px;border-radius:4px;font-size:11px;opacity:0.6"><i class="fas fa-times"></i></button>
-    `;
+    div.innerHTML =
+      '<button onclick="toggleCheck(\'' + item.id + '\',this)" style="width:18px;height:18px;border-radius:4px;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s"></button>' +
+      '<span style="flex:1;font-size:13px;color:var(--text)">' + item.title + '</span>' +
+      '<button onclick="deleteCheck(\'' + item.id + '\')" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px 4px;border-radius:4px;font-size:11px;opacity:0.6"><i class="fas fa-times"></i></button>';
     container.appendChild(div);
   } catch(err) { alert('Lỗi: ' + err.message); }
 }

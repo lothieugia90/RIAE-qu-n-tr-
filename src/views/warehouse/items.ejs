@@ -139,7 +139,7 @@
         <td style="white-space:nowrap">
           <a href="/warehouse/items/<%= item.id %>" class="btn btn-sm btn-outline" title="Xem"><i class="fas fa-eye"></i></a>
           <% if (['admin','warehouse','director'].includes(locals.userRole)) { %>
-          <button onclick="openAssignModal('<%= item.id %>','<%= item.name.replace(/'/g, \"&#39;\") %>','<%= item.item_type || \"consumable\" %>','<%= item.item_status || \"available\" %>',<%= item.quantity %>,'<%= item.unit %>')" class="btn btn-sm btn-primary" title="Xuất / Gán"><i class="fas fa-share"></i></button>
+          <button onclick="openAssignModal('<%= item.id %>','<%= encodeURIComponent(item.name) %>','<%= item.item_type || 'consumable' %>','<%= item.item_status || 'available' %>',<%= item.quantity %>,'<%= item.unit %>')" class="btn btn-sm btn-primary" title="Xuất / Gán"><i class="fas fa-share"></i></button>
           <% } %>
         </td>
       </tr>
@@ -244,7 +244,7 @@ function setAssignType(type) {
 
 function openAssignModal(id, name, itemType, itemStatus, qty, unit) {
   document.getElementById('assignItemId').value = id;
-  document.getElementById('assignItemName').textContent = name;
+  document.getElementById('assignItemName').textContent = decodeURIComponent(name);
   const isToolOrAsset = itemType === 'tool' || itemType === 'asset';
   const statusLabel = {available:'Sẵn sàng',in_use:'Đang dùng',maintenance:'Bảo trì',lost:'Mất'};
   if (isToolOrAsset) {
