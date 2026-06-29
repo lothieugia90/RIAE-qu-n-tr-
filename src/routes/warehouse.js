@@ -10,11 +10,11 @@ router.get('/items', ctrl.items);
 router.get('/transactions', ctrl.transactions);
 router.post('/transactions', requireRole('admin', 'warehouse', 'pm', 'director'), ctrl.createTransaction);
 
-router.get('/items/create', requireRole('admin', 'warehouse'), ctrl.getCreateItem);
+router.get('/items/create', requireRole('admin', 'director', 'warehouse', 'warehouse_keeper'), ctrl.getCreateItem);
 
 // Create item: form posts to /warehouse/items
-router.post('/items/create', requireRole('admin', 'warehouse'), ctrl.postCreateItem);
-router.post('/items', requireRole('admin', 'warehouse'), ctrl.postCreateItem);
+router.post('/items/create', requireRole('admin', 'director', 'warehouse', 'warehouse_keeper'), ctrl.postCreateItem);
+router.post('/items', requireRole('admin', 'director', 'warehouse', 'warehouse_keeper'), ctrl.postCreateItem);
 
 // Assignments
 router.post('/assignments', requireRole('admin', 'warehouse', 'director'), ctrl.createAssignment);
@@ -24,7 +24,7 @@ router.post('/assignments/:id/return', requireRole('admin', 'warehouse', 'direct
 router.post('/assignments/:id/sign', ctrl.signAssignment);
 
 router.get('/items/:id', ctrl.itemDetail);
-router.get('/items/:id/edit', requireRole('admin', 'warehouse'), async (req, res) => {
+router.get('/items/:id/edit', requireRole('admin', 'director', 'warehouse', 'warehouse_keeper'), async (req, res) => {
   const { query } = require('../config/database');
   const [item, categories] = await Promise.all([
     query('SELECT * FROM warehouse_items WHERE id=$1', [req.params.id]),
@@ -39,7 +39,7 @@ router.get('/items/:id/edit', requireRole('admin', 'warehouse'), async (req, res
 });
 
 // Edit item: form uses ?_method=PUT → PUT /items/:id
-router.put('/items/:id', requireRole('admin', 'warehouse'), ctrl.editItem);
-router.post('/items/:id/edit', requireRole('admin', 'warehouse'), ctrl.editItem);
+router.put('/items/:id', requireRole('admin', 'director', 'warehouse', 'warehouse_keeper'), ctrl.editItem);
+router.post('/items/:id/edit', requireRole('admin', 'director', 'warehouse', 'warehouse_keeper'), ctrl.editItem);
 
 module.exports = router;
