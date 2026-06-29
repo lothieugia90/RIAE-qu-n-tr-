@@ -100,7 +100,7 @@ router.post('/cell', requireRole('admin', 'director', 'hr', 'head_hr'), async (r
         `INSERT INTO attendance_records (user_id, work_date, status, notes, overtime_hours, approved_by)
          VALUES ($1,$2,'present',$3,$4,$5)
          ON CONFLICT (user_id, work_date) DO UPDATE
-         SET overtime_hours=$4, approved_by=$5, updated_at=NOW()`,
+         SET overtime_hours=$4, approved_by=$5`,
         [user_id, work_date, notes || null, ot, req.session.userId]
       );
     } else {
@@ -108,7 +108,7 @@ router.post('/cell', requireRole('admin', 'director', 'hr', 'head_hr'), async (r
         `INSERT INTO attendance_records (user_id, work_date, status, notes, overtime_hours, approved_by)
          VALUES ($1,$2,$3,$4,$5,$6)
          ON CONFLICT (user_id, work_date) DO UPDATE
-         SET status=$3, notes=$4, overtime_hours=$5, approved_by=$6, updated_at=NOW()`,
+         SET status=$3, notes=$4, overtime_hours=$5, approved_by=$6`,
         [user_id, work_date, status, notes || null, ot, req.session.userId]
       );
     }
@@ -132,7 +132,7 @@ router.post('/bulk-save', requireRole('admin', 'director', 'hr', 'head_hr'), asy
           `INSERT INTO attendance_records (user_id, work_date, status, notes, overtime_hours, approved_by)
            VALUES ($1,$2,$3,$4,$5,$6)
            ON CONFLICT (user_id, work_date) DO UPDATE
-           SET status=$3, notes=$4, overtime_hours=$5, approved_by=$6, updated_at=NOW()`,
+           SET status=$3, notes=$4, overtime_hours=$5, approved_by=$6`,
           [r.user_id, r.work_date, r.status, r.notes || null, parseFloat(r.overtime_hours) || 0, req.session.userId]
         );
       }
@@ -203,7 +203,7 @@ router.post('/payroll', requireRole('admin', 'director', 'hr', 'head_hr'), async
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        ON CONFLICT (user_id,month,year) DO UPDATE
        SET base_salary=$4,working_days=$5,actual_days=$6,overtime_hours=$7,overtime_pay=$8,
-           bonus=$9,deductions=$10,insurance=$11,tax=$12,net_salary=$13,notes=$14,updated_at=NOW()`,
+           bonus=$9,deductions=$10,insurance=$11,tax=$12,net_salary=$13,notes=$14`,
       [user_id, parseInt(month), parseInt(year), bs, parseInt(working_days) || 26,
        parseInt(actual_days) || 0, parseFloat(overtime_hours) || 0, parseFloat(overtime_pay) || 0,
        parseFloat(bonus) || 0, parseFloat(deductions) || 0, parseFloat(insurance) || 0,
@@ -215,7 +215,7 @@ router.post('/payroll', requireRole('admin', 'director', 'hr', 'head_hr'), async
 });
 
 router.post('/payroll/:id/confirm', requireRole('admin', 'director', 'hr', 'head_hr'), async (req, res) => {
-  await query("UPDATE payroll_records SET status='confirmed', updated_at=NOW() WHERE id=$1", [req.params.id]);
+  await query("UPDATE payroll_records SET status='confirmed' WHERE id=$1", [req.params.id]);
   req.flash('success', 'Đã xác nhận bảng lương');
   res.redirect('back');
 });
