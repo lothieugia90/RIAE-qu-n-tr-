@@ -220,10 +220,24 @@ router.post('/forms/:id/edit', requireRole('admin', 'director'), async (req, res
   res.redirect('/requests/forms');
 });
 
+// ── POST /forms/:id/toggle ───────────────────────────────────────────────────
+router.post('/forms/:id/toggle', requireRole('admin', 'director'), async (req, res) => {
+  const r = await query('SELECT is_active FROM request_forms WHERE id=$1', [req.params.id]);
+  if (!r.rows.length) return res.redirect('/requests/forms');
+  const nowActive = !r.rows[0].is_active;
+  await query('UPDATE request_forms SET is_active=$1 WHERE id=$2', [nowActive, req.params.id]);
+  req.flash('success', nowActive ? 'Đã hiện quy trình' : 'Đã ẩn quy trình');
+  res.redirect('/requests/forms');
+});
+
 // ── POST /forms/:id/delete ───────────────────────────────────────────────────
 router.post('/forms/:id/delete', requireRole('admin'), async (req, res) => {
-  await query('UPDATE request_forms SET is_active=false WHERE id=$1', [req.params.id]);
-  req.flash('success', 'Đã ẩn quy trình');
+  try {
+    await query('DELETE FROM request_forms WHERE id=$1', [req.params.id]);
+    req.flash('success', 'Đã xóa quy trình');
+  } catch (err) {
+    req.flash('error', 'Không thể xóa: quy trình đang có yêu cầu liên kết');
+  }
   res.redirect('/requests/forms');
 });
 

@@ -53,8 +53,8 @@
   <% forms.forEach(function(f) {
     const cat = f.category || 'other';
     let fieldCount = 0, stepCount = 0;
-    try { fieldCount = JSON.parse(f.fields || '[]').length; } catch(e){}
-    try { stepCount = JSON.parse(f.approval_steps || '[]').length; } catch(e){}
+    try { fieldCount = (Array.isArray(f.fields) ? f.fields : JSON.parse(f.fields || '[]')).length; } catch(e){}
+    try { stepCount = (Array.isArray(f.approval_steps) ? f.approval_steps : JSON.parse(f.approval_steps || '[]')).length; } catch(e){}
   %>
   <div class="form-card">
     <div class="form-card-header">
@@ -83,9 +83,18 @@
     </div>
     <div class="form-card-actions" style="justify-content:space-between">
       <button onclick="openEditModal('<%= f.id %>')" class="btn btn-sm btn-outline"><i class="fas fa-edit"></i> Sửa</button>
-      <form action="/requests/forms/<%= f.id %>/delete" method="POST" style="display:inline">
-        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Ẩn quy trình này?')"><i class="fas fa-eye-slash"></i> Ẩn</button>
-      </form>
+      <div style="display:flex;gap:6px">
+        <form action="/requests/forms/<%= f.id %>/toggle" method="POST" style="display:inline">
+          <% if (f.is_active) { %>
+          <button type="submit" class="btn btn-sm btn-outline" style="color:#F59E0B;border-color:#F59E0B" title="Ẩn khỏi danh sách"><i class="fas fa-eye-slash"></i> Ẩn</button>
+          <% } else { %>
+          <button type="submit" class="btn btn-sm btn-outline" style="color:#16A34A;border-color:#16A34A" title="Hiện lại"><i class="fas fa-eye"></i> Hiện</button>
+          <% } %>
+        </form>
+        <form action="/requests/forms/<%= f.id %>/delete" method="POST" style="display:inline">
+          <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Xóa vĩnh viễn quy trình này? Không thể hoàn tác!')"><i class="fas fa-trash"></i></button>
+        </form>
+      </div>
     </div>
   </div>
   <% }) %>
