@@ -30,6 +30,9 @@
       <a href="/tasks/my-tasks" class="nav-link <%= path.startsWith('/tasks/my-tasks') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-list-check"></i></span>
         <span class="nav-text">Việc của tôi</span>
+        <% if (locals.myWorkCount > 0) { %>
+        <span class="nav-badge"><%= myWorkCount %></span>
+        <% } %>
       </a>
       <a href="/announcements" class="nav-link <%= path.startsWith('/announcements') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-bell"></i></span>

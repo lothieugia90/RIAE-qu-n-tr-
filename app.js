@@ -139,6 +139,27 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Load "Việc của tôi" pending count for sidebar badge
+app.use(async (req, res, next) => {
+  res.locals.myWorkCount = 0;
+  if (req.session && req.session.userId) {
+    try {
+      const { query } = require('./src/config/database');
+      const [over, approvals, sigs] = await Promise.all([
+        query(`SELECT COUNT(*)::int as c FROM tasks
+               WHERE assignee_id=$1 AND status!='done' AND due_date < CURRENT_DATE`, [req.session.userId]),
+        query(`SELECT COUNT(*)::int as c FROM requests r
+               JOIN request_approvals ra ON ra.request_id=r.id
+               WHERE ra.approver_id=$1 AND ra.status='pending' AND r.status='pending'`, [req.session.userId]),
+        query(`SELECT COUNT(*)::int as c FROM warehouse_assignments
+               WHERE assigned_to_user=$1 AND status='active' AND signed_at IS NULL`, [req.session.userId])
+      ]);
+      res.locals.myWorkCount = (over.rows[0].c || 0) + (approvals.rows[0].c || 0) + (sigs.rows[0].c || 0);
+    } catch(e) { /* silent */ }
+  }
+  next();
+});
+
 // Routes
 app.use('/auth', require('./src/routes/auth'));
 app.use('/dashboard', require('./src/routes/dashboard'));
