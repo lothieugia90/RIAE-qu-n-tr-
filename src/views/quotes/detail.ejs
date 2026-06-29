@@ -79,7 +79,7 @@ const sectionNames = Object.keys(sections);
         <div style="display:flex;align-items:center;gap:10px">
           <span class="qb-section-sub"><%= secTotal.toLocaleString('vi-VN') %> đ</span>
           <% if (canEdit) { %>
-          <button onclick="openAddModal('<%= secName.replace(/'/g,\"\\\\'\") %>')" class="btn btn-sm btn-outline" title="Thêm vào danh mục này">
+          <button onclick="openAddModal(<%- JSON.stringify(secName) %>)" class="btn btn-sm btn-outline" title="Thêm vào danh mục này">
             <i class="fas fa-plus"></i> Thêm
           </button>
           <% } %>

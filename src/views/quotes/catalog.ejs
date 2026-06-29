@@ -62,7 +62,7 @@
         <td style="text-align:right;font-weight:600;color:var(--primary)"><%= Number(item.unit_price||0).toLocaleString('vi-VN') %> đ</td>
         <td style="font-size:12px;color:var(--text-3);max-width:200px"><%= item.description || '—' %></td>
         <td>
-          <button onclick="openEdit('<%= item.id %>','<%= item.code||'' %>','<%= item.name.replace(/'/g,\"\\\\'\") %>','<%= item.unit %>','<%= item.unit_price %>','<%= item.category %>','<%= (item.description||'').replace(/'/g,\"\\\\'\") %>')" class="btn btn-sm btn-outline"><i class="fas fa-edit"></i></button>
+          <button onclick="openEdit('<%= item.id %>')" class="btn btn-sm btn-outline"><i class="fas fa-edit"></i></button>
           <form action="/quotes/catalog/<%= item.id %>/delete" method="POST" style="display:inline" onsubmit="return confirm('Ẩn vật tư này?')">
             <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
           </form>
@@ -176,14 +176,17 @@
 </div>
 
 <script>
-function openEdit(id, code, name, unit, price, category, desc) {
+const allCatalogItems = <%- JSON.stringify(items) %>;
+function openEdit(id) {
+  var item = allCatalogItems.find(function(x){ return x.id === id; });
+  if (!item) return;
   document.getElementById('editForm').action = '/quotes/catalog/' + id + '/edit';
-  document.getElementById('e_code').value = code;
-  document.getElementById('e_name').value = name;
-  document.getElementById('e_unit').value = unit;
-  document.getElementById('e_price').value = price;
-  document.getElementById('e_category').value = category;
-  document.getElementById('e_desc').value = desc;
+  document.getElementById('e_code').value = item.code || '';
+  document.getElementById('e_name').value = item.name || '';
+  document.getElementById('e_unit').value = item.unit || '';
+  document.getElementById('e_price').value = item.unit_price || 0;
+  document.getElementById('e_category').value = item.category || 'general';
+  document.getElementById('e_desc').value = item.description || '';
   document.getElementById('editModal').classList.add('open');
 }
 </script>
