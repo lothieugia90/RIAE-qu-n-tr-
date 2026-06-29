@@ -53,6 +53,22 @@ module.exports = async function migrateV8() {
       )
     `);
 
+    // Project documents table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS project_documents (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+        name VARCHAR(200) NOT NULL,
+        file_url VARCHAR(500) NOT NULL,
+        file_name VARCHAR(200) NOT NULL,
+        file_size INTEGER,
+        doc_type VARCHAR(50),
+        description TEXT,
+        uploaded_by UUID REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
     // Seed default departments
     const depts = [
       ['Ban lãnh đạo', 'BLD', 1],
