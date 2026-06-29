@@ -264,6 +264,9 @@ const deleteAttachment = async (req, res) => {
 const myTasks = async (req, res) => {
   try {
     const userId = req.session.userId;
+    const role = req.session.userRole;
+    const isWarehouse = ['admin','director','warehouse','warehouse_keeper'].includes(role);
+
     const [overdueTasks, todayTasks, upcomingTasks, doneTasks, stats] = await Promise.all([
       query(`SELECT t.*, p.name as project_name, p.id as project_id
              FROM tasks t JOIN projects p ON p.id=t.project_id
@@ -292,13 +295,49 @@ const myTasks = async (req, res) => {
              COALESCE(SUM(CASE WHEN status != 'done' THEN 1 ELSE 0 END),0)::int as pending
              FROM tasks WHERE assignee_id=$1`, [userId])
     ]);
+
+    // Action items — separate try/catch so task data always renders
+    let pendingApprovals = [], needsSignature = [], pendingReturns = [];
+    try {
+      const [aRes, sRes, rRes] = await Promise.all([
+        query(`SELECT r.id, r.title, r.created_at, u.full_name as requester_name, ra.step_name
+          FROM requests r
+          JOIN request_approvals ra ON ra.request_id = r.id
+          JOIN users u ON u.id = r.submitted_by
+          WHERE ra.approver_id = $1 AND ra.status = 'pending' AND r.status = 'pending'
+          ORDER BY r.created_at ASC`, [userId]),
+
+        query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit, wa.assigned_at,
+                 u2.full_name as assigner_name
+          FROM warehouse_assignments wa
+          JOIN warehouse_items wi ON wi.id = wa.item_id
+          LEFT JOIN users u2 ON u2.id = wa.assigned_by
+          WHERE wa.assigned_to_user = $1 AND wa.status = 'active' AND wa.recipient_signed_at IS NULL
+          ORDER BY wa.assigned_at DESC`, [userId]),
+
+        isWarehouse ? query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit,
+                 u.full_name as assignee_name, wa.return_requested_at
+          FROM warehouse_assignments wa
+          JOIN warehouse_items wi ON wi.id = wa.item_id
+          LEFT JOIN users u ON u.id = wa.assigned_to_user
+          WHERE wa.status = 'pending_return'
+          ORDER BY wa.return_requested_at ASC`) : { rows: [] }
+      ]);
+      pendingApprovals = aRes.rows;
+      needsSignature   = sRes.rows;
+      pendingReturns   = rRes.rows;
+    } catch (e) { console.error('myTasks action items:', e.message); }
+
     res.render('tasks/my-tasks', {
       title: 'Công việc của tôi',
       overdueTasks: overdueTasks.rows,
       todayTasks: todayTasks.rows,
       upcomingTasks: upcomingTasks.rows,
       doneTasks: doneTasks.rows,
-      stats: stats.rows[0]
+      stats: stats.rows[0],
+      pendingApprovals,
+      needsSignature,
+      pendingReturns
     });
   } catch (err) { console.error(err); res.redirect('/dashboard'); }
 };

@@ -94,6 +94,24 @@ function daysDiff(d) {
       <div class="mt-kpi-val" style="color:#16a34a"><%= stats.done || 0 %></div>
       <div class="mt-kpi-lbl">Hoàn thành</div>
     </div>
+    <% if ((pendingApprovals||[]).length > 0) { %>
+    <div class="mt-kpi" style="border-color:#7c3aed">
+      <div class="mt-kpi-val" style="color:#7c3aed"><%= pendingApprovals.length %></div>
+      <div class="mt-kpi-lbl">Cần phê duyệt</div>
+    </div>
+    <% } %>
+    <% if ((needsSignature||[]).length > 0) { %>
+    <div class="mt-kpi" style="border-color:#2563eb">
+      <div class="mt-kpi-val" style="color:#2563eb"><%= needsSignature.length %></div>
+      <div class="mt-kpi-lbl">Cần ký nhận</div>
+    </div>
+    <% } %>
+    <% if ((pendingReturns||[]).length > 0) { %>
+    <div class="mt-kpi" style="border-color:#ea580c">
+      <div class="mt-kpi-val" style="color:#ea580c"><%= pendingReturns.length %></div>
+      <div class="mt-kpi-lbl">Chờ ký thu hồi</div>
+    </div>
+    <% } %>
   </div>
 
   <!-- Alert banner -->
@@ -166,6 +184,127 @@ function daysDiff(d) {
     </tbody>
   </table>
   <% } %>
+<% } %>
+
+<!-- ── PHẦN PHÊ DUYỆT ────────────────────────────────────────── -->
+<% if ((pendingApprovals||[]).length > 0) { %>
+<div class="mt-section">
+  <div class="mt-section-head">
+    <div class="mt-section-icon" style="background:#7c3aed"><i class="fas fa-clipboard-check"></i></div>
+    <span class="mt-section-title">Phê duyệt chờ xử lý</span>
+    <span class="mt-section-count" style="background:#ede9fe;color:#7c3aed"><%= pendingApprovals.length %></span>
+  </div>
+  <table class="mt-table">
+    <thead><tr>
+      <th>Yêu cầu</th>
+      <th>Người gửi</th>
+      <th>Bước duyệt</th>
+      <th>Ngày gửi</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+    <% pendingApprovals.forEach(r => { %>
+    <tr>
+      <td>
+        <div class="mt-task-title">
+          <a href="/requests/<%= r.id %>"><%= r.title %></a>
+        </div>
+      </td>
+      <td style="font-size:13px;color:var(--text-2)"><i class="fas fa-user" style="opacity:.4;margin-right:4px"></i><%= r.requester_name %></td>
+      <td>
+        <% if (r.step_name) { %>
+        <span class="mt-badge" style="background:#ede9fe;color:#7c3aed"><%= r.step_name %></span>
+        <% } else { %><span style="color:var(--text-3)">—</span><% } %>
+      </td>
+      <td style="font-size:12px;color:var(--text-3)"><%= new Date(r.created_at).toLocaleDateString('vi-VN') %></td>
+      <td>
+        <a href="/requests/<%= r.id %>" class="mt-btn" style="background:#7c3aed;color:#fff;border-color:#7c3aed">
+          <i class="fas fa-check"></i> Xem & Duyệt
+        </a>
+      </td>
+    </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<!-- ── KÝ NHẬN VẬT TƯ ───────────────────────────────────────── -->
+<% if ((needsSignature||[]).length > 0) { %>
+<div class="mt-section">
+  <div class="mt-section-head">
+    <div class="mt-section-icon" style="background:#2563eb"><i class="fas fa-signature"></i></div>
+    <span class="mt-section-title">Cần ký nhận vật tư</span>
+    <span class="mt-section-count" style="background:#dbeafe;color:#2563eb"><%= needsSignature.length %></span>
+  </div>
+  <table class="mt-table">
+    <thead><tr>
+      <th>Vật tư</th>
+      <th>Số lượng</th>
+      <th>Người giao</th>
+      <th>Ngày giao</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+    <% needsSignature.forEach(wa => { %>
+    <tr>
+      <td>
+        <div class="mt-task-title">
+          <a href="/warehouse/assignments/<%= wa.id %>"><%= wa.item_name %></a>
+        </div>
+      </td>
+      <td style="font-weight:600"><%= wa.quantity %> <%= wa.unit %></td>
+      <td style="font-size:13px;color:var(--text-2)"><i class="fas fa-user" style="opacity:.4;margin-right:4px"></i><%= wa.assigner_name || '—' %></td>
+      <td style="font-size:12px;color:var(--text-3)"><%= new Date(wa.assigned_at).toLocaleDateString('vi-VN') %></td>
+      <td>
+        <a href="/warehouse/assignments/<%= wa.id %>" class="mt-btn" style="background:#2563eb;color:#fff;border-color:#2563eb">
+          <i class="fas fa-pen-nib"></i> Ký nhận
+        </a>
+      </td>
+    </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<!-- ── KÝ THU HỒI VẬT TƯ (kho/admin) ───────────────────────── -->
+<% if ((pendingReturns||[]).length > 0) { %>
+<div class="mt-section">
+  <div class="mt-section-head">
+    <div class="mt-section-icon" style="background:#ea580c"><i class="fas fa-undo"></i></div>
+    <span class="mt-section-title">Chờ ký xác nhận thu hồi</span>
+    <span class="mt-section-count" style="background:#fff7ed;color:#ea580c"><%= pendingReturns.length %></span>
+  </div>
+  <table class="mt-table">
+    <thead><tr>
+      <th>Vật tư</th>
+      <th>Số lượng</th>
+      <th>Người trả</th>
+      <th>Yêu cầu lúc</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+    <% pendingReturns.forEach(wa => { %>
+    <tr>
+      <td>
+        <div class="mt-task-title">
+          <a href="/signatures/warehouse-return/<%= wa.id %>"><%= wa.item_name %></a>
+        </div>
+      </td>
+      <td style="font-weight:600"><%= wa.quantity %> <%= wa.unit %></td>
+      <td style="font-size:13px;color:var(--text-2)"><i class="fas fa-user" style="opacity:.4;margin-right:4px"></i><%= wa.assignee_name || '—' %></td>
+      <td style="font-size:12px;color:var(--text-3)"><%= wa.return_requested_at ? new Date(wa.return_requested_at).toLocaleDateString('vi-VN') : '—' %></td>
+      <td>
+        <a href="/signatures/warehouse-return/<%= wa.id %>" class="mt-btn" style="background:#ea580c;color:#fff;border-color:#ea580c">
+          <i class="fas fa-check-double"></i> Ký thu hồi
+        </a>
+      </td>
+    </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
 <% } %>
 
 <!-- Overdue -->
