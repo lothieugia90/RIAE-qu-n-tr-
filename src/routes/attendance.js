@@ -215,9 +215,16 @@ router.post('/payroll', requireRole('admin', 'director', 'hr', 'head_hr'), async
 });
 
 router.post('/payroll/:id/confirm', requireRole('admin', 'director', 'hr', 'head_hr'), async (req, res) => {
-  await query("UPDATE payroll_records SET status='confirmed' WHERE id=$1", [req.params.id]);
-  req.flash('success', 'Đã xác nhận bảng lương');
-  res.redirect('back');
+  const { month, year } = req.query;
+  try {
+    await query("UPDATE payroll_records SET status='confirmed' WHERE id=$1", [req.params.id]);
+    req.flash('success', 'Đã xác nhận bảng lương');
+  } catch (err) {
+    req.flash('error', 'Lỗi xác nhận: ' + err.message);
+  }
+  const m = month || new Date().getMonth() + 1;
+  const y = year  || new Date().getFullYear();
+  res.redirect(`/attendance/payroll?month=${m}&year=${y}`);
 });
 
 module.exports = router;

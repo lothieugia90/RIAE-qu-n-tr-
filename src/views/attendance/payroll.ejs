@@ -75,7 +75,7 @@
         <td class="no-print" style="white-space:nowrap">
           <button onclick="openPayroll('<%= emp.id %>','<%= emp.full_name %>',<%= emp.salary||0 %>,<%= emp.present_days %>,<%= emp.overtime_hours %>)" class="btn btn-sm btn-outline"><i class="fas fa-edit"></i></button>
           <% if (p.status==='draft') { %>
-          <form action="/attendance/payroll/<%= p.id %>/confirm" method="POST" style="display:inline">
+          <form action="/attendance/payroll/<%= p.id %>/confirm?month=<%= month %>&year=<%= year %>" method="POST" style="display:inline">
             <button type="submit" class="btn btn-sm btn-primary" title="Duyệt" onclick="return confirm('Xác nhận bảng lương?')"><i class="fas fa-check"></i></button>
           </form>
           <% } %>
