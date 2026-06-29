@@ -156,13 +156,14 @@ router.get('/forms', requireRole('admin', 'director'), async (req, res) => {
 // ── POST /forms ──────────────────────────────────────────────────────────────
 router.post('/forms', requireRole('admin', 'director'), async (req, res) => {
   const { name, description, category } = req.body;
-  const fields        = req.body['fields[]']        ? (Array.isArray(req.body['fields[]'])        ? req.body['fields[]']        : [req.body['fields[]']])        : [];
-  const ftypes        = req.body['ftypes[]']        ? (Array.isArray(req.body['ftypes[]'])        ? req.body['ftypes[]']        : [req.body['ftypes[]']])        : [];
-  const freqs         = req.body['freqs[]']         ? (Array.isArray(req.body['freqs[]'])         ? req.body['freqs[]']         : [req.body['freqs[]']])         : [];
-  const foptionsRaw   = req.body['foptions[]'];
-  const foptions      = foptionsRaw !== undefined ? (Array.isArray(foptionsRaw) ? foptionsRaw : [foptionsRaw]) : [];
-  const stepApprovers = req.body['step_approver[]'] ? (Array.isArray(req.body['step_approver[]']) ? req.body['step_approver[]'] : [req.body['step_approver[]']]) : [];
-  const stepNames     = req.body['step_name[]']     ? (Array.isArray(req.body['step_name[]'])     ? req.body['step_name[]']     : [req.body['step_name[]']])     : [];
+  // qs (extended:true) strips [] from field names: fields[] → req.body.fields
+  const _arr = (v) => v === undefined ? [] : (Array.isArray(v) ? v : [v]);
+  const fields        = _arr(req.body.fields);
+  const ftypes        = _arr(req.body.ftypes);
+  const freqs         = _arr(req.body.freqs);
+  const foptions      = _arr(req.body.foptions);
+  const stepApprovers = _arr(req.body.step_approver);
+  const stepNames     = _arr(req.body.step_name);
 
   const fieldsJson = fields.map((f, i) => {
     const obj = { label: f, type: ftypes[i] || 'text', required: freqs[i] === 'true' };
@@ -177,7 +178,7 @@ router.post('/forms', requireRole('admin', 'director'), async (req, res) => {
 
   const fieldsStr = JSON.stringify(fieldsJson);
   const stepsStr  = JSON.stringify(stepsJson);
-  console.log('[POST /forms] fieldsJson:', fieldsStr, '| stepsJson:', stepsStr);
+  console.log('[POST /forms] name:', name, '| fields:', fields, '| fieldsJson:', fieldsStr);
   try {
     // Try with ::jsonb cast first; fall back to plain text if column is TEXT type
     let saved = false;
@@ -208,13 +209,13 @@ router.post('/forms', requireRole('admin', 'director'), async (req, res) => {
 // ── POST /forms/:id/edit ────────────────────────────────────────────────────
 router.post('/forms/:id/edit', requireRole('admin', 'director'), async (req, res) => {
   const { name, description, category } = req.body;
-  const fields        = req.body['fields[]']        ? (Array.isArray(req.body['fields[]'])        ? req.body['fields[]']        : [req.body['fields[]']])        : [];
-  const ftypes        = req.body['ftypes[]']        ? (Array.isArray(req.body['ftypes[]'])        ? req.body['ftypes[]']        : [req.body['ftypes[]']])        : [];
-  const freqs         = req.body['freqs[]']         ? (Array.isArray(req.body['freqs[]'])         ? req.body['freqs[]']         : [req.body['freqs[]']])         : [];
-  const foptionsRaw   = req.body['foptions[]'];
-  const foptions      = foptionsRaw !== undefined ? (Array.isArray(foptionsRaw) ? foptionsRaw : [foptionsRaw]) : [];
-  const stepApprovers = req.body['step_approver[]'] ? (Array.isArray(req.body['step_approver[]']) ? req.body['step_approver[]'] : [req.body['step_approver[]']]) : [];
-  const stepNames     = req.body['step_name[]']     ? (Array.isArray(req.body['step_name[]'])     ? req.body['step_name[]']     : [req.body['step_name[]']])     : [];
+  const _arr = (v) => v === undefined ? [] : (Array.isArray(v) ? v : [v]);
+  const fields        = _arr(req.body.fields);
+  const ftypes        = _arr(req.body.ftypes);
+  const freqs         = _arr(req.body.freqs);
+  const foptions      = _arr(req.body.foptions);
+  const stepApprovers = _arr(req.body.step_approver);
+  const stepNames     = _arr(req.body.step_name);
 
   const fieldsJson = fields.map((f, i) => {
     const obj = { label: f, type: ftypes[i] || 'text', required: freqs[i] === 'true' };
