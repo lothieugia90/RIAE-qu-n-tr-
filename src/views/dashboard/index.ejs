@@ -54,6 +54,96 @@
 
 </div>
 
+<!-- ═══ VIỆC CẦN LÀM (ACTION ITEMS) ════════════════════════════ -->
+<%
+  const totalActionItems = (pendingApprovals||[]).length + (needsSignature||[]).length
+    + (pendingReturns||[]).length + (approvedRequests||[]).length;
+  const isWarehouseRole = ['admin','director','warehouse','warehouse_keeper'].includes(locals.userRole);
+%>
+<% if (totalActionItems > 0) { %>
+<div class="action-strip">
+  <div class="action-strip-header">
+    <span class="action-strip-title"><i class="fas fa-bolt"></i> Việc cần làm</span>
+    <span class="action-strip-badge"><%= totalActionItems %></span>
+  </div>
+  <div class="action-strip-items">
+
+    <% (pendingApprovals||[]).forEach(r => { %>
+    <a href="/requests/<%= r.id %>" class="action-item action-item-approval">
+      <div class="action-item-icon"><i class="fas fa-check-circle"></i></div>
+      <div class="action-item-body">
+        <div class="action-item-label">Phê duyệt</div>
+        <div class="action-item-text"><%= r.title %></div>
+        <div class="action-item-meta"><i class="fas fa-user"></i> <%= r.requester_name %></div>
+      </div>
+      <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
+    </a>
+    <% }) %>
+
+    <% (needsSignature||[]).forEach(wa => { %>
+    <a href="/warehouse/assignments/<%= wa.id %>" class="action-item action-item-sign">
+      <div class="action-item-icon"><i class="fas fa-signature"></i></div>
+      <div class="action-item-body">
+        <div class="action-item-label">Cần ký nhận</div>
+        <div class="action-item-text"><%= wa.item_name %></div>
+        <div class="action-item-meta"><i class="fas fa-box"></i> <%= wa.quantity %> <%= wa.unit %></div>
+      </div>
+      <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
+    </a>
+    <% }) %>
+
+    <% if (isWarehouseRole) { %>
+    <% (pendingReturns||[]).forEach(wa => { %>
+    <a href="/signatures/warehouse-return/<%= wa.id %>" class="action-item action-item-return">
+      <div class="action-item-icon"><i class="fas fa-undo"></i></div>
+      <div class="action-item-body">
+        <div class="action-item-label">Chờ ký thu hồi</div>
+        <div class="action-item-text"><%= wa.item_name %></div>
+        <div class="action-item-meta"><i class="fas fa-user"></i> <%= wa.assignee_name %></div>
+      </div>
+      <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
+    </a>
+    <% }) %>
+    <% } %>
+
+    <% (approvedRequests||[]).forEach(r => { %>
+    <a href="/requests/<%= r.id %>" class="action-item action-item-approved">
+      <div class="action-item-icon"><i class="fas fa-check-double"></i></div>
+      <div class="action-item-body">
+        <div class="action-item-label">Đã được duyệt</div>
+        <div class="action-item-text"><%= r.title %></div>
+        <div class="action-item-meta"><i class="fas fa-clock"></i> <%= new Date(r.updated_at).toLocaleDateString('vi-VN') %></div>
+      </div>
+      <div class="action-item-arrow"><i class="fas fa-chevron-right"></i></div>
+    </a>
+    <% }) %>
+
+  </div>
+</div>
+<% } %>
+
+<style>
+.action-strip { background:var(--card); border:1.5px solid var(--border); border-radius:12px; margin-bottom:16px; overflow:hidden; }
+.action-strip-header { display:flex; align-items:center; gap:8px; padding:11px 18px; border-bottom:1px solid var(--border); background:var(--bg); }
+.action-strip-title { font-size:13px; font-weight:700; color:var(--text); }
+.action-strip-badge { background:var(--primary); color:#fff; border-radius:12px; padding:1px 9px; font-size:12px; font-weight:700; margin-left:4px; }
+.action-strip-items { display:flex; gap:0; overflow-x:auto; }
+.action-item { display:flex; align-items:center; gap:10px; padding:12px 16px; text-decoration:none; border-right:1px solid var(--border); min-width:200px; flex:1; transition:background .15s; }
+.action-item:last-child { border-right:none; }
+.action-item:hover { background:var(--border-light); }
+.action-item-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
+.action-item-approval .action-item-icon { background:#ede9fe; color:#7c3aed; }
+.action-item-sign .action-item-icon { background:#dbeafe; color:#2563eb; }
+.action-item-return .action-item-icon { background:#fff7ed; color:#ea580c; }
+.action-item-approved .action-item-icon { background:#dcfce7; color:#16a34a; }
+.action-item-body { flex:1; min-width:0; }
+.action-item-label { font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--text-3); margin-bottom:2px; }
+.action-item-text { font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.action-item-meta { font-size:11px; color:var(--text-3); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.action-item-arrow { color:var(--text-3); font-size:11px; flex-shrink:0; }
+@media (max-width:768px) { .action-strip-items { flex-direction:column; } .action-item { border-right:none; border-bottom:1px solid var(--border); min-width:unset; } .action-item:last-child { border-bottom:none; } }
+</style>
+
 <!-- ═══ PERSONAL ALERT BANNER ════════════════════════════════════ -->
 <% if (overdueCount > 0 || myTodayCount > 0) { %>
 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:10px;padding:12px 18px;margin-bottom:16px;flex-wrap:wrap">

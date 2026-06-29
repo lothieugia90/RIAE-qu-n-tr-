@@ -7,6 +7,7 @@ router.use(requireAuth);
 
 router.get('/dropdown', ctrl.dropdown);
 router.get('/unread-count', ctrl.unreadCount);
+router.get('/action-items', ctrl.actionItems);
 router.post('/:id/read', ctrl.markRead);
 router.post('/read-all', ctrl.markAllRead);
 

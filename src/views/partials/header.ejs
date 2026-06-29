@@ -37,6 +37,7 @@
           <button class="notif-tab active" data-tab="all"    onclick="switchNotifTab('all',this)">Tất cả</button>
           <button class="notif-tab"        data-tab="work"   onclick="switchNotifTab('work',this)">Công việc</button>
           <button class="notif-tab"        data-tab="personal" onclick="switchNotifTab('personal',this)">Cá nhân</button>
+          <button class="notif-tab"        data-tab="actions" onclick="switchNotifTab('actions',this)" id="actionTab">⚡ Việc cần làm <span id="actionBadgeInner" style="display:none;background:var(--danger);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:3px"></span></button>
         </div>
         <div class="notif-list" id="notifList">
           <div style="padding:32px;text-align:center;color:var(--text-3)">
@@ -109,8 +110,27 @@ function toggleNotifPanel() {
   const panel = document.getElementById('notifPanel');
   notifOpen = !notifOpen;
   panel.style.display = notifOpen ? 'block' : 'none';
-  if (notifOpen) loadNotifications(currentNotifTab);
+  if (notifOpen) {
+    loadNotifications(currentNotifTab);
+    loadActionBadge();
+  }
 }
+
+async function loadActionBadge() {
+  try {
+    const r = await fetch('/notifications/action-items');
+    const data = await r.json();
+    const badge = document.getElementById('actionBadgeInner');
+    if (badge && data.count > 0) {
+      badge.textContent = data.count;
+      badge.style.display = 'inline';
+    } else if (badge) {
+      badge.style.display = 'none';
+    }
+  } catch(_) {}
+}
+
+document.addEventListener('DOMContentLoaded', loadActionBadge);
 
 document.addEventListener('click', function(e) {
   const wrap = document.getElementById('notifWrap');
@@ -149,9 +169,46 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString('vi-VN');
 }
 
+const actionTypeConfig = {
+  approval:  { icon: 'check-circle',  color: '#ede9fe', icolor: '#7c3aed', label: 'Phê duyệt' },
+  signature: { icon: 'signature',     color: '#dbeafe', icolor: '#2563eb', label: 'Cần ký nhận' },
+  return:    { icon: 'undo',          color: '#fff7ed', icolor: '#ea580c', label: 'Chờ ký thu hồi' },
+  approved:  { icon: 'check-double',  color: '#dcfce7', icolor: '#16a34a', label: 'Đã được duyệt' }
+};
+
 async function loadNotifications(tab) {
   const list = document.getElementById('notifList');
   list.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-3)"><i class="fas fa-spinner fa-spin fa-lg"></i></div>';
+
+  if (tab === 'actions') {
+    try {
+      const r = await fetch('/notifications/action-items');
+      const data = await r.json();
+      const items = data.items || [];
+      if (!items.length) {
+        list.innerHTML = '<div class="notif-empty"><i class="fas fa-check-circle"></i><p style="font-size:13px;font-weight:500">Không có việc cần làm</p></div>';
+        return;
+      }
+      list.innerHTML = items.map(item => {
+        const cfg = actionTypeConfig[item.type] || { icon: 'bolt', color: '#f3f4f6', icolor: '#6b7280', label: item.type };
+        return `<a class="notif-item" href="${item.link || '#'}">
+          <div class="notif-icon-wrap" style="background:${cfg.color}">
+            <i class="fas fa-${cfg.icon}" style="color:${cfg.icolor}"></i>
+          </div>
+          <div class="notif-item-body">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.3px;color:#9ca3af;margin-bottom:2px">${cfg.label}</div>
+            <div class="notif-item-title">${item.title}</div>
+            ${item.meta ? `<div class="notif-item-body-text">${item.meta}</div>` : ''}
+          </div>
+          <i class="fas fa-chevron-right" style="font-size:10px;color:var(--text-3)"></i>
+        </a>`;
+      }).join('');
+    } catch(e) {
+      list.innerHTML = '<div class="notif-empty"><i class="fas fa-exclamation-triangle"></i><p>Lỗi tải dữ liệu</p></div>';
+    }
+    return;
+  }
+
   try {
     const r = await fetch('/notifications/dropdown?tab=' + tab);
     const data = await r.json();
