@@ -4,8 +4,9 @@ module.exports = async function migrateV15() {
   const client = await pool.connect();
   try {
     await client.query(`
+      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
       CREATE TABLE IF NOT EXISTS quote_catalog (
-        id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         code         VARCHAR(50) UNIQUE,
         name         TEXT NOT NULL,
         unit         VARCHAR(30) DEFAULT 'cái',
