@@ -398,25 +398,40 @@
     </div>
 
     <!-- PANEL: QUẢN TRỊ NHANH ──────────────────────────────────── -->
-    <% if (locals.userRole === 'admin' || locals.userRole === 'director') { %>
+    <%
+      const _role = locals.userRole || '';
+      const _allShortcuts = [
+        { href:'/hr/create',        icon:'user-plus',       c:'#2563eb', bg:'#eff6ff', label:'Thêm nhân viên mới',    roles:['admin','director'] },
+        { href:'/projects/create',  icon:'folder-plus',     c:'#16a34a', bg:'#f0fdf4', label:'Tạo dự án mới',         roles:['admin','director','pm'] },
+        { href:'/quotes/create',    icon:'file-invoice-dollar', c:'#0891b2', bg:'#e0f2fe', label:'Tạo báo giá mới',   roles:['admin','director','pm'] },
+        { href:'/requests',         icon:'clipboard-check', c:'#dc2626', bg:'#fee2e2', label:'Duyệt yêu cầu',         roles:['admin','director'] },
+        { href:'/tasks/create',     icon:'tasks',           c:'#7c3aed', bg:'#faf5ff', label:'Tạo task mới',          roles:['admin','director','pm','engineer'] },
+        { href:'/warehouse',        icon:'boxes',           c:'#d97706', bg:'#fef3c7', label:'Quản lý kho bãi',       roles:['admin','director','warehouse','warehouse_keeper'] },
+        { href:'/warehouse/create', icon:'box',             c:'#16a34a', bg:'#f0fdf4', label:'Nhập vật tư mới',       roles:['admin','director','warehouse','warehouse_keeper'] },
+        { href:'/hr',               icon:'users',           c:'#2563eb', bg:'#eff6ff', label:'Quản lý nhân sự',       roles:['admin','director'] },
+        { href:'/admin',            icon:'user-cog',        c:'#d97706', bg:'#fef3c7', label:'Phân quyền tài khoản',  roles:['admin'] },
+        { href:'/admin/audit',      icon:'history',         c:'#7c3aed', bg:'#faf5ff', label:'Nhật ký thao tác',      roles:['admin'] },
+        { href:'/attendance',       icon:'calendar-check',  c:'#0891b2', bg:'#e0f2fe', label:'Chấm công',             roles:['admin','director','hr'] },
+        { href:'/payroll-settings', icon:'money-bill-wave', c:'#16a34a', bg:'#f0fdf4', label:'Cấu hình lương',        roles:['admin','director'] },
+        { href:'/signatures',       icon:'signature',       c:'#7c3aed', bg:'#faf5ff', label:'Phiếu giao kho',        roles:['warehouse','warehouse_keeper','admin','director'] },
+        { href:'/requests/create',  icon:'plus-circle',     c:'#2563eb', bg:'#eff6ff', label:'Tạo phiếu yêu cầu',    roles:['engineer','pm','guest'] },
+        { href:'/chat',             icon:'comments',        c:'#16a34a', bg:'#f0fdf4', label:'Nhắn tin nội bộ',       roles:['engineer','guest'] },
+      ];
+      const _myShortcuts = _allShortcuts.filter(s => s.roles.includes(_role));
+    %>
+    <% if (_myShortcuts.length > 0) { %>
     <div class="db-panel">
       <div class="db-panel-head">
         <div class="db-panel-title-wrap">
           <div class="db-panel-icon" style="background:#fef9c3;color:#ca8a04"><i class="fas fa-bolt"></i></div>
           <div>
-            <div class="db-panel-title">Quản trị nhanh</div>
-            <div class="db-panel-sub">Thao tác thường dùng</div>
+            <div class="db-panel-title">Thao tác nhanh</div>
+            <div class="db-panel-sub">Chức năng thường dùng của bạn</div>
           </div>
         </div>
       </div>
       <div class="db-panel-body" style="padding:8px 10px;display:grid;gap:2px">
-        <% [
-          {href:'/hr/create',       icon:'user-plus',      c:'#2563eb', bg:'#eff6ff', label:'Thêm nhân viên mới'},
-          {href:'/projects/create', icon:'folder-plus',    c:'#16a34a', bg:'#f0fdf4', label:'Tạo dự án mới'},
-          {href:'/admin',           icon:'user-cog',       c:'#d97706', bg:'#fef3c7', label:'Phân quyền tài khoản'},
-          {href:'/admin/audit',     icon:'history',        c:'#7c3aed', bg:'#faf5ff', label:'Nhật ký thao tác'},
-          {href:'/requests',        icon:'clipboard-check',c:'#dc2626', bg:'#fee2e2', label:'Duyệt yêu cầu'},
-        ].forEach(s => { %>
+        <% _myShortcuts.forEach(s => { %>
         <a href="<%= s.href %>" class="db-shortcut">
           <div class="db-shortcut-ico" style="background:<%= s.bg %>;color:<%= s.c %>"><i class="fas fa-<%= s.icon %>"></i></div>
           <span class="db-shortcut-label"><%= s.label %></span>
