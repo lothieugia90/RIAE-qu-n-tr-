@@ -22,5 +22,50 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/main.js"></script>
+
+  <!-- Global back button -->
+  <button id="globalBackBtn" onclick="history.back()" title="Quay lại trang trước" style="display:none">
+    <i class="fas fa-arrow-left"></i>
+  </button>
+  <style>
+  #globalBackBtn {
+    position: fixed;
+    bottom: 28px;
+    left: 28px;
+    z-index: 9999;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 4px 16px rgba(0,0,0,.15);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: background .18s, transform .15s, box-shadow .18s;
+    border: 1.5px solid var(--border);
+  }
+  #globalBackBtn:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(29,78,216,.25);
+  }
+  #globalBackBtn:active { transform: scale(0.95); }
+  </style>
+  <script>
+  (function() {
+    var btn = document.getElementById('globalBackBtn');
+    if (!btn) return;
+    // Only show if there's somewhere to go back to
+    if (document.referrer && document.referrer !== window.location.href) {
+      btn.style.display = 'flex';
+    }
+  })();
+  </script>
 </body>
 </html>
