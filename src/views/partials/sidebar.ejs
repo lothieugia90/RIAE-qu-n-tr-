@@ -1,16 +1,87 @@
+<% const roleLabels = {
+  admin:'Quản trị viên', director:'Ban lãnh đạo', pm:'Quản lý Dự án',
+  head_tech:'Trưởng phòng KT', head_hr:'Trưởng phòng NS', head_sales:'Trưởng phòng KD',
+  engineer:'Kỹ sư', field_supervisor:'Giám sát hiện trường', tech_deploy:'Kỹ thuật triển khai',
+  hr:'Nhân sự', warehouse:'Nhân viên Kho', warehouse_keeper:'Thủ kho', accountant:'Kế toán'
+}; %>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
-    <div class="brand-logo-wrap">
-      <div class="brand-icon" style="background:transparent;padding:2px">
-        <img src="/images/logo.png" alt="RIAE" style="width:34px;height:34px;object-fit:contain;border-radius:4px">
-      </div>
-      <div class="brand-text">
-        <span class="brand-name">RIAE</span>
-        <span class="brand-sub">Management</span>
-      </div>
-    </div>
+    <a href="/dashboard" class="brand-mark" aria-label="RiAE Management — về Dashboard">
+      <svg class="bm-dome" viewBox="0 0 120 40" aria-hidden="true">
+        <!-- Nét gốc liền mạch như logo -->
+        <path class="bm-arc" d="M6 38 A54 54 0 0 1 114 38" pathLength="100"/>
+        <path class="bm-net" d="M32 26 L52 14 L72 24 L92 12" pathLength="100"/>
+        <!-- Vệt sáng chạy dọc nét (overlay, không phá nét gốc) -->
+        <path class="bm-arc-glow" d="M6 38 A54 54 0 0 1 114 38" pathLength="100"/>
+        <path class="bm-net-glow" d="M32 26 L52 14 L72 24 L92 12" pathLength="100"/>
+        <circle class="bm-node" cx="32" cy="26" r="2.6" fill="#42A5F5"/>
+        <circle class="bm-node" cx="52" cy="14" r="3.2" fill="#7EC3F7"/>
+        <circle class="bm-node" cx="72" cy="24" r="2.6" fill="#42A5F5"/>
+        <circle class="bm-node" cx="92" cy="12" r="2.8" fill="#7EC3F7"/>
+      </svg>
+      <span class="bm-word" role="img" aria-label="RiAE"><span>R</span><span class="bm-i">&#305;</span><span class="bm-a">A</span><span>E</span></span>
+      <span class="bm-sub">MANAGEMENT</span>
+    </a>
     <button class="sidebar-close-btn" id="sidebarCloseBtn"><i class="fas fa-times"></i></button>
   </div>
+  <style>
+  .brand-mark {
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    text-decoration: none; padding: 6px 0 2px; margin: 0 auto;
+  }
+  .bm-dome { width: 92px; height: auto; display: block; margin-bottom: -5px; }
+  .bm-word {
+    font-family: 'Chakra Petch', 'Inter', sans-serif; font-weight: 700;
+    font-size: 30px; line-height: 1; color: #fff; letter-spacing: .01em;
+    display: flex; align-items: baseline;
+  }
+  .bm-word .bm-a { color: #42A5F5; }
+  /* Chữ ı không chấm (U+0131) + chấm vẽ tay — tránh chấm của font bị nhân đôi */
+  .bm-word .bm-i { position: relative; }
+  .bm-word .bm-i::after {
+    content: ''; position: absolute; left: 50%; transform: translateX(-50%);
+    top: .06em; width: .17em; height: .17em; border-radius: 50%;
+    background: #42A5F5;
+  }
+  .bm-sub {
+    font-family: 'Chakra Petch', 'Inter', sans-serif; font-weight: 500;
+    font-size: 8.5px; letter-spacing: .42em; text-indent: .42em;
+    color: var(--sidebar-text); margin-top: 5px;
+  }
+  .sidebar.collapsed .bm-dome, .sidebar.collapsed .bm-sub { display: none; }
+  .sidebar.collapsed .bm-word { font-size: 20px; }
+
+  /* Nét gốc: liền mạch đúng logo */
+  .bm-arc { stroke: #7EC3F7; stroke-width: 2; fill: none; stroke-linecap: round; opacity: .9; }
+  .bm-net { stroke: #42A5F5; stroke-width: 1.2; fill: none; opacity: .8; }
+  /* Vệt sáng: mặc định ẩn, chỉ chạy khi cho phép chuyển động */
+  .bm-arc-glow, .bm-net-glow { fill: none; stroke-linecap: round; opacity: 0; }
+
+  /* Logo động lặp liên tục (tắt khi người dùng bật reduced-motion) */
+  @media (prefers-reduced-motion: no-preference) {
+    .bm-arc-glow {
+      stroke: #E3F2FD; stroke-width: 2.2; opacity: 1;
+      stroke-dasharray: 12 88; /* pathLength=100: đoạn sáng 12%, lặp khép kín */
+      animation: bmComet 4.5s linear infinite;
+    }
+    .bm-net-glow {
+      stroke: #B3DBFF; stroke-width: 1.6; opacity: 1;
+      stroke-dasharray: 18 82;
+      animation: bmComet 3s linear infinite;
+    }
+    .bm-node { animation: bmTwinkle 2.4s ease-in-out infinite; }
+    .bm-node:nth-of-type(2) { animation-delay: .6s; }
+    .bm-node:nth-of-type(3) { animation-delay: 1.2s; }
+    .bm-node:nth-of-type(4) { animation-delay: 1.8s; }
+    .bm-word .bm-i::after { animation: bmPulse 2.4s ease-in-out infinite; }
+    @keyframes bmComet   { to { stroke-dashoffset: -100; } }
+    @keyframes bmTwinkle { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+    @keyframes bmPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(66,165,245,.55); }
+      50%      { box-shadow: 0 0 8px 2px rgba(66,165,245,.75); }
+    }
+  }
+  </style>
 
   <nav class="sidebar-nav">
     <div class="nav-group">
@@ -34,88 +105,36 @@
         <span class="nav-badge"><%= myWorkCount %></span>
         <% } %>
       </a>
-      <a href="/announcements" class="nav-link <%= path.startsWith('/announcements') ? 'active' : '' %>">
+      <a href="/notifications" class="nav-link <%= path.startsWith('/notifications') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-bell"></i></span>
         <span class="nav-text">Thông báo</span>
-        <% if (locals.unreadAnnouncements > 0) { %>
-        <span class="nav-badge"><%= unreadAnnouncements %></span>
+        <% if (locals.unreadNotifications > 0) { %>
+        <span class="nav-badge"><%= unreadNotifications %></span>
         <% } %>
       </a>
-      <a href="/partners" class="nav-link <%= path.startsWith('/partners') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-handshake"></i></span>
-        <span class="nav-text">Đối tác</span>
-      </a>
-      <a href="/quotes" class="nav-link <%= path.startsWith('/quotes') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-file-invoice-dollar"></i></span>
-        <span class="nav-text">Báo giá</span>
-      </a>
-      <a href="/chat" class="nav-link <%= path.startsWith('/chat') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-comments"></i></span>
-        <span class="nav-text">Chat</span>
-        <% if (locals.unreadChats > 0) { %>
-        <span class="nav-badge"><%= unreadChats %></span>
-        <% } %>
-      </a>
-      <a href="/attendance" class="nav-link <%= path.startsWith('/attendance') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-calendar-check"></i></span>
-        <span class="nav-text">Chấm công</span>
-      </a>
-      <% if (['admin','director','hr','head_hr','accountant'].includes(locals.userRole)) { %>
-      <a href="/attendance/payroll" class="nav-link <%= path.startsWith('/attendance/payroll') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-file-invoice-dollar"></i></span>
-        <span class="nav-text">Bảng lương</span>
-      </a>
-      <% } %>
-      <a href="/requests" class="nav-link <%= path.startsWith('/requests') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-tasks"></i></span>
-        <span class="nav-text">Phê duyệt</span>
-      </a>
-      <a href="/signatures" class="nav-link <%= path.startsWith('/signatures') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-file-signature"></i></span>
-        <span class="nav-text">Chữ ký số</span>
-      </a>
-      <% if (['admin','director','pm','warehouse','warehouse_keeper','head_hr','hr'].includes(locals.userRole)) { %>
-      <a href="/hr" class="nav-link <%= path.startsWith('/hr') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-users"></i></span>
-        <span class="nav-text">Nhân sự</span>
-      </a>
-      <% } %>
-      <% if (['admin','director','pm','warehouse','warehouse_keeper','head_tech'].includes(locals.userRole)) { %>
-      <a href="/warehouse" class="nav-link <%= path === '/warehouse' ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-boxes"></i></span>
-        <span class="nav-text">Kho bãi</span>
-      </a>
-      <a href="/warehouse/assignments" class="nav-link <%= path.startsWith('/warehouse/assignments') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
-        <span class="nav-text">Phiếu giao kho</span>
-      </a>
-      <% } %>
     </div>
+
+    <%# Các module GĐ C-D (Chấm công, Nhân sự, Kho, Chữ ký số, Chat...) sẽ thêm vào đây khi port xong %>
 
     <% if (['admin','director','hr','head_hr'].includes(locals.userRole)) { %>
     <div class="nav-group">
-      <span class="nav-group-label">NHÂN SỰ & LƯƠNG</span>
-      <a href="/payroll-settings" class="nav-link <%= path.startsWith('/payroll-settings') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-sliders-h"></i></span>
-        <span class="nav-text">Cấu hình Lương</span>
-      </a>
-    </div>
-    <% } %>
-    <% if (locals.userRole === 'admin') { %>
-    <div class="nav-group">
       <span class="nav-group-label">HỆ THỐNG</span>
-      <a href="/admin" class="nav-link <%= path === '/admin' ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-cog"></i></span>
-        <span class="nav-text">Quản trị</span>
+      <a href="/admin/users" class="nav-link <%= path.startsWith('/admin/users') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-users-cog"></i></span>
+        <span class="nav-text">Người dùng</span>
       </a>
+      <% if (locals.userRole === 'admin') { %>
+      <a href="/admin/permissions" class="nav-link <%= path.startsWith('/admin/permissions') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-shield-alt"></i></span>
+        <span class="nav-text">Phân quyền</span>
+      </a>
+      <% } %>
+      <% if (['admin','director'].includes(locals.userRole)) { %>
       <a href="/admin/audit" class="nav-link <%= path.startsWith('/admin/audit') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-history"></i></span>
         <span class="nav-text">Nhật ký</span>
       </a>
-      <a href="/admin/config" class="nav-link <%= path.startsWith('/admin/config') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-sliders-h"></i></span>
-        <span class="nav-text">Cấu hình</span>
-      </a>
+      <% } %>
     </div>
     <% } %>
   </nav>
@@ -134,18 +153,13 @@
       <a href="/auth/profile" class="sidebar-user-name"><%= locals.currentUser ? currentUser.full_name : '' %></a>
       <span class="sidebar-user-title">
         <% if (locals.currentUser) { %>
-          <% const roleLabels = { admin:'Quản trị viên', director:'Ban lãnh đạo', pm:'Quản lý Dự án', head_tech:'Trưởng phòng KT', head_hr:'Trưởng phòng NS', head_sales:'Trưởng phòng KD', engineer:'Kỹ sư', field_supervisor:'Giám sát hiện trường', tech_deploy:'Kỹ thuật triển khai', hr:'Nhân sự', warehouse:'Nhân viên Kho', warehouse_keeper:'Thủ kho', accountant:'Kế toán', guest:'Khách' }; %>
           <%= roleLabels[currentUser.role] || currentUser.role %>
           <% if (currentUser.position) { %> · <%= currentUser.position %><% } %>
         <% } %>
       </span>
     </div>
     <div class="sidebar-user-actions">
-      <% if (locals.userRole === 'admin') { %>
-      <a href="/admin" class="sidebar-action-btn" title="Quản trị"><i class="fas fa-cog"></i></a>
-      <% } else { %>
-      <a href="/auth/profile" class="sidebar-action-btn" title="Cài đặt"><i class="fas fa-cog"></i></a>
-      <% } %>
+      <a href="/auth/profile" class="sidebar-action-btn" title="Hồ sơ"><i class="fas fa-cog"></i></a>
       <a href="/auth/logout" class="sidebar-action-btn sidebar-logout-btn" title="Đăng xuất"><i class="fas fa-sign-out-alt"></i></a>
     </div>
   </div>

@@ -1,0 +1,53 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Thông báo</h1>
+    <p><%= notifications.filter(n => !n.is_read).length %> chưa đọc</p>
+  </div>
+  <% if (notifications.some(n => !n.is_read)) { %>
+  <form action="/notifications/mark-all-read" method="POST">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" class="btn btn-outline"><i class="fas fa-check-double"></i> Đánh dấu đã đọc tất cả</button>
+  </form>
+  <% } %>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:6px 0">
+    <% if (notifications.length === 0) { %>
+    <p style="text-align:center;padding:40px;color:var(--text-3)">
+      <i class="fas fa-bell-slash" style="font-size:30px;display:block;margin-bottom:10px"></i>
+      Chưa có thông báo nào
+    </p>
+    <% } %>
+    <% notifications.forEach(n => { %>
+    <a href="/notifications/<%= n.id %>/open" class="notif-row <%= n.is_read ? '' : 'unread' %>">
+      <span class="notif-icon">
+        <i class="fas <%= n.type === 'task_assigned' ? 'fa-user-check' : n.type === 'task_review' ? 'fa-eye' : n.type === 'task_done' ? 'fa-check-circle' : 'fa-bell' %>"></i>
+      </span>
+      <span class="notif-body">
+        <strong><%= n.title %></strong>
+        <% if (n.content) { %><small><%= n.content %></small><% } %>
+        <small class="notif-time"><%= fmtDateTime(n.created_at) %></small>
+      </span>
+      <% if (!n.is_read) { %><span class="notif-dot" aria-label="Chưa đọc"></span><% } %>
+    </a>
+    <% }) %>
+  </div>
+</div>
+
+<style>
+.notif-row { display: flex; align-items: flex-start; gap: 13px; padding: 13px 20px; text-decoration: none; transition: background .15s; }
+.notif-row:hover { background: var(--bg); }
+.notif-row + .notif-row { border-top: 1px solid var(--border-light); }
+.notif-row.unread { background: var(--primary-50); }
+.notif-row.unread:hover { background: #D6E9FB; }
+.notif-icon {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--primary-50); color: var(--primary);
+  display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
+}
+.notif-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.notif-body strong { font-size: 13.5px; color: var(--text); font-weight: 600; }
+.notif-body small { font-size: 12px; color: var(--text-2); }
+.notif-time { color: var(--text-3) !important; font-size: 11px !important; }
+.notif-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--primary); margin-top: 6px; flex-shrink: 0; }
+</style>

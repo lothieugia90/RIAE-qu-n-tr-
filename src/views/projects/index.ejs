@@ -1,263 +1,158 @@
-<!-- Top toolbar -->
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-  <div style="display:flex;align-items:center;gap:8px">
-    <h2 style="font-size:16px;font-weight:700;margin:0">Danh sách dự án</h2>
-    <span style="font-size:12px;color:var(--text-3)">(<%= projects.length %> dự án)</span>
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Quản lý Dự án</h1>
+    <p><%= stats.total %> dự án · <%= stats.active %> đang chạy</p>
   </div>
-  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-    <form method="GET" style="display:flex;gap:6px;align-items:center">
-      <input type="text" name="search" class="form-control" placeholder="Tìm dự án..." value="<%= filters.search||'' %>" style="width:200px;height:32px;font-size:12px">
-      <select name="status" class="form-control" style="height:32px;font-size:12px;width:140px">
-        <option value="">Tất cả trạng thái</option>
-        <option value="planning" <%= filters.status==='planning'?'selected':'' %>>Kế hoạch</option>
-        <option value="active" <%= filters.status==='active'?'selected':'' %>>Đang làm</option>
-        <option value="on_hold" <%= filters.status==='on_hold'?'selected':'' %>>Tạm dừng</option>
-        <option value="completed" <%= filters.status==='completed'?'selected':'' %>>Hoàn thành</option>
-      </select>
-      <button type="submit" class="btn btn-outline" style="height:32px;padding:0 12px;font-size:12px"><i class="fas fa-search"></i></button>
-      <a href="/projects" class="btn btn-outline" style="height:32px;padding:0 10px;font-size:12px">Reset</a>
-    </form>
-    <% if (['admin','director','pm'].includes(locals.userRole)) { %>
-    <a href="/projects/create" class="btn btn-primary" style="height:32px;padding:0 14px;font-size:12px"><i class="fas fa-plus"></i> Dự án</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <% if (projects.length > 0) { %>
+    <button class="btn btn-outline" onclick="document.getElementById('createTaskModal').showModal()">
+      <i class="fas fa-list-check"></i> Thêm task
+    </button>
+    <% } %>
+    <% if (['edit','full'].includes(permLevel)) { %>
+    <a href="/projects/create" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo dự án</a>
     <% } %>
   </div>
 </div>
 
-<!-- Summary Charts Row -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-  <!-- Chart 1: By status -->
-  <div class="card" style="padding:14px">
-    <div style="display:flex;align-items:center;gap:16px">
-      <div style="position:relative;width:90px;height:90px;flex-shrink:0">
-        <canvas id="chartStatus" width="90" height="90"></canvas>
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
-          <div style="font-size:22px;font-weight:800;color:var(--text)"><%= stats.total %></div>
-        </div>
-      </div>
-      <div style="flex:1;font-size:12px">
-        <%
-          const statusList = [
-            {key:'planning', label:'Kế hoạch', color:'#3B82F6'},
-            {key:'active',   label:'Đang làm', color:'#16A34A'},
-            {key:'on_hold',  label:'Tạm dừng', color:'#F59E0B'},
-            {key:'completed',label:'Hoàn thành',color:'#0284C7'},
-            {key:'cancelled',label:'Đã hủy',   color:'#DC2626'}
-          ];
-          statusList.forEach(s => {
-            const cnt = stats[s.key] || 0;
-            const pct = stats.total > 0 ? Math.round(cnt/stats.total*100) : 0;
-        %>
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-          <span style="width:10px;height:10px;border-radius:2px;background:<%= s.color %>;flex-shrink:0"></span>
-          <span style="flex:1;color:var(--text-2)"><%= s.label %></span>
-          <span style="font-weight:600;min-width:20px;text-align:right"><%= cnt %></span>
-          <span style="color:var(--text-3);min-width:40px;text-align:right">(<%= pct %>%)</span>
-        </div>
-        <% }) %>
-      </div>
-    </div>
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--primary-50);color:var(--primary)"><i class="fas fa-folder-open"></i></div>
+    <div class="stat-value"><%= stats.active %></div>
+    <div class="stat-label">Đang chạy</div>
   </div>
-
-  <!-- Chart 2: KPI / tiến độ overview -->
-  <div class="card" style="padding:14px">
-    <div style="display:flex;align-items:center;gap:16px">
-      <div style="position:relative;width:90px;height:90px;flex-shrink:0">
-        <canvas id="chartKpi" width="90" height="90"></canvas>
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
-          <div style="font-size:22px;font-weight:800;color:var(--text)"><%= stats.total %></div>
-        </div>
-      </div>
-      <div style="flex:1;font-size:12px">
-        <%
-          const total = stats.total || 0;
-          const onTrack    = projects.filter(p => (p.progress_percent||0) >= 80 || p.status==='completed').length;
-          const speeding   = projects.filter(p => (p.progress_percent||0) > 100).length;
-          const attention  = projects.filter(p => { const prog=p.progress_percent||0; return prog>=50&&prog<80&&p.status==='active'; }).length;
-          const risk       = projects.filter(p => { const prog=p.progress_percent||0; return prog>=20&&prog<50&&p.status==='active'; }).length;
-          const delayed    = projects.filter(p => p.status==='active' && p.end_date && new Date(p.end_date)<new Date() && (p.progress_percent||0)<100).length;
-          const kpiList = [
-            {label:'Bình thường', count:onTrack,   color:'#16A34A'},
-            {label:'Tăng tốc',    count:speeding,  color:'#3B82F6'},
-            {label:'Lưu ý',       count:attention, color:'#F59E0B'},
-            {label:'Rủi ro',      count:risk,      color:'#F97316'},
-            {label:'Chậm trễ',    count:delayed,   color:'#DC2626'},
-          ];
-          kpiList.forEach(k => {
-            const pct = total > 0 ? Math.round(k.count/total*100) : 0;
-        %>
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-          <span style="width:10px;height:10px;border-radius:2px;background:<%= k.color %>;flex-shrink:0"></span>
-          <span style="flex:1;color:var(--text-2)"><%= k.label %></span>
-          <span style="font-weight:600;min-width:20px;text-align:right"><%= k.count %></span>
-          <span style="color:var(--text-3);min-width:40px;text-align:right">(<%= pct %>%)</span>
-        </div>
-        <% }) %>
-      </div>
-    </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--info-bg);color:var(--info)"><i class="fas fa-drafting-compass"></i></div>
+    <div class="stat-value"><%= stats.planning %></div>
+    <div class="stat-label">Chuẩn bị</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--warning-bg);color:var(--warning)"><i class="fas fa-pause-circle"></i></div>
+    <div class="stat-value"><%= stats.on_hold %></div>
+    <div class="stat-label">Tạm dừng</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--success-bg);color:var(--success)"><i class="fas fa-check-circle"></i></div>
+    <div class="stat-value"><%= stats.completed %></div>
+    <div class="stat-label">Hoàn thành</div>
   </div>
 </div>
 
-<!-- Project List -->
+<form method="GET" action="/projects" class="filter-bar">
+  <input type="text" name="search" class="form-control" placeholder="Tìm theo tên, mã, khách hàng..."
+         value="<%= filters.search || '' %>" style="max-width:260px">
+  <select name="status" class="form-control" style="max-width:160px">
+    <option value="">Mọi trạng thái</option>
+    <% Object.entries(PROJECT_STATUS_LABELS).forEach(([v, l]) => { %>
+    <option value="<%= v %>" <%= filters.status === v ? 'selected' : '' %>><%= l %></option>
+    <% }) %>
+  </select>
+  <select name="priority" class="form-control" style="max-width:150px">
+    <option value="">Mọi ưu tiên</option>
+    <% Object.entries(PRIORITY_LABELS).forEach(([v, l]) => { %>
+    <option value="<%= v %>" <%= filters.priority === v ? 'selected' : '' %>><%= l %></option>
+    <% }) %>
+  </select>
+  <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Lọc</button>
+</form>
+
 <% if (projects.length === 0) { %>
-<div class="card">
-  <div class="empty-state">
-    <div class="empty-state-icon"><i class="fas fa-folder-open"></i></div>
-    <h3>Không có dự án nào</h3>
-    <p>Thử thay đổi bộ lọc hoặc tạo dự án mới</p>
-  </div>
-</div>
-<% } else { %>
-<div style="display:flex;flex-direction:column;gap:10px">
-<% projects.forEach(p => {
-  const taskPct    = p.task_count > 0 ? Math.round(p.done_count/p.task_count*100) : 0;
-  const planPct    = p.progress_percent || 0;
-  const isOverdue  = p.end_date && new Date(p.end_date) < new Date() && p.status==='active';
-  const kpiGap     = taskPct - planPct;
-  const kpiColor   = kpiGap >= 0 ? '#16A34A' : kpiGap >= -20 ? '#F59E0B' : '#DC2626';
-  const kpiLabel   = kpiGap >= 0 ? 'Đúng tiến độ' : kpiGap >= -20 ? 'Cần chú ý' : 'Tiến độ quá chậm, cần kiểm tra';
-  const statusColors = {planning:'#3B82F6',active:'#16A34A',on_hold:'#F59E0B',completed:'#0284C7',cancelled:'#DC2626'};
-  const statusLabels = {planning:'Kế hoạch',active:'Đang thực hiện',on_hold:'Tạm dừng',completed:'Hoàn thành',cancelled:'Đã hủy'};
-  const statusColor = statusColors[p.status] || '#999';
-%>
-<div class="card" style="padding:0;overflow:hidden;border-left:3px solid <%= statusColor %>;cursor:pointer"
-     onclick="if(!event.target.closest('a,button,select,input')) window.location='/projects/<%= p.id %>'">
-  <!-- Card Header Row -->
-  <div style="padding:12px 16px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-    <div style="flex:1;min-width:0">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
-        <a href="/projects/<%= p.id %>" style="font-size:14px;font-weight:700;color:var(--text);text-decoration:none;hover:text-decoration:underline"><%= p.name %></a>
-        <span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:<%= statusColor %>22;color:<%= statusColor %>"><%= statusLabels[p.status]||p.status %></span>
-        <% if (isOverdue) { %><span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:#FFEBEE;color:#DC2626"><i class="fas fa-exclamation-circle" style="margin-right:3px"></i>Chậm trễ</span><% } %>
-      </div>
-      <div style="font-size:11px;color:var(--text-3);display:flex;gap:14px;flex-wrap:wrap">
-        <span>Mã DA: <strong><%= p.code %></strong></span>
-        <% if (p.start_date) { %><span>Ngày tạo: <%= new Date(p.start_date).toLocaleDateString('vi-VN') %></span><% } %>
-        <span>Người tạo: <strong><%= p.manager_name||'—' %></strong></span>
-        <% if (p.client_name) { %><span>Khách hàng: <strong><%= p.client_name %></strong></span><% } %>
-      </div>
-      <% if (isOverdue) { %>
-      <div style="margin-top:6px">
-        <span style="font-size:11px;font-weight:600;color:#DC2626;background:#FFEBEE;padding:3px 8px;border-radius:4px">
-          <i class="fas fa-clock"></i> Tình trạng: Chậm trễ
-        </span>
-      </div>
-      <% } %>
-    </div>
-  </div>
-
-  <!-- Card Body -->
-  <div style="padding:10px 16px 12px;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center">
-    <!-- Donut chart: tasks -->
-    <div style="position:relative;width:76px;height:76px;flex-shrink:0">
-      <canvas class="taskChart" data-done="<%= p.done_count %>" data-total="<%= p.task_count %>" width="76" height="76"></canvas>
-      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;line-height:1.2">
-        <div style="font-size:16px;font-weight:800;color:var(--text)"><%= p.task_count %></div>
-        <div style="font-size:9px;color:var(--text-3)">Công việc</div>
-      </div>
-    </div>
-
-    <!-- Progress bars -->
-    <div style="min-width:0">
-      <div style="margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:3px">
-          <span>Tiến độ kế hoạch</span><span style="font-weight:600;color:var(--text)"><%= planPct %>%</span>
-        </div>
-        <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:<%= planPct %>%;background:var(--primary);border-radius:4px;transition:width .3s"></div>
-        </div>
-      </div>
-      <div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:3px">
-          <span>Tiến độ thực tế</span><span style="font-weight:600;color:var(--text)"><%= taskPct %>%</span>
-        </div>
-        <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:<%= taskPct %>%;background:<%= kpiColor %>;border-radius:4px;transition:width .3s"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- KPI block -->
-    <div style="min-width:180px;padding:8px 12px;background:#F8FAFC;border-radius:8px;border:1px solid var(--border)">
-      <div style="font-size:10px;font-weight:700;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">KPI tiến độ</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <span style="font-size:15px;font-weight:800;color:<%= kpiColor %>"><%= kpiGap >= 0 ? '+' : '' %><%= kpiGap %>%</span>
-        <div style="flex:1;height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:<%= Math.min(Math.abs(kpiGap),100) %>%;background:<%= kpiColor %>;border-radius:3px"></div>
-        </div>
-      </div>
-      <div style="font-size:10px;color:<%= kpiColor %>;font-style:italic"><%= kpiLabel %></div>
-    </div>
-  </div>
-
-  <!-- Card Footer -->
-  <div style="padding:8px 16px;background:#F8FAFC;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-    <div style="display:flex;align-items:center;gap:14px;font-size:12px;color:var(--text-3)">
-      <span><i class="fas fa-users" style="margin-right:4px"></i><strong style="color:var(--text)"><%= p.member_count %>+</strong> Thành viên</span>
-      <span><i class="fas fa-tasks" style="margin-right:4px"></i><strong style="color:var(--text)"><%= p.task_count %></strong> Công việc</span>
-      <% if (p.budget) { %>
-      <span><i class="fas fa-wallet" style="margin-right:4px"></i>NS: <strong style="color:var(--primary)"><%= Number(p.budget).toLocaleString('vi-VN') %> đ</strong></span>
-      <% } %>
-      <% if (p.start_date && p.end_date) { %>
-      <span style="display:flex;align-items:center;gap:6px">
-        <span style="padding:2px 7px;border-radius:4px;background:#E3F2FD;color:#1565C0;font-size:11px"><%= new Date(p.start_date).toLocaleDateString('vi-VN') %></span>
-        <i class="fas fa-arrow-right" style="font-size:9px;color:#999"></i>
-        <span style="padding:2px 7px;border-radius:4px;background:<%= isOverdue?'#FFEBEE':'#E3F2FD' %>;color:<%= isOverdue?'#C62828':'#1565C0' %>;font-size:11px"><%= new Date(p.end_date).toLocaleDateString('vi-VN') %></span>
-      </span>
-      <% } %>
-    </div>
-    <div style="display:flex;gap:6px">
-      <a href="/projects/<%= p.id %>" class="btn btn-sm btn-outline" style="font-size:11px;height:28px">Chi tiết</a>
-      <a href="/projects/<%= p.id %>/kanban" class="btn btn-sm btn-primary" style="font-size:11px;height:28px">Kanban</a>
-      <a href="/projects/<%= p.id %>/gantt" class="btn btn-sm btn-outline" style="font-size:11px;height:28px">Gantt</a>
-    </div>
-  </div>
-</div>
-<% }) %>
-</div>
+<div class="card"><div class="card-body" style="text-align:center;padding:48px;color:var(--text-3)">
+  <i class="fas fa-folder-open" style="font-size:36px;margin-bottom:12px;display:block"></i>
+  Chưa có dự án nào<% if (['edit','full'].includes(permLevel)) { %> — <a href="/projects/create">tạo dự án đầu tiên</a><% } %>
+</div></div>
 <% } %>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  // Status donut chart
-  const statusData = <%- JSON.stringify(projectsByStatus||[]) %>;
-  const colorMap = {planning:'#3B82F6',active:'#16A34A',on_hold:'#F59E0B',completed:'#0284C7',cancelled:'#DC2626'};
-  const sd = statusData.map(d => d.count);
-  const sc = statusData.map(d => colorMap[d.status]||'#999');
-  if (document.getElementById('chartStatus')) {
-    new Chart(document.getElementById('chartStatus'), {
-      type:'doughnut',
-      data:{ datasets:[{data: sd.length?sd:[1], backgroundColor: sd.length?sc:['#E5E7EB'], borderWidth:0}] },
-      options:{ cutout:'72%', plugins:{legend:{display:false},tooltip:{enabled:!!sd.length}}, responsive:false }
-    });
-  }
-  if (document.getElementById('chartKpi')) {
-    const kc = [<%= projects.filter(p=>(p.progress_percent||0)>=80||p.status==='completed').length %>,
-                <%= projects.filter(p=>(p.progress_percent||0)>100).length %>,
-                <%= projects.filter(p=>{const pg=p.progress_percent||0;return pg>=50&&pg<80&&p.status==='active';}).length %>,
-                <%= projects.filter(p=>{const pg=p.progress_percent||0;return pg>=20&&pg<50&&p.status==='active';}).length %>,
-                <%= projects.filter(p=>p.status==='active'&&p.end_date&&new Date(p.end_date)<new Date()&&(p.progress_percent||0)<100).length %>];
-    const kcc = ['#16A34A','#3B82F6','#F59E0B','#F97316','#DC2626'];
-    new Chart(document.getElementById('chartKpi'), {
-      type:'doughnut',
-      data:{ datasets:[{data: kc.some(v=>v>0)?kc:[1], backgroundColor: kc.some(v=>v>0)?kcc:['#E5E7EB'], borderWidth:0}] },
-      options:{ cutout:'72%', plugins:{legend:{display:false},tooltip:{enabled:kc.some(v=>v>0)}}, responsive:false }
-    });
-  }
+<div class="project-grid">
+  <% projects.forEach(p => { %>
+  <a href="/projects/<%= p.id %>" class="project-card card">
+    <div class="pc-top">
+      <span class="project-code"><%= p.code %></span>
+      <span class="badge badge-<%= p.status %>"><%= PROJECT_STATUS_LABELS[p.status] %></span>
+    </div>
+    <h3 class="pc-name"><%= p.name %></h3>
+    <% if (p.client_name) { %><div class="project-client"><i class="fas fa-building"></i> <%= p.client_name %></div><% } %>
+    <div class="pc-progress">
+      <div class="progress-track"><div class="progress-fill" style="width:<%= p.progress_percent || 0 %>%"></div></div>
+      <span class="pc-progress-num"><%= p.progress_percent || 0 %>%</span>
+    </div>
+    <div class="pc-meta">
+      <span title="Công việc"><i class="fas fa-list-check"></i> <%= p.done_count %>/<%= p.task_count %></span>
+      <span title="Thành viên"><i class="fas fa-users"></i> <%= p.member_count %></span>
+      <% if (p.end_date) { %><span title="Hạn chót"><i class="fas fa-calendar"></i> <%= fmtDate(p.end_date) %></span><% } %>
+    </div>
+    <% if (p.manager_name) { %><div class="pc-manager">PM: <%= p.manager_name %></div><% } %>
+  </a>
+  <% }) %>
+</div>
 
-  // Per-project task donuts
-  document.querySelectorAll('.taskChart').forEach(canvas => {
-    const done  = parseInt(canvas.dataset.done)||0;
-    const total = parseInt(canvas.dataset.total)||0;
-    const rem   = Math.max(total - done, 0);
-    new Chart(canvas, {
-      type:'doughnut',
-      data:{ datasets:[{
-        data: total>0 ? [done, rem] : [1],
-        backgroundColor: total>0 ? ['#16A34A','#E5E7EB'] : ['#E5E7EB'],
-        borderWidth:0
-      }]},
-      options:{ cutout:'70%', plugins:{legend:{display:false},tooltip:{enabled:total>0}}, responsive:false }
-    });
-  });
-});
-</script>
+<!-- Modal tạo task nhanh (chọn dự án) -->
+<% if (projects.length > 0) { %>
+<dialog id="createTaskModal" class="modal">
+  <form action="/tasks" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="redirect_to" value="/projects">
+    <h3>Thêm task mới</h3>
+    <div class="form-group">
+      <label>Dự án *</label>
+      <select name="project_id" class="form-control" required>
+        <% projects.filter(p => !['completed','cancelled'].includes(p.status)).forEach(p => { %>
+        <option value="<%= p.id %>"><%= p.code %> — <%= p.name %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Tiêu đề *</label>
+      <input type="text" name="title" class="form-control" required maxlength="300">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Giao cho</label>
+        <select name="assignee_id" class="form-control">
+          <option value="">— Chưa giao —</option>
+          <% users.forEach(u => { %><option value="<%= u.id %>"><%= u.full_name %></option><% }) %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Ưu tiên</label>
+        <select name="priority" class="form-control">
+          <% Object.entries(PRIORITY_LABELS).forEach(([v, l]) => { %>
+          <option value="<%= v %>" <%= v === 'medium' ? 'selected' : '' %>><%= l %></option>
+          <% }) %>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Hạn hoàn thành</label>
+      <input type="date" name="due_date" class="form-control">
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="this.closest('dialog').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo task</button>
+    </div>
+  </form>
+</dialog>
+<% } %>
+
+<style>
+.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.modal { border: none; border-radius: var(--radius-lg); padding: 0; width: 100%; max-width: 520px; box-shadow: var(--shadow-lg); }
+.modal::backdrop { background: rgba(13,27,62,.5); }
+.modal-form { padding: 26px; }
+.modal-form h3 { margin-bottom: 20px; font-size: 17px; color: var(--text); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.project-card { display: block; padding: 18px; text-decoration: none; transition: var(--transition); }
+.project-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: var(--primary); }
+.pc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.pc-name { font-size: 15.5px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.pc-progress { display: flex; align-items: center; gap: 10px; margin: 12px 0 10px; }
+.progress-track { flex: 1; height: 6px; background: var(--border-light); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--primary); border-radius: 4px; }
+.pc-progress-num { font-size: 12px; font-weight: 600; color: var(--text-2); min-width: 34px; text-align: right; }
+.pc-meta { display: flex; gap: 16px; font-size: 12.5px; color: var(--text-3); }
+.pc-meta i { margin-right: 4px; }
+.pc-manager { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light); font-size: 12px; color: var(--text-2); }
+</style>

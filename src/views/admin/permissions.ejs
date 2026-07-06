@@ -1,0 +1,53 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Phân quyền hệ thống</h1>
+    <p>Ma trận quyền theo vai trò × module. Vai trò Quản trị viên luôn có toàn quyền.</p>
+  </div>
+</div>
+
+<form action="/admin/permissions" method="POST">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="card">
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <table class="table perm-table">
+        <thead>
+          <tr>
+            <th style="min-width:190px">Vai trò</th>
+            <% modules.forEach(m => { %><th><%= m.label %></th><% }) %>
+          </tr>
+        </thead>
+        <tbody>
+          <% roles.forEach(r => { %>
+          <tr>
+            <td><strong><%= r.label %></strong><br><small style="color:var(--text-3)"><%= r.group %></small></td>
+            <% modules.forEach(m => { const current = (matrix[r.value] && matrix[r.value][m.key]) || 'none'; %>
+            <td>
+              <select name="perm[<%= r.value %>][<%= m.key %>]" class="form-control perm-select perm-<%= current %>"
+                      onchange="this.className='form-control perm-select perm-'+this.value">
+                <option value="none"  <%= current === 'none'  ? 'selected' : '' %>>Không</option>
+                <option value="view"  <%= current === 'view'  ? 'selected' : '' %>>Xem</option>
+                <option value="edit"  <%= current === 'edit'  ? 'selected' : '' %>>Sửa</option>
+                <option value="full"  <%= current === 'full'  ? 'selected' : '' %>>Toàn quyền</option>
+              </select>
+            </td>
+            <% }) %>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div style="margin-top:16px;display:flex;justify-content:flex-end">
+    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu phân quyền</button>
+  </div>
+</form>
+
+<style>
+.perm-table th, .perm-table td { text-align: center; }
+.perm-table td:first-child, .perm-table th:first-child { text-align: left; }
+.perm-select { min-width: 110px; font-size: 13px; padding: 6px 8px; }
+.perm-none { color: var(--text-3); }
+.perm-view { color: var(--info); font-weight: 600; }
+.perm-edit { color: var(--warning); font-weight: 600; }
+.perm-full { color: var(--success); font-weight: 600; }
+</style>

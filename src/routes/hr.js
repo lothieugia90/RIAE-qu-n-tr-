@@ -1,33 +1,35 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const ctrl = require('../controllers/hrController');
-const { requireAuth, requireRole } = require('../middleware/auth');
-const { avatarUpload, documentUpload } = require('../config/upload');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 router.use(requireAuth);
 
-router.get('/', ctrl.index);
-router.get('/create', requireRole('admin', 'director', 'head_hr'), ctrl.getCreate);
-router.post('/create', requireRole('admin', 'director', 'head_hr'), avatarUpload.single('avatar'), ctrl.postCreate);
-router.post('/', requireRole('admin', 'director', 'head_hr'), avatarUpload.single('avatar'), ctrl.postCreate);
+const docsDir = path.join(__dirname, '../../public/uploads/documents');
+if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
+const docUpload = multer({
+  storage: multer.diskStorage({
+    destination: docsDir,
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + Math.round(Math.random() * 1e6) + path.extname(file.originalname).toLowerCase())
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = ['.jpg', '.jpeg', '.png', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx'].includes(path.extname(file.originalname).toLowerCase());
+    cb(ok ? null : new Error('Định dạng file không hỗ trợ'), ok);
+  }
+});
 
-router.get('/:id', ctrl.detail);
-router.get('/:id/edit', requireRole('admin', 'director', 'head_hr'), ctrl.getEdit);
-router.post('/:id/edit', requireRole('admin', 'director', 'head_hr'), avatarUpload.single('avatar'), ctrl.postEdit);
-router.put('/:id', requireRole('admin', 'director', 'head_hr'), avatarUpload.single('avatar'), ctrl.postEdit);
-
-router.post('/:id/toggle-active', requireRole('admin', 'director', 'head_hr'), ctrl.toggleActive);
-router.post('/:id/quick-role', requireRole('admin', 'head_hr'), ctrl.quickRole);
-router.get('/:id/history-json', ctrl.historyJson);
-
-// Document upload
-router.post('/:id/documents', documentUpload.single('file'), ctrl.uploadDocument);
-router.post('/:id/documents/:docId/delete', requireRole('admin', 'director', 'head_hr'), ctrl.deleteDocument);
-
-// Leave requests
-router.post('/:id/leave', ctrl.createLeaveRequest);
-router.post('/:id/leave-request', ctrl.createLeaveRequest);
-router.post('/:id/leaves/:leaveId/approve', requireRole('admin', 'director', 'head_hr'), ctrl.approveLeave);
-router.post('/:id/reset-password', requireRole('admin', 'director', 'head_hr'), ctrl.resetPassword);
+router.get('/', requirePermission('hr', 'view'), ctrl.index);
+router.get('/create', requirePermission('hr', 'edit'), ctrl.getCreate);
+router.post('/create', requirePermission('hr', 'edit'), ctrl.postCreate);
+router.get('/:id', requirePermission('hr', 'view'), ctrl.detail);
+router.get('/:id/edit', requirePermission('hr', 'edit'), ctrl.getEdit);
+router.post('/:id', requirePermission('hr', 'edit'), ctrl.postEdit);
+router.post('/:id/toggle-active', requirePermission('hr', 'full'), ctrl.toggleActive);
+router.post('/:id/documents', requirePermission('hr', 'edit'), docUpload.single('file'), ctrl.uploadDocument);
+router.post('/:id/documents/:docId/delete', requirePermission('hr', 'edit'), ctrl.deleteDocument);
 
 module.exports = router;

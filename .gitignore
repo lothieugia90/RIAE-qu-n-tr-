@@ -1,13 +1,10 @@
 node_modules/
 .env
-.env.local
-*.log
-npm-debug.log*
-.DS_Store
-Thumbs.db
-public/uploads/*
-!public/uploads/.gitkeep
 logs/*.log
-!logs/.gitkeep
-dist/
-coverage/
+public/uploads/
+!public/uploads/.gitkeep
+*.dump
+backups/
+
+# Local tooling
+.claude/

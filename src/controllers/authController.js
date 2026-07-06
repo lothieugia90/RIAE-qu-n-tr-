@@ -1,9 +1,14 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { query } = require('../config/database');
+const { logActivity } = require('../utils/activityLog');
+
+const MAX_FAILED_LOGINS = 5;
+const LOCK_MINUTES = 15;
 
 const getLogin = (req, res) => {
   if (req.session && req.session.userId) return res.redirect('/dashboard');
-  res.render('auth/login', { layout: false, title: 'Đăng nhập - RIAE' });
+  res.render('auth/login', { layout: false, title: 'Đăng nhập', csrfToken: res.locals.csrfToken });
 };
 
 const postLogin = async (req, res) => {
@@ -15,26 +20,54 @@ const postLogin = async (req, res) => {
   try {
     const result = await query(
       'SELECT * FROM users WHERE (username = $1 OR email = $1) AND is_active = true',
-      [username.trim()]
+      [username.trim().toLowerCase()]
     );
     if (!result.rows.length) {
       req.flash('error', 'Tên đăng nhập hoặc mật khẩu không đúng');
       return res.redirect('/auth/login');
     }
     const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) {
-      req.flash('error', 'Tên đăng nhập hoặc mật khẩu không đúng');
+
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      const minutes = Math.ceil((new Date(user.locked_until) - Date.now()) / 60000);
+      req.flash('error', `Tài khoản tạm khóa do nhập sai nhiều lần. Thử lại sau ${minutes} phút.`);
       return res.redirect('/auth/login');
     }
+
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) {
+      const failed = (user.failed_login_count || 0) + 1;
+      const lock = failed >= MAX_FAILED_LOGINS
+        ? `NOW() + INTERVAL '${LOCK_MINUTES} minutes'` : 'NULL';
+      await query(
+        `UPDATE users SET failed_login_count=$1, locked_until=${lock} WHERE id=$2`,
+        [failed >= MAX_FAILED_LOGINS ? 0 : failed, user.id]
+      );
+      if (failed >= MAX_FAILED_LOGINS) {
+        logActivity(user.id, 'LOGIN_LOCKED', `Khóa tài khoản ${LOCK_MINUTES} phút do nhập sai ${MAX_FAILED_LOGINS} lần`, { ip: req.ip });
+        req.flash('error', `Nhập sai quá ${MAX_FAILED_LOGINS} lần, tài khoản tạm khóa ${LOCK_MINUTES} phút.`);
+      } else {
+        req.flash('error', 'Tên đăng nhập hoặc mật khẩu không đúng');
+      }
+      return res.redirect('/auth/login');
+    }
+
+    // Chống session fixation: cấp session mới sau khi xác thực thành công
+    await new Promise((resolve, reject) =>
+      req.session.regenerate(err => (err ? reject(err) : resolve()))
+    );
     req.session.userId = user.id;
     req.session.userRole = user.role;
     req.session.userName = user.full_name;
-    await query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
-    await query(
-      'INSERT INTO activity_logs (user_id, action, description, ip_address) VALUES ($1,$2,$3,$4)',
-      [user.id, 'LOGIN', 'Đăng nhập hệ thống', req.ip]
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+    // Ghi session xuống store TRƯỚC khi redirect — nếu không, GET /dashboard
+    // của trình duyệt có thể đến trước khi session kịp lưu (race condition)
+    await new Promise((resolve, reject) =>
+      req.session.save(err => (err ? reject(err) : resolve()))
     );
+
+    await query('UPDATE users SET last_login=NOW(), failed_login_count=0, locked_until=NULL WHERE id=$1', [user.id]);
+    logActivity(user.id, 'LOGIN', 'Đăng nhập hệ thống', { ip: req.ip });
     res.redirect('/dashboard');
   } catch (err) {
     console.error('Login error:', err);
@@ -45,30 +78,17 @@ const postLogin = async (req, res) => {
 
 const logout = (req, res) => {
   const userId = req.session.userId;
-  req.session.destroy(async (err) => {
+  req.session.destroy(err => {
     if (err) console.error(err);
-    if (userId) {
-      try {
-        await query(
-          'INSERT INTO activity_logs (user_id, action, description) VALUES ($1,$2,$3)',
-          [userId, 'LOGOUT', 'Đăng xuất hệ thống']
-        );
-      } catch (e) {}
-    }
+    if (userId) logActivity(userId, 'LOGOUT', 'Đăng xuất hệ thống');
     res.redirect('/auth/login');
   });
 };
 
 const getProfile = async (req, res) => {
   try {
-    const result = await query(
-      `SELECT u.*, e.employee_code, e.date_of_birth, e.hire_date,
-              e.contract_type, e.address, e.bank_account, e.bank_name
-       FROM users u LEFT JOIN employees e ON e.user_id = u.id
-       WHERE u.id = $1`,
-      [req.session.userId]
-    );
-    res.render('auth/profile', { title: 'Hồ sơ cá nhân', employee: result.rows[0] });
+    const result = await query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
+    res.render('auth/profile', { title: 'Hồ sơ cá nhân', profile: result.rows[0] });
   } catch (err) {
     console.error(err);
     res.redirect('/dashboard');
@@ -76,10 +96,14 @@ const getProfile = async (req, res) => {
 };
 
 const updateProfile = async (req, res) => {
-  const { full_name, phone, department, position } = req.body;
+  const { full_name, phone } = req.body;
+  if (!full_name || !full_name.trim()) {
+    req.flash('error', 'Họ tên không được để trống');
+    return res.redirect('/auth/profile');
+  }
   try {
-    let sql = 'UPDATE users SET full_name=$1, phone=$2, department=$3, position=$4, updated_at=NOW()';
-    const params = [full_name, phone, department, position];
+    const params = [full_name.trim(), phone || null];
+    let sql = 'UPDATE users SET full_name=$1, phone=$2, updated_at=NOW()';
     if (req.file) {
       params.push('/uploads/avatars/' + req.file.filename);
       sql += `, avatar_url=$${params.length}`;
@@ -87,9 +111,10 @@ const updateProfile = async (req, res) => {
     params.push(req.session.userId);
     sql += ` WHERE id=$${params.length}`;
     await query(sql, params);
-    req.session.userName = full_name;
+    req.session.userName = full_name.trim();
     req.flash('success', 'Cập nhật hồ sơ thành công');
   } catch (err) {
+    console.error('updateProfile error:', err.message);
     req.flash('error', 'Lỗi cập nhật hồ sơ');
   }
   res.redirect('/auth/profile');
@@ -101,8 +126,8 @@ const changePassword = async (req, res) => {
     req.flash('error', 'Mật khẩu xác nhận không khớp');
     return res.redirect('/auth/profile');
   }
-  if (new_password.length < 6) {
-    req.flash('error', 'Mật khẩu mới phải có ít nhất 6 ký tự');
+  if (!new_password || new_password.length < 8) {
+    req.flash('error', 'Mật khẩu mới phải có ít nhất 8 ký tự');
     return res.redirect('/auth/profile');
   }
   try {
@@ -114,8 +139,10 @@ const changePassword = async (req, res) => {
     }
     const hash = await bcrypt.hash(new_password, 12);
     await query('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [hash, req.session.userId]);
+    logActivity(req.session.userId, 'PASSWORD_CHANGE', 'Đổi mật khẩu', { ip: req.ip });
     req.flash('success', 'Đổi mật khẩu thành công');
   } catch (err) {
+    console.error('changePassword error:', err.message);
     req.flash('error', 'Lỗi đổi mật khẩu');
   }
   res.redirect('/auth/profile');

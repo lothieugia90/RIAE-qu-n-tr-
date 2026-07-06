@@ -1,6 +1,8 @@
-const { query, pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
-const audit = require('../utils/audit');
+const { query, pool } = require('../config/database');
+const { getPermLevel } = require('../middleware/auth');
+const { ROLES, ROLE_VALUES, ROLE_LABELS } = require('../config/roles');
+const { logActivity } = require('../utils/activityLog');
 
 const index = async (req, res) => {
   try {
@@ -19,233 +21,208 @@ const index = async (req, res) => {
       query(`SELECT role, COUNT(*)::int as count FROM users WHERE is_active=true GROUP BY role ORDER BY count DESC`)
     ]);
 
+    const permLevel = await getPermLevel(req.session.userRole, 'hr');
     res.render('hr/index', {
       title: 'Quản lý Nhân sự',
       users: users.rows,
-      departments: depts.rows,
+      departments: depts.rows.map(r => r.department),
       roleStats: roleStats.rows,
-      filters: req.query
+      roleLabels: ROLE_LABELS,
+      roles: ROLES,
+      filters: req.query,
+      permLevel
     });
-  } catch (err) { console.error(err); res.redirect('/dashboard'); }
+  } catch (err) {
+    console.error('hr index:', err);
+    req.flash('error', 'Lỗi tải danh sách nhân sự');
+    res.redirect('/dashboard');
+  }
 };
 
 const getCreate = async (req, res) => {
-  const [depts, positions] = await Promise.all([
-    query('SELECT * FROM departments WHERE is_active=true ORDER BY sort_order, name'),
-    query('SELECT * FROM positions WHERE is_active=true ORDER BY sort_order, name'),
-  ]);
-  res.render('hr/form', { title: 'Thêm Nhân viên mới', employee: null, user: null, departments: depts.rows, positions: positions.rows });
+  res.render('hr/form', { title: 'Thêm Nhân viên mới', employee: null, roles: ROLES });
 };
 
 const postCreate = async (req, res) => {
   const { username, email, password, full_name, role, phone, department, position,
-          employee_code, date_of_birth, hire_date, contract_type, salary } = req.body;
+          employee_code, date_of_birth, hire_date, contract_type, salary,
+          address, bank_account, bank_name, emergency_contact_name, emergency_contact_phone } = req.body;
+  if (!username || !email || !full_name || !ROLE_VALUES.includes(role)) {
+    req.flash('error', 'Vui lòng nhập đủ thông tin bắt buộc và vai trò hợp lệ');
+    return res.redirect('/hr/create');
+  }
+  const pwd = password && password.length >= 8 ? password : null;
+  if (password && !pwd) {
+    req.flash('error', 'Mật khẩu phải có ít nhất 8 ký tự');
+    return res.redirect('/hr/create');
+  }
+  const finalPwd = pwd || ('Riae@' + Math.random().toString(36).slice(2, 8));
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const hash = await bcrypt.hash(password || 'Riae@2024', 12);
+    const hash = await bcrypt.hash(finalPwd, 12);
     const userResult = await client.query(
-      'INSERT INTO users (username,email,password_hash,full_name,role,phone,department,position) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
-      [username, email, hash, full_name, role || 'engineer', phone, department, position]
+      `INSERT INTO users (username,email,password_hash,full_name,role,phone,department,position)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+      [username.trim().toLowerCase(), email.trim().toLowerCase(), hash, full_name.trim(),
+       role, phone || null, department || null, position || null]
     );
     const uid = userResult.rows[0].id;
-    if (req.file) {
-      await client.query('UPDATE users SET avatar_url=$1 WHERE id=$2', ['/uploads/avatars/' + req.file.filename, uid]);
-    }
-    if (employee_code) {
-      await client.query(
-        'INSERT INTO employees (user_id,employee_code,date_of_birth,hire_date,contract_type,salary) VALUES ($1,$2,$3,$4,$5,$6)',
-        [uid, employee_code, date_of_birth || null, hire_date || new Date(), contract_type || null, salary || null]
-      );
-    }
+    await client.query(
+      `INSERT INTO employees (user_id,employee_code,date_of_birth,hire_date,contract_type,salary,
+        address,bank_account,bank_name,emergency_contact_name,emergency_contact_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [uid, employee_code || null, date_of_birth || null, hire_date || new Date(),
+       contract_type || null, salary || null, address || null, bank_account || null,
+       bank_name || null, emergency_contact_name || null, emergency_contact_phone || null]
+    );
     await client.query('COMMIT');
-    req.flash('success', `Đã thêm nhân viên ${full_name}. Mật khẩu: ${password || 'Riae@2024'}`);
+    logActivity(req.session.userId, 'HR_CREATE', `Thêm nhân viên ${full_name} (${ROLE_LABELS[role]})`,
+      { entityType: 'user', entityId: uid, ip: req.ip });
+    req.flash('success', `Đã thêm nhân viên ${full_name}. Mật khẩu tạm: ${finalPwd} — yêu cầu đổi sau lần đăng nhập đầu.`);
     res.redirect('/hr/' + uid);
   } catch (err) {
     await client.query('ROLLBACK');
-    req.flash('error', err.code === '23505' ? 'Username hoặc email đã tồn tại' : 'Lỗi: ' + err.message);
+    req.flash('error', err.code === '23505' ? 'Username, email hoặc mã NV đã tồn tại' : 'Lỗi thêm nhân viên');
     res.redirect('/hr/create');
   } finally { client.release(); }
 };
 
 const detail = async (req, res) => {
   try {
-    const [user, projects, taskStats, leaves, documents] = await Promise.all([
+    const [user, projects, taskStats, documents, recentRequests, attendanceSummary] = await Promise.all([
       query(`SELECT u.*, e.employee_code, e.date_of_birth, e.hire_date, e.contract_type,
-                    e.salary, e.address, e.id as employee_id, e.bank_account, e.bank_name,
+                    e.salary, e.address, e.bank_account, e.bank_name,
                     e.emergency_contact_name, e.emergency_contact_phone
              FROM users u LEFT JOIN employees e ON e.user_id=u.id WHERE u.id=$1`, [req.params.id]),
-      query(`SELECT p.name, p.code, p.status, pm.role as project_role, p.id
+      query(`SELECT p.id, p.name, p.code, p.status, pm.role as project_role
              FROM project_members pm JOIN projects p ON p.id=pm.project_id
-             WHERE pm.user_id=$1 ORDER BY p.created_at DESC`, [req.params.id]),
+             WHERE pm.user_id=$1 ORDER BY p.created_at DESC LIMIT 10`, [req.params.id]),
       query(`SELECT COUNT(*)::int as total,
              COUNT(*) FILTER (WHERE status='done')::int as done,
              COUNT(*) FILTER (WHERE status='in_progress')::int as in_progress
              FROM tasks WHERE assignee_id=$1`, [req.params.id]),
-      query(`SELECT lr.*, u.full_name as approver_name
-             FROM leave_requests lr
-             JOIN employees e ON e.id=lr.employee_id
-             LEFT JOIN users u ON u.id=lr.approved_by
-             WHERE e.user_id=$1 ORDER BY lr.created_at DESC LIMIT 20`, [req.params.id])
-      ,query('SELECT * FROM employee_documents WHERE user_id=$1 ORDER BY created_at DESC', [req.params.id])
+      query('SELECT * FROM employee_documents WHERE user_id=$1 ORDER BY created_at DESC', [req.params.id]),
+      query(`SELECT r.id, r.title, r.status, r.created_at, rf.name as form_name
+             FROM requests r JOIN request_forms rf ON rf.id=r.form_id
+             WHERE r.submitted_by=$1 ORDER BY r.created_at DESC LIMIT 10`, [req.params.id]),
+      query(`SELECT COUNT(*) FILTER (WHERE status='present')::int as present,
+             COUNT(*) FILTER (WHERE status IN ('annual_leave','sick_leave','unpaid_leave'))::int as leave,
+             COUNT(*) FILTER (WHERE status='late')::int as late
+             FROM attendance_records
+             WHERE user_id=$1 AND EXTRACT(MONTH FROM work_date)=EXTRACT(MONTH FROM CURRENT_DATE)
+               AND EXTRACT(YEAR FROM work_date)=EXTRACT(YEAR FROM CURRENT_DATE)`, [req.params.id])
     ]);
-    if (!user.rows.length) { req.flash('error', 'Không tìm thấy nhân viên'); return res.redirect('/hr'); }
+    if (!user.rows.length) {
+      req.flash('error', 'Không tìm thấy nhân viên');
+      return res.redirect('/hr');
+    }
+    const permLevel = await getPermLevel(req.session.userRole, 'hr');
     res.render('hr/detail', {
       title: user.rows[0].full_name,
       employee: user.rows[0],
       projects: projects.rows,
       taskStats: taskStats.rows[0],
-      leaves: leaves.rows,
-      documents: documents.rows
+      documents: documents.rows,
+      recentRequests: recentRequests.rows,
+      attendanceSummary: attendanceSummary.rows[0],
+      roleLabels: ROLE_LABELS,
+      permLevel
     });
-  } catch (err) { console.error(err); res.redirect('/hr'); }
+  } catch (err) {
+    console.error('hr detail:', err);
+    res.redirect('/hr');
+  }
 };
 
 const getEdit = async (req, res) => {
-  const [userRes, depts, positions] = await Promise.all([
-    query('SELECT u.*, e.* FROM users u LEFT JOIN employees e ON e.user_id=u.id WHERE u.id=$1', [req.params.id]),
-    query('SELECT * FROM departments WHERE is_active=true ORDER BY sort_order, name'),
-    query('SELECT * FROM positions WHERE is_active=true ORDER BY sort_order, name'),
-  ]);
-  if (!userRes.rows.length) return res.redirect('/hr');
-  res.render('hr/form', { title: 'Chỉnh sửa Nhân viên', employee: userRes.rows[0], user: userRes.rows[0], departments: depts.rows, positions: positions.rows });
+  try {
+    const r = await query(
+      `SELECT u.*, e.employee_code, e.date_of_birth, e.hire_date, e.contract_type, e.salary,
+              e.address, e.bank_account, e.bank_name, e.emergency_contact_name, e.emergency_contact_phone
+       FROM users u LEFT JOIN employees e ON e.user_id=u.id WHERE u.id=$1`, [req.params.id]);
+    if (!r.rows.length) return res.redirect('/hr');
+    res.render('hr/form', { title: 'Chỉnh sửa Nhân viên', employee: r.rows[0], roles: ROLES });
+  } catch (err) { console.error(err); res.redirect('/hr'); }
 };
 
 const postEdit = async (req, res) => {
-  const { full_name, role, phone, department, position,
+  const { full_name, role, phone, department, position, employee_code,
           date_of_birth, hire_date, contract_type, salary, address,
-          emergency_contact_name, emergency_contact_phone } = req.body;
+          bank_account, bank_name, emergency_contact_name, emergency_contact_phone } = req.body;
+  if (!ROLE_VALUES.includes(role)) {
+    req.flash('error', 'Vai trò không hợp lệ');
+    return res.redirect('/hr/' + req.params.id + '/edit');
+  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await client.query(
-      'UPDATE users SET full_name=$1,role=$2,phone=$3,department=$4,position=$5,updated_at=NOW() WHERE id=$6',
-      [full_name, role, phone, department, position, req.params.id]
+      `UPDATE users SET full_name=$1,role=$2,phone=$3,department=$4,position=$5,updated_at=NOW() WHERE id=$6`,
+      [full_name.trim(), role, phone || null, department || null, position || null, req.params.id]
     );
-    const emp = await client.query('SELECT id FROM employees WHERE user_id=$1', [req.params.id]);
-    if (emp.rows.length) {
-      await client.query(
-        `UPDATE employees SET date_of_birth=$1,hire_date=$2,contract_type=$3,salary=$4,
-         address=$5,emergency_contact_name=$6,emergency_contact_phone=$7,updated_at=NOW()
-         WHERE user_id=$8`,
-        [date_of_birth || null, hire_date || null, contract_type, salary || null,
-         address, emergency_contact_name, emergency_contact_phone, req.params.id]
-      );
-    }
-    if (req.file) {
-      await client.query('UPDATE users SET avatar_url=$1 WHERE id=$2', ['/uploads/avatars/' + req.file.filename, req.params.id]);
-    }
+    await client.query(
+      `INSERT INTO employees (user_id,employee_code,date_of_birth,hire_date,contract_type,salary,
+        address,bank_account,bank_name,emergency_contact_name,emergency_contact_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (user_id) DO UPDATE SET
+         employee_code=EXCLUDED.employee_code, date_of_birth=EXCLUDED.date_of_birth,
+         hire_date=EXCLUDED.hire_date, contract_type=EXCLUDED.contract_type, salary=EXCLUDED.salary,
+         address=EXCLUDED.address, bank_account=EXCLUDED.bank_account, bank_name=EXCLUDED.bank_name,
+         emergency_contact_name=EXCLUDED.emergency_contact_name,
+         emergency_contact_phone=EXCLUDED.emergency_contact_phone, updated_at=NOW()`,
+      [req.params.id, employee_code || null, date_of_birth || null, hire_date || null,
+       contract_type || null, salary || null, address || null, bank_account || null,
+       bank_name || null, emergency_contact_name || null, emergency_contact_phone || null]
+    );
     await client.query('COMMIT');
-    req.flash('success', 'Cập nhật thông tin nhân viên thành công');
+    logActivity(req.session.userId, 'HR_UPDATE', `Cập nhật hồ sơ ${full_name}`,
+      { entityType: 'user', entityId: req.params.id, ip: req.ip });
+    req.flash('success', 'Cập nhật hồ sơ nhân viên thành công');
     res.redirect('/hr/' + req.params.id);
   } catch (err) {
     await client.query('ROLLBACK');
-    req.flash('error', 'Lỗi cập nhật: ' + err.message);
+    req.flash('error', err.code === '23505' ? 'Mã nhân viên đã tồn tại' : 'Lỗi cập nhật hồ sơ');
     res.redirect('/hr/' + req.params.id + '/edit');
   } finally { client.release(); }
 };
 
 const toggleActive = async (req, res) => {
-  const current = await query('SELECT is_active, full_name FROM users WHERE id=$1', [req.params.id]);
-  if (!current.rows.length) {
-    if (req.xhr || req.headers.accept?.includes('json')) return res.json({ error: 'Not found' });
-    return res.redirect('/hr');
-  }
-  const wasActive = current.rows[0].is_active;
-  await query('UPDATE users SET is_active = NOT is_active, updated_at=NOW() WHERE id=$1', [req.params.id]);
-  const action = wasActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản';
-  audit.log(req.session.userId, wasActive ? 'DEACTIVATE' : 'ACTIVATE', 'user', req.params.id,
-    `${action}: ${current.rows[0].full_name}`, { is_active: wasActive }, { is_active: !wasActive }, req.ip);
-  if (req.xhr || req.headers.accept?.includes('json')) {
-    return res.json({ success: true, is_active: !wasActive });
-  }
-  req.flash('success', `${action} thành công: ${current.rows[0].full_name}`);
-  res.redirect('/hr/' + req.params.id);
-};
-
-const quickRole = async (req, res) => {
-  const { role } = req.body;
-  const validRoles = ['admin', 'director', 'pm', 'engineer', 'warehouse', 'guest'];
-  if (!validRoles.includes(role)) return res.json({ error: 'Vai trò không hợp lệ' });
-  const old = await query('SELECT role, full_name FROM users WHERE id=$1', [req.params.id]);
-  if (!old.rows.length) return res.json({ error: 'Không tìm thấy người dùng' });
-  await query('UPDATE users SET role=$1, updated_at=NOW() WHERE id=$2', [role, req.params.id]);
-  audit.log(req.session.userId, 'ROLE_CHANGE', 'user', req.params.id,
-    `Đổi vai trò ${old.rows[0].full_name}: ${old.rows[0].role} → ${role}`,
-    { role: old.rows[0].role }, { role }, req.ip);
-  res.json({ success: true, role });
-};
-
-const historyJson = async (req, res) => {
   try {
-    const [user, projects, tasks, audit_rows] = await Promise.all([
-      query('SELECT id, full_name, role, department, position, last_seen_at FROM users WHERE id=$1', [req.params.id]),
-      query(`SELECT p.id, p.name, p.code, p.status, pm.role as project_role, p.start_date, p.end_date
-             FROM project_members pm JOIN projects p ON p.id=pm.project_id
-             WHERE pm.user_id=$1 ORDER BY p.updated_at DESC LIMIT 10`, [req.params.id]),
-      query(`SELECT COUNT(*)::int as total,
-             COUNT(*) FILTER (WHERE status='done')::int as done,
-             COUNT(*) FILTER (WHERE status='in_progress')::int as in_progress
-             FROM tasks WHERE assignee_id=$1`, [req.params.id]),
-      query(`SELECT action, description, created_at FROM audit_logs
-             WHERE user_id=$1 ORDER BY created_at DESC LIMIT 5`, [req.params.id])
-    ]);
-    if (!user.rows.length) return res.json({ error: 'Not found' });
-    res.json({
-      user: user.rows[0],
-      projects: projects.rows,
-      taskStats: tasks.rows[0],
-      recentActions: audit_rows.rows
-    });
-  } catch (err) {
-    res.json({ error: err.message });
-  }
-};
-
-const createLeaveRequest = async (req, res) => {
-  const { leave_type, start_date, end_date, reason } = req.body;
-  try {
-    const emp = await query('SELECT id FROM employees WHERE user_id=$1', [req.params.id]);
-    if (!emp.rows.length) {
-      req.flash('error', 'Không tìm thấy hồ sơ nhân viên');
-      return res.redirect('back');
+    if (req.params.id === req.session.userId) {
+      req.flash('error', 'Không thể tự khóa tài khoản của chính mình');
+      return res.redirect('/hr/' + req.params.id);
     }
-    const days = Math.max(1, Math.ceil((new Date(end_date) - new Date(start_date)) / (1000 * 60 * 60 * 24)) + 1);
-    await query(
-      'INSERT INTO leave_requests (employee_id,leave_type,start_date,end_date,days_count,reason) VALUES ($1,$2,$3,$4,$5,$6)',
-      [emp.rows[0].id, leave_type, start_date, end_date, days, reason]
-    );
-    req.flash('success', `Đã gửi đơn xin nghỉ ${days} ngày`);
-  } catch (err) { req.flash('error', 'Lỗi gửi đơn: ' + err.message); }
+    const r = await query(
+      `UPDATE users SET is_active = NOT is_active, updated_at=NOW() WHERE id=$1
+       RETURNING full_name, is_active`, [req.params.id]);
+    if (r.rows.length) {
+      const u = r.rows[0];
+      logActivity(req.session.userId, u.is_active ? 'HR_ACTIVATE' : 'HR_DEACTIVATE',
+        `${u.is_active ? 'Mở khóa' : 'Khóa'} tài khoản: ${u.full_name}`,
+        { entityType: 'user', entityId: req.params.id, ip: req.ip });
+      req.flash('success', `Đã ${u.is_active ? 'mở khóa' : 'khóa'} tài khoản ${u.full_name}`);
+    }
+  } catch (err) { req.flash('error', 'Lỗi cập nhật trạng thái'); }
   res.redirect('/hr/' + req.params.id);
-};
-
-const approveLeave = async (req, res) => {
-  const { status } = req.body;
-  await query(
-    'UPDATE leave_requests SET status=$1, approved_by=$2, approved_at=NOW() WHERE id=$3',
-    [status, req.session.userId, req.params.leaveId]
-  );
-  req.flash('success', status === 'approved' ? 'Đã duyệt đơn nghỉ phép' : 'Đã từ chối đơn nghỉ phép');
-  res.redirect('back');
 };
 
 const uploadDocument = async (req, res) => {
   const { doc_type, name, issued_date, expiry_date, notes } = req.body;
+  if (!req.file) {
+    req.flash('error', 'Vui lòng chọn file');
+    return res.redirect('/hr/' + req.params.id);
+  }
   try {
-    if (!req.file) {
-      req.flash('error', 'Vui lòng chọn file');
-      return res.redirect('/hr/' + req.params.id);
-    }
-    const fileUrl = '/uploads/documents/' + req.file.filename;
     await query(
-      'INSERT INTO employee_documents (user_id, doc_type, name, file_url, file_name, issued_date, expiry_date, notes, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-      [req.params.id, doc_type || 'other', name, fileUrl, req.file.originalname, issued_date || null, expiry_date || null, notes, req.session.userId]
+      `INSERT INTO employee_documents (user_id, doc_type, name, file_url, file_name, issued_date, expiry_date, notes, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [req.params.id, doc_type || 'other', name || req.file.originalname,
+       '/uploads/documents/' + req.file.filename, req.file.originalname,
+       issued_date || null, expiry_date || null, notes || null, req.session.userId]
     );
     req.flash('success', 'Đã tải lên tài liệu');
-  } catch (err) {
-    req.flash('error', 'Lỗi: ' + err.message);
-  }
+  } catch (err) { req.flash('error', 'Lỗi tải tài liệu'); }
   res.redirect('/hr/' + req.params.id);
 };
 
@@ -253,22 +230,8 @@ const deleteDocument = async (req, res) => {
   try {
     await query('DELETE FROM employee_documents WHERE id=$1 AND user_id=$2', [req.params.docId, req.params.id]);
     req.flash('success', 'Đã xóa tài liệu');
-  } catch (err) {
-    req.flash('error', 'Lỗi: ' + err.message);
-  }
+  } catch (err) { req.flash('error', 'Lỗi xóa tài liệu'); }
   res.redirect('/hr/' + req.params.id);
 };
 
-const resetPassword = async (req, res) => {
-  const newPassword = req.body.new_password || 'Riae@2024';
-  try {
-    const hash = await bcrypt.hash(newPassword, 12);
-    await query('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [hash, req.params.id]);
-    req.flash('success', `Đã đặt lại mật khẩu thành: ${newPassword}`);
-  } catch (err) {
-    req.flash('error', 'Lỗi: ' + err.message);
-  }
-  res.redirect('/hr/' + req.params.id);
-};
-
-module.exports = { index, getCreate, postCreate, detail, getEdit, postEdit, toggleActive, quickRole, historyJson, createLeaveRequest, approveLeave, uploadDocument, deleteDocument, resetPassword };
+module.exports = { index, getCreate, postCreate, detail, getEdit, postEdit, toggleActive, uploadDocument, deleteDocument };
