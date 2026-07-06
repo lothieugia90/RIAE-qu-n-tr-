@@ -1,0 +1,127 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1><%= quote ? 'Sửa báo giá ' + quote.code : 'Tạo báo giá mới' %></h1>
+    <p>Nhập thông tin chung và các hạng mục</p>
+  </div>
+</div>
+
+<form action="/quotes" method="POST">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <% if (quote) { %><input type="hidden" name="id" value="<%= quote.id %>"><% } %>
+
+  <div class="card">
+    <div class="card-header"><h3>Thông tin chung</h3></div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group"><label>Mã báo giá *</label>
+          <input type="text" name="code" class="form-control" required style="text-transform:uppercase"
+                 value="<%= quote ? quote.code : 'BG-' + new Date().getFullYear() + '-' %>"></div>
+        <div class="form-group"><label>Trạng thái</label>
+          <select name="status" class="form-control">
+            <% [['draft','Nháp'],['sent','Đã gửi'],['approved','Chốt'],['rejected','Từ chối']].forEach(([v,l]) => { %>
+            <option value="<%= v %>" <%= quote && quote.status === v ? 'selected' : '' %>><%= l %></option>
+            <% }) %>
+          </select></div>
+      </div>
+      <div class="form-group"><label>Tiêu đề *</label>
+        <input type="text" name="title" class="form-control" required value="<%= quote ? quote.title : '' %>"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Khách hàng</label>
+          <input type="text" name="client_name" class="form-control" value="<%= quote ? (quote.client_name || '') : '' %>"></div>
+        <div class="form-group"><label>Liên hệ</label>
+          <input type="text" name="client_contact" class="form-control" value="<%= quote ? (quote.client_contact || '') : '' %>"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Dự án liên quan</label>
+          <select name="project_id" class="form-control">
+            <option value="">— Không —</option>
+            <% projects.forEach(p => { %>
+            <option value="<%= p.id %>" <%= quote && quote.project_id === p.id ? 'selected' : '' %>><%= p.code %> — <%= p.name %></option>
+            <% }) %>
+          </select></div>
+        <div class="form-group"><label>Hiệu lực đến</label>
+          <input type="date" name="valid_until" class="form-control"
+                 value="<%= quote && quote.valid_until ? new Date(quote.valid_until).toISOString().split('T')[0] : '' %>"></div>
+      </div>
+      <div class="form-group"><label>Ghi chú</label>
+        <textarea name="notes" class="form-control" rows="2"><%= quote ? (quote.notes || '') : '' %></textarea></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+      <h3>Hạng mục báo giá</h3>
+      <button type="button" class="btn btn-sm btn-outline" onclick="addItemRow()"><i class="fas fa-plus"></i> Thêm dòng</button>
+    </div>
+    <div class="card-body" style="overflow-x:auto">
+      <table class="q-items-table" id="qItemsTable">
+        <thead>
+          <tr><th style="width:30px">#</th><th>Mô tả *</th><th style="width:80px">ĐVT</th><th style="width:90px">SL</th><th style="width:130px">Đơn giá</th><th style="width:80px">CK %</th><th style="width:130px">Thành tiền</th><th style="width:36px"></th></tr>
+        </thead>
+        <tbody id="qItemsBody"></tbody>
+        <tfoot>
+          <tr><td colspan="6" style="text-align:right;font-weight:700;padding:12px 8px">TỔNG CỘNG</td>
+              <td id="qTotal" style="font-weight:800;color:var(--primary);white-space:nowrap">0 ₫</td><td></td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+    <a href="<%= quote ? '/quotes/' + quote.id : '/quotes' %>" class="btn btn-outline">Hủy</a>
+    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu báo giá</button>
+  </div>
+</form>
+
+<script>
+const EXISTING = <%- JSON.stringify(items.map(i => ({ desc: i.description, unit: i.unit, qty: parseFloat(i.quantity), price: parseFloat(i.unit_price), disc: parseFloat(i.discount_percent) }))) %>;
+
+function rowHtml(it) {
+  it = it || { qty: 1, price: 0, disc: 0 };
+  return `<tr>
+    <td class="q-idx"></td>
+    <td><input type="text" name="item_desc" class="form-control" value="${(it.desc || '').replace(/"/g, '&quot;')}" required></td>
+    <td><input type="text" name="item_unit" class="form-control" value="${it.unit || ''}"></td>
+    <td><input type="number" name="item_qty" class="form-control q-num" value="${it.qty}" min="0" step="any" oninput="recalc()"></td>
+    <td><input type="number" name="item_price" class="form-control q-num" value="${it.price}" min="0" step="1000" oninput="recalc()"></td>
+    <td><input type="number" name="item_disc" class="form-control q-num" value="${it.disc}" min="0" max="100" step="any" oninput="recalc()"></td>
+    <td class="q-amount">0 ₫</td>
+    <td><button type="button" class="q-del" onclick="this.closest('tr').remove();recalc()"><i class="fas fa-times"></i></button></td>
+  </tr>`;
+}
+
+function addItemRow(it) {
+  document.getElementById('qItemsBody').insertAdjacentHTML('beforeend', rowHtml(it));
+  recalc();
+}
+
+function recalc() {
+  let total = 0;
+  document.querySelectorAll('#qItemsBody tr').forEach((tr, i) => {
+    tr.querySelector('.q-idx').textContent = i + 1;
+    const qty = parseFloat(tr.querySelector('[name=item_qty]').value) || 0;
+    const price = parseFloat(tr.querySelector('[name=item_price]').value) || 0;
+    const disc = parseFloat(tr.querySelector('[name=item_disc]').value) || 0;
+    const amount = qty * price * (1 - disc / 100);
+    tr.querySelector('.q-amount').textContent = amount.toLocaleString('vi-VN') + ' ₫';
+    total += amount;
+  });
+  document.getElementById('qTotal').textContent = total.toLocaleString('vi-VN') + ' ₫';
+}
+
+if (EXISTING.length) EXISTING.forEach(addItemRow);
+else addItemRow();
+</script>
+
+<style>
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+.q-items-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.q-items-table th { text-align: left; padding: 8px; font-size: 11px; text-transform: uppercase; color: var(--text-3); border-bottom: 1.5px solid var(--border); }
+.q-items-table td { padding: 6px 4px; border-bottom: 1px solid var(--border-light); vertical-align: middle; }
+.q-items-table .form-control { padding: 8px 10px; font-size: 13px; }
+.q-idx { text-align: center; color: var(--text-3); font-weight: 600; }
+.q-amount { white-space: nowrap; font-weight: 600; text-align: right; }
+.q-del { border: none; background: transparent; color: var(--text-3); cursor: pointer; width: 28px; height: 28px; border-radius: 6px; }
+.q-del:hover { background: var(--danger-bg); color: var(--danger); }
+</style>

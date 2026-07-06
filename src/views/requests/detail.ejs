@@ -1,0 +1,154 @@
+<% const m = categoryMeta[request.category] || categoryMeta.other;
+   const data = typeof request.data === 'object' ? request.data : JSON.parse(request.data || '{}');
+   const attachments = Array.isArray(request.attachment_urls) ? request.attachment_urls : JSON.parse(request.attachment_urls || '[]');
+   const PRIORITY_REQ = { low: 'Thấp', normal: 'Bình thường', high: 'Cao', urgent: 'Khẩn cấp' }; %>
+
+<div class="page-header">
+  <div class="page-header-title">
+    <h1><%= request.title %></h1>
+    <p>
+      <span class="badge" style="background:<%= m.bg %>;color:<%= m.color %>"><%= request.form_name %></span>
+      <% if (request.status === 'approved') { %><span class="badge badge-success">Đã duyệt</span>
+      <% } else if (request.status === 'rejected') { %><span class="badge badge-danger">Từ chối</span>
+      <% } else { %><span class="badge badge-warning">Chờ duyệt</span><% } %>
+      · Người gửi: <strong><%= request.submitter_name %></strong><% if (request.submitter_dept) { %> (<%= request.submitter_dept %>)<% } %>
+      · <%= fmtDateTime(request.created_at) %>
+    </p>
+  </div>
+  <% if (isAdmin && request.status === 'rejected') { %>
+  <form action="/requests/<%= request.id %>/reopen" method="POST" data-confirm="Mở lại yêu cầu này để duyệt lại từ đầu?">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" class="btn btn-outline"><i class="fas fa-redo"></i> Mở lại</button>
+  </form>
+  <% } %>
+</div>
+
+<div class="detail-grid">
+  <div class="detail-main">
+    <div class="card">
+      <div class="card-header"><h3>Nội dung yêu cầu</h3></div>
+      <div class="card-body">
+        <div class="req-data">
+          <div class="req-data-row"><label>Mức ưu tiên</label><span><%= PRIORITY_REQ[request.priority] || request.priority %></span></div>
+          <% Object.entries(data).forEach(([k, v]) => { if (v) { %>
+          <div class="req-data-row"><label><%= k %></label><span style="white-space:pre-line"><%= v %></span></div>
+          <% } }) %>
+        </div>
+        <% if (attachments.length > 0) { %>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-light)">
+          <label style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-3)">File đính kèm</label>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+            <% attachments.forEach(url => { %>
+            <a href="<%= url %>" target="_blank" style="font-size:13px"><i class="fas fa-paperclip"></i> <%= url.split('/').pop() %></a>
+            <% }) %>
+          </div>
+        </div>
+        <% } %>
+        <% if (request.rejection_reason) { %>
+        <div class="req-rejected-box">
+          <strong><i class="fas fa-times-circle"></i> Lý do từ chối:</strong> <%= request.rejection_reason %>
+        </div>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (canApprove) { %>
+    <div class="card" style="margin-top:20px;border-left:3px solid var(--primary)">
+      <div class="card-header"><h3><i class="fas fa-gavel"></i> Phê duyệt yêu cầu này</h3></div>
+      <div class="card-body">
+        <form action="/requests/<%= request.id %>/approve" method="POST" id="approveForm">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="action" id="approveAction" value="approve">
+          <div class="form-group">
+            <label>Ghi chú (tùy chọn)</label>
+            <input type="text" name="comment" class="form-control">
+          </div>
+          <div class="form-group" id="rejectReasonGroup" style="display:none">
+            <label>Lý do từ chối *</label>
+            <textarea name="rejection_reason" id="rejectReason" class="form-control" rows="2"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button type="button" class="btn btn-outline" style="color:var(--danger)" onclick="doReject()">
+              <i class="fas fa-times"></i> Từ chối
+            </button>
+            <button type="submit" class="btn btn-primary" onclick="document.getElementById('approveAction').value='approve'">
+              <i class="fas fa-check"></i> Phê duyệt
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script>
+    function doReject() {
+      const g = document.getElementById('rejectReasonGroup');
+      if (g.style.display === 'none') { g.style.display = 'block'; document.getElementById('rejectReason').focus(); return; }
+      if (!document.getElementById('rejectReason').value.trim()) { alert('Vui lòng nhập lý do từ chối'); return; }
+      document.getElementById('approveAction').value = 'reject';
+      document.getElementById('approveForm').submit();
+    }
+    </script>
+    <% } %>
+  </div>
+
+  <div class="detail-side">
+    <div class="card">
+      <div class="card-header"><h3>Luồng phê duyệt</h3></div>
+      <div class="card-body">
+        <% approvals.forEach((a, i) => { %>
+        <div class="appr-step <%= a.status %>">
+          <span class="appr-icon">
+            <% if (a.status === 'approved') { %><i class="fas fa-check"></i>
+            <% } else if (a.status === 'rejected') { %><i class="fas fa-times"></i>
+            <% } else { %><%= i + 1 %><% } %>
+          </span>
+          <div class="appr-info">
+            <strong><%= a.approver_name %></strong>
+            <small><%= a.step_name || 'Người duyệt' %></small>
+            <% if (a.signed_at) { %><small class="appr-time"><%= fmtDateTime(a.signed_at) %></small><% } %>
+            <% if (a.comment) { %><small class="appr-comment">"<%= a.comment %>"</small><% } %>
+            <% if (a.rejection_reason) { %><small class="appr-comment" style="color:var(--danger)">"<%= a.rejection_reason %>"</small><% } %>
+            <% if (a.status === 'approved' && a.signature_url) { %>
+            <img src="<%= a.signature_url %>" alt="Chữ ký <%= a.approver_name %>" class="appr-signature">
+            <% } %>
+          </div>
+          <span class="badge <%= a.status === 'approved' ? 'badge-success' : a.status === 'rejected' ? 'badge-danger' : 'badge-warning' %>">
+            <%= a.status === 'approved' ? 'Đồng ý' : a.status === 'rejected' ? 'Từ chối' : 'Chờ' %>
+          </span>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.detail-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .detail-grid { grid-template-columns: 1fr; } }
+.req-data-row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; padding: 9px 0; font-size: 13.5px; }
+.req-data-row + .req-data-row { border-top: 1px solid var(--border-light); }
+.req-data-row label { font-weight: 600; color: var(--text-2); font-size: 12.5px; }
+.req-data-row span { color: var(--text); }
+.req-rejected-box {
+  margin-top: 16px; padding: 12px 14px; background: var(--danger-bg); color: var(--danger);
+  border-radius: var(--radius-sm); font-size: 13px;
+}
+.appr-step { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; }
+.appr-step + .appr-step { border-top: 1px solid var(--border-light); }
+.appr-icon {
+  width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px; flex-shrink: 0;
+  background: var(--border-light); color: var(--text-3);
+}
+.appr-step.approved .appr-icon { background: var(--success-bg); color: var(--success); }
+.appr-step.rejected .appr-icon { background: var(--danger-bg); color: var(--danger); }
+.appr-step.pending .appr-icon { background: var(--warning-bg); color: var(--warning); }
+.appr-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.appr-info strong { font-size: 13px; color: var(--text); }
+.appr-info small { font-size: 11.5px; color: var(--text-3); }
+.appr-comment { font-style: italic; color: var(--text-2) !important; }
+.appr-time { font-size: 10.5px !important; }
+.appr-signature {
+  max-height: 44px; max-width: 150px; margin-top: 5px;
+  background: #fff; border: 1px solid var(--border-light); border-radius: 6px; padding: 2px 6px;
+}
+</style>

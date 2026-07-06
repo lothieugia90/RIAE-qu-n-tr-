@@ -20,9 +20,9 @@ Hệ thống quản lý nội bộ cho **Công ty TNHH Kỹ thuật Công nghệ
 
 - ✅ **GĐ A — Nền tảng**: Đăng nhập, RBAC (ma trận phân quyền), Quản lý người dùng, Nhật ký hệ thống, Dashboard
 - ✅ **GĐ B — Vận hành**: Dự án (Kanban kéo-thả), Task (comment, checklist, chấm giờ), Việc của tôi, Thông báo
-  - Chưa port từ v1 (đợt sau): workflow tùy biến nhiều bước, Gantt, file đính kèm task, tài liệu dự án
-- ⏳ **GĐ C — Admin & HR**: Chấm công, Nhân sự, Yêu cầu phê duyệt, Lương
-- ⏳ **GĐ D — Chuyên biệt**: Kho vật tư, Chữ ký số, Chat nội bộ, Báo giá, Đối tác
+- ✅ **GĐ C — Admin & HR**: Nhân sự (hồ sơ + tài liệu), Chấm công (lưới tháng), Phê duyệt (form động + duyệt nhiều bước)
+- ✅ **GĐ D — Chuyên biệt**: Kho vật tư (nhập/xuất, cảnh báo tồn), Đối tác, Báo giá (dòng hàng + tổng tự tính), Chat realtime (Socket.IO, xác thực session), Chữ ký nội bộ (vẽ tay, hiện trên phê duyệt)
+- ⏳ **Đợt sau**: Lương (C.2), workflow tùy biến nhiều bước, Gantt, file đính kèm task, xuất PDF báo giá
 
 ## Công nghệ
 

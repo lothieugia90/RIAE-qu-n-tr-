@@ -1,0 +1,180 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Kho vật tư</h1>
+    <p><%= stats.total %> vật tư · Tổng giá trị <%= Number(stats.total_value).toLocaleString('vi-VN') %> ₫</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <a href="/warehouse/transactions" class="btn btn-outline"><i class="fas fa-history"></i> Lịch sử N/X</a>
+    <% if (['edit','full'].includes(permLevel)) { %>
+    <button class="btn btn-outline" onclick="openTxModal()"><i class="fas fa-right-left"></i> Nhập / Xuất</button>
+    <button class="btn btn-primary" onclick="openItemModal(null)"><i class="fas fa-plus"></i> Thêm vật tư</button>
+    <% } %>
+  </div>
+</div>
+
+<% if (stats.low_stock > 0) { %>
+<div class="wh-warning">
+  <i class="fas fa-triangle-exclamation"></i>
+  <strong><%= stats.low_stock %> vật tư</strong> dưới mức tồn tối thiểu —
+  <a href="/warehouse?low=1">xem danh sách</a>
+</div>
+<% } %>
+
+<form method="GET" action="/warehouse" class="filter-bar">
+  <input type="text" name="search" class="form-control" placeholder="Tìm theo tên, mã vật tư..."
+         value="<%= filters.search || '' %>" style="max-width:250px">
+  <select name="category" class="form-control" style="max-width:180px">
+    <option value="">Mọi danh mục</option>
+    <% categories.forEach(c => { %>
+    <option value="<%= c.id %>" <%= filters.category === c.id ? 'selected' : '' %>><%= c.name %></option>
+    <% }) %>
+  </select>
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2)">
+    <input type="checkbox" name="low" value="1" <%= filters.low === '1' ? 'checked' : '' %> onchange="this.form.submit()"> Tồn thấp
+  </label>
+  <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Lọc</button>
+</form>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead>
+        <tr><th>Mã</th><th>Vật tư</th><th>Danh mục</th><th>Tồn kho</th><th>Tối thiểu</th><th>Đơn giá</th><th>Vị trí</th><% if (['edit','full'].includes(permLevel)) { %><th style="width:80px"></th><% } %></tr>
+      </thead>
+      <tbody>
+        <% if (items.length === 0) { %>
+        <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-3)">Chưa có vật tư nào</td></tr>
+        <% } %>
+        <% items.forEach(it => { const isLow = parseFloat(it.quantity) <= parseFloat(it.min_quantity); %>
+        <tr>
+          <td><span class="project-code"><%= it.code %></span></td>
+          <td><strong><%= it.name %></strong><% if (it.supplier) { %><br><small style="color:var(--text-3)">NCC: <%= it.supplier %></small><% } %></td>
+          <td><%= it.category_name || '—' %></td>
+          <td>
+            <strong style="color:<%= isLow ? 'var(--danger)' : 'var(--text)' %>"><%= parseFloat(it.quantity) %></strong> <%= it.unit %>
+            <% if (isLow) { %><i class="fas fa-triangle-exclamation" style="color:var(--danger)" title="Dưới mức tối thiểu"></i><% } %>
+          </td>
+          <td><%= parseFloat(it.min_quantity) || 0 %></td>
+          <td style="white-space:nowrap"><%= it.unit_price ? Number(it.unit_price).toLocaleString('vi-VN') + ' ₫' : '—' %></td>
+          <td><%= it.location || '—' %></td>
+          <% if (['edit','full'].includes(permLevel)) { %>
+          <td>
+            <button class="btn btn-sm btn-outline" title="Sửa" onclick='openItemModal(<%- JSON.stringify({id:it.id, code:it.code, name:it.name, description:it.description, category_id:it.category_id, unit:it.unit, min_quantity:it.min_quantity, unit_price:it.unit_price, location:it.location, supplier:it.supplier, notes:it.notes}) %>)'><i class="fas fa-pen"></i></button>
+            <button class="btn btn-sm btn-outline" title="Nhập/Xuất" onclick='openTxModal("<%= it.id %>")'><i class="fas fa-right-left"></i></button>
+          </td>
+          <% } %>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<% if (['edit','full'].includes(permLevel)) { %>
+<!-- Modal vật tư -->
+<dialog id="itemModal" class="modal" style="max-width:560px">
+  <form action="/warehouse/items" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="id" id="it_id">
+    <h3 id="itemModalTitle">Thêm vật tư</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Mã vật tư *</label><input type="text" name="code" id="it_code" class="form-control" required style="text-transform:uppercase"></div>
+      <div class="form-group"><label>Đơn vị tính *</label><input type="text" name="unit" id="it_unit" class="form-control" required placeholder="cái, mét, kg..."></div>
+    </div>
+    <div class="form-group"><label>Tên vật tư *</label><input type="text" name="name" id="it_name" class="form-control" required></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Danh mục</label>
+        <select name="category_id" id="it_category" class="form-control">
+          <option value="">— Chọn —</option>
+          <% categories.forEach(c => { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+        </select>
+      </div>
+      <div class="form-group"><label>Tồn tối thiểu</label><input type="number" name="min_quantity" id="it_min" class="form-control" min="0" step="any" value="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Đơn giá (VNĐ)</label><input type="number" name="unit_price" id="it_price" class="form-control" min="0" step="1000"></div>
+      <div class="form-group"><label>Vị trí trong kho</label><input type="text" name="location" id="it_location" class="form-control" placeholder="vd: Kệ A2"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Nhà cung cấp</label><input type="text" name="supplier" id="it_supplier" class="form-control"></div>
+      <div class="form-group"><label>Ghi chú</label><input type="text" name="notes" id="it_notes" class="form-control"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="this.closest('dialog').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal nhập/xuất -->
+<dialog id="txModal" class="modal" style="max-width:480px">
+  <form action="/warehouse/transactions" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3>Phiếu Nhập / Xuất kho</h3>
+    <div class="form-group">
+      <label>Vật tư *</label>
+      <select name="item_id" id="tx_item" class="form-control" required>
+        <option value="">— Chọn vật tư —</option>
+        <% items.forEach(it => { %>
+        <option value="<%= it.id %>"><%= it.code %> — <%= it.name %> (tồn: <%= parseFloat(it.quantity) %> <%= it.unit %>)</option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Loại phiếu *</label>
+        <select name="transaction_type" class="form-control" required>
+          <option value="import">Nhập kho</option>
+          <option value="export">Xuất kho</option>
+          <option value="adjust">Điều chỉnh tồn (đặt lại số)</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Số lượng *</label><input type="number" name="quantity" class="form-control" required min="0.001" step="any"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Đơn giá (VNĐ)</label><input type="number" name="unit_price" class="form-control" min="0" step="1000"></div>
+      <div class="form-group"><label>Số chứng từ</label><input type="text" name="reference_code" class="form-control" placeholder="vd: PNK-001"></div>
+    </div>
+    <div class="form-group"><label>Ghi chú</label><input type="text" name="notes" class="form-control"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="this.closest('dialog').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Xác nhận</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+function openItemModal(it) {
+  document.getElementById('itemModalTitle').textContent = it ? 'Sửa vật tư: ' + it.name : 'Thêm vật tư';
+  document.getElementById('it_id').value = it ? it.id : '';
+  ['code','name','unit','location','supplier','notes'].forEach(k => {
+    document.getElementById('it_' + k).value = it ? (it[k] || '') : '';
+  });
+  document.getElementById('it_category').value = it ? (it.category_id || '') : '';
+  document.getElementById('it_min').value = it ? (it.min_quantity || 0) : 0;
+  document.getElementById('it_price').value = it ? (it.unit_price || '') : '';
+  document.getElementById('itemModal').showModal();
+}
+function openTxModal(itemId) {
+  if (itemId) document.getElementById('tx_item').value = itemId;
+  document.getElementById('txModal').showModal();
+}
+</script>
+<% } %>
+
+<style>
+.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.wh-warning {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px;
+  background: var(--warning-bg); color: #92400E; border-radius: var(--radius-sm); font-size: 13.5px;
+}
+.wh-warning i { color: var(--warning); }
+.modal { border: none; border-radius: var(--radius-lg); padding: 0; width: 100%; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+.modal::backdrop { background: rgba(13,27,62,.5); }
+.modal-form { padding: 26px; }
+.modal-form h3 { margin-bottom: 20px; font-size: 17px; color: var(--text); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+</style>

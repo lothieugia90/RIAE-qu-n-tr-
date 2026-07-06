@@ -3,11 +3,18 @@ const { getPermLevel } = require('../middleware/auth');
 
 // Quick action chỉ hiện khi user có đủ quyền với module tương ứng
 const QUICK_ACTIONS = [
-  { module: 'projects',    min: 'view', href: '/projects',          icon: 'fa-folder-open', label: 'Dự án',              desc: 'Danh sách & Kanban' },
-  { module: 'tasks',       min: 'view', href: '/tasks/my-tasks',    icon: 'fa-list-check',  label: 'Việc của tôi',       desc: 'Task được giao cho bạn' },
-  { module: 'users',       min: 'view', href: '/admin/users',       icon: 'fa-users-cog',   label: 'Quản lý người dùng', desc: 'Tài khoản & vai trò' },
-  { module: 'permissions', min: 'view', href: '/admin/permissions', icon: 'fa-shield-alt',  label: 'Phân quyền',         desc: 'Ma trận quyền theo vai trò' },
-  { module: 'audit',       min: 'view', href: '/admin/audit',       icon: 'fa-history',     label: 'Nhật ký hệ thống',   desc: 'Lịch sử thao tác' },
+  { module: 'projects',    min: 'view', href: '/projects',          icon: 'fa-folder-open',    label: 'Dự án',              desc: 'Danh sách & Kanban' },
+  { module: 'tasks',       min: 'view', href: '/tasks/my-tasks',    icon: 'fa-list-check',     label: 'Việc của tôi',       desc: 'Task được giao cho bạn' },
+  { module: 'requests',    min: 'view', href: '/requests',          icon: 'fa-stamp',          label: 'Phê duyệt',          desc: 'Gửi & duyệt yêu cầu' },
+  { module: 'attendance',  min: 'view', href: '/attendance',        icon: 'fa-calendar-check', label: 'Chấm công',          desc: 'Bảng công theo tháng' },
+  { module: 'hr',          min: 'view', href: '/hr',                icon: 'fa-users',          label: 'Nhân sự',            desc: 'Hồ sơ nhân viên' },
+  { module: 'chat',        min: 'view', href: '/chat',              icon: 'fa-comments',       label: 'Chat nội bộ',        desc: 'Trao đổi realtime' },
+  { module: 'warehouse',   min: 'view', href: '/warehouse',         icon: 'fa-boxes',          label: 'Kho vật tư',         desc: 'Tồn kho & nhập xuất' },
+  { module: 'partners',    min: 'view', href: '/partners',          icon: 'fa-handshake',      label: 'Đối tác',            desc: 'NCC, nhà thầu, khách hàng' },
+  { module: 'quotes',      min: 'view', href: '/quotes',            icon: 'fa-file-invoice-dollar', label: 'Báo giá',       desc: 'Lập & theo dõi báo giá' },
+  { module: 'users',       min: 'view', href: '/admin/users',       icon: 'fa-users-cog',      label: 'Quản lý người dùng', desc: 'Tài khoản & vai trò' },
+  { module: 'permissions', min: 'view', href: '/admin/permissions', icon: 'fa-shield-alt',     label: 'Phân quyền',         desc: 'Ma trận quyền theo vai trò' },
+  { module: 'audit',       min: 'view', href: '/admin/audit',       icon: 'fa-history',        label: 'Nhật ký hệ thống',   desc: 'Lịch sử thao tác' },
 ];
 
 const index = async (req, res) => {

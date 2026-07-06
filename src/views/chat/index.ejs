@@ -1,0 +1,172 @@
+<div class="chat-layout">
+  <!-- Cột trái: danh sách phòng -->
+  <div class="chat-rooms card">
+    <div class="chat-rooms-head">
+      <strong>Phòng chat</strong>
+      <button class="btn btn-sm btn-primary" onclick="document.getElementById('newRoomModal').showModal()" title="Tạo phòng"><i class="fas fa-plus"></i></button>
+    </div>
+    <div class="chat-rooms-list">
+      <% rooms.forEach(r => { %>
+      <a href="/chat?room=<%= r.id %>" class="chat-room-item <%= activeRoom && activeRoom.id === r.id ? 'active' : '' %>">
+        <span class="cr-icon"><i class="fas <%= r.type === 'direct' ? 'fa-user' : 'fa-users' %>"></i></span>
+        <span class="cr-info">
+          <strong><%= r.name %></strong>
+          <small><%= r.last_message ? r.last_message.slice(0, 40) : 'Chưa có tin nhắn' %></small>
+        </span>
+        <% if (r.unread > 0 && (!activeRoom || activeRoom.id !== r.id)) { %>
+        <span class="nav-badge" style="position:static"><%= r.unread %></span>
+        <% } %>
+      </a>
+      <% }) %>
+    </div>
+    <div class="chat-direct">
+      <form action="/chat/direct" method="POST" style="display:flex;gap:6px">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <select name="user_id" class="form-control" required style="font-size:12.5px">
+          <option value="">Nhắn riêng với...</option>
+          <% allUsers.forEach(u => { %><option value="<%= u.id %>"><%= u.full_name %></option><% }) %>
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline"><i class="fas fa-paper-plane"></i></button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Cột phải: khung chat -->
+  <div class="chat-main card">
+    <% if (!activeRoom) { %>
+    <div class="chat-empty">
+      <i class="fas fa-comments"></i>
+      <p>Chọn một phòng chat để bắt đầu</p>
+    </div>
+    <% } else { %>
+    <div class="chat-head">
+      <strong><i class="fas <%= activeRoom.type === 'direct' ? 'fa-user' : 'fa-users' %>"></i> <%= activeRoom.name %></strong>
+      <small><%= members.length %> thành viên: <%= members.map(m => m.full_name).join(', ').slice(0, 80) %></small>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <% messages.forEach(m => { const mine = m.user_id === currentUser.id; %>
+      <div class="msg <%= mine ? 'mine' : '' %>">
+        <% if (!mine) { %>
+        <span class="msg-avatar"><% if (m.avatar_url) { %><img src="<%= m.avatar_url %>"><% } else { %><%= m.full_name.charAt(0).toUpperCase() %><% } %></span>
+        <% } %>
+        <div class="msg-bubble">
+          <% if (!mine) { %><small class="msg-author"><%= m.full_name %></small><% } %>
+          <p><%= m.content %></p>
+          <small class="msg-time"><%= new Date(m.created_at).toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'}) %></small>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <form class="chat-input" id="chatForm">
+      <input type="text" id="chatText" class="form-control" placeholder="Nhắn tin tới <%= activeRoom.name %>..." autocomplete="off" maxlength="4000">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i></button>
+    </form>
+    <% } %>
+  </div>
+</div>
+
+<!-- Modal tạo phòng -->
+<dialog id="newRoomModal" class="modal" style="max-width:440px">
+  <form action="/chat/rooms" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3>Tạo phòng chat</h3>
+    <div class="form-group">
+      <label>Tên phòng *</label>
+      <input type="text" name="name" class="form-control" required maxlength="100">
+    </div>
+    <div class="form-group">
+      <label>Thành viên</label>
+      <select name="member_ids" class="form-control" multiple size="6">
+        <% allUsers.forEach(u => { %><option value="<%= u.id %>"><%= u.full_name %></option><% }) %>
+      </select>
+      <small style="color:var(--text-3);font-size:11.5px">Giữ Ctrl để chọn nhiều người. Bạn luôn là thành viên.</small>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="this.closest('dialog').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo phòng</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function() {
+  const box = document.getElementById('chatMessages');
+  if (box) box.scrollTop = box.scrollHeight;
+
+  const socket = io();
+  const ROOM_ID = '<%= activeRoom ? activeRoom.id : '' %>';
+  const MY_ID = '<%= currentUser.id %>';
+
+  socket.on('message:new', (m) => {
+    if (m.room_id !== ROOM_ID || !box) return;
+    const mine = m.user_id === MY_ID;
+    const el = document.createElement('div');
+    el.className = 'msg' + (mine ? ' mine' : '');
+    el.innerHTML =
+      (mine ? '' : '<span class="msg-avatar">' + (m.avatar_url ? '<img src="' + m.avatar_url + '">' : (m.full_name || '?').charAt(0).toUpperCase()) + '</span>') +
+      '<div class="msg-bubble">' +
+      (mine ? '' : '<small class="msg-author"></small>') +
+      '<p></p><small class="msg-time">' +
+      new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) +
+      '</small></div>';
+    if (!mine) el.querySelector('.msg-author').textContent = m.full_name;
+    el.querySelector('p').textContent = m.content; // textContent chống XSS
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+    if (!mine) socket.emit('room:read', { roomId: ROOM_ID });
+  });
+
+  const form = document.getElementById('chatForm');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('chatText');
+      const content = input.value.trim();
+      if (!content) return;
+      socket.emit('message:send', { roomId: ROOM_ID, content });
+      input.value = '';
+      input.focus();
+    });
+  }
+})();
+</script>
+
+<style>
+.chat-layout { display: grid; grid-template-columns: 290px 1fr; gap: 16px; height: calc(100vh - var(--header-h) - 76px); }
+@media (max-width: 800px) { .chat-layout { grid-template-columns: 1fr; height: auto; } .chat-rooms { max-height: 260px; } }
+.chat-rooms { display: flex; flex-direction: column; overflow: hidden; }
+.chat-rooms-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.chat-rooms-list { flex: 1; overflow-y: auto; }
+.chat-room-item { display: flex; align-items: center; gap: 10px; padding: 11px 14px; text-decoration: none; transition: background .15s; }
+.chat-room-item:hover { background: var(--bg); }
+.chat-room-item.active { background: var(--primary-50); border-right: 3px solid var(--primary); }
+.cr-icon { width: 34px; height: 34px; border-radius: 50%; background: var(--primary-50); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.cr-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cr-info strong { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cr-info small { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-direct { padding: 10px 12px; border-top: 1px solid var(--border); }
+.chat-main { display: flex; flex-direction: column; overflow: hidden; }
+.chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-3); gap: 10px; padding: 60px; }
+.chat-empty i { font-size: 40px; }
+.chat-head { padding: 13px 18px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
+.chat-head strong { font-size: 14.5px; color: var(--text); }
+.chat-head small { font-size: 11.5px; color: var(--text-3); }
+.chat-messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
+.msg { display: flex; gap: 9px; max-width: 72%; }
+.msg.mine { align-self: flex-end; flex-direction: row-reverse; }
+.msg-avatar { width: 30px; height: 30px; border-radius: 50%; overflow: hidden; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.msg-bubble { background: var(--card); border-radius: 14px 14px 14px 4px; padding: 8px 13px; box-shadow: var(--shadow); }
+.msg.mine .msg-bubble { background: var(--primary); color: #fff; border-radius: 14px 14px 4px 14px; }
+.msg-author { font-size: 10.5px; color: var(--primary); font-weight: 700; display: block; margin-bottom: 2px; }
+.msg-bubble p { font-size: 13.5px; line-height: 1.45; word-break: break-word; white-space: pre-line; }
+.msg-time { font-size: 9.5px; color: var(--text-3); display: block; text-align: right; margin-top: 3px; }
+.msg.mine .msg-time { color: rgba(255,255,255,.7); }
+.chat-input { display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--border); }
+.modal { border: none; border-radius: var(--radius-lg); padding: 0; width: 100%; box-shadow: var(--shadow-lg); }
+.modal::backdrop { background: rgba(13,27,62,.5); }
+.modal-form { padding: 26px; }
+.modal-form h3 { margin-bottom: 20px; font-size: 17px; color: var(--text); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+</style>

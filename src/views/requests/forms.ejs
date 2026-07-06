@@ -1,0 +1,165 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Quản lý Quy trình duyệt</h1>
+    <p><%= forms.length %> quy trình · Định nghĩa form và các bước phê duyệt</p>
+  </div>
+  <button class="btn btn-primary" onclick="openFormModal(null)"><i class="fas fa-plus"></i> Tạo quy trình</button>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Quy trình</th><th>Phân loại</th><th>Số trường</th><th>Bước duyệt</th><th>Đã dùng</th><th>Trạng thái</th><th style="width:100px">Thao tác</th></tr></thead>
+      <tbody>
+        <% forms.forEach(f => {
+          const m = categoryMeta[f.category] || categoryMeta.other;
+          const fields = Array.isArray(f.fields) ? f.fields : JSON.parse(f.fields || '[]');
+          const steps = Array.isArray(f.approval_steps) ? f.approval_steps : JSON.parse(f.approval_steps || '[]');
+        %>
+        <tr>
+          <td><strong><%= f.name %></strong><% if (f.description) { %><br><small style="color:var(--text-3)"><%= f.description %></small><% } %></td>
+          <td><span class="badge" style="background:<%= m.bg %>;color:<%= m.color %>"><%= m.label %></span></td>
+          <td><%= fields.length %></td>
+          <td><%= f.category === 'finance' ? 'Tự động 3 bước' : (steps.length || 'Fallback BLĐ') %></td>
+          <td><%= f.request_count %></td>
+          <td>
+            <% if (f.is_active) { %><span class="badge badge-success">Đang dùng</span>
+            <% } else { %><span class="badge badge-danger">Đã ẩn</span><% } %>
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline" title="Sửa"
+              onclick='openFormModal(<%- JSON.stringify({ id: f.id, name: f.name, description: f.description, category: f.category, fields, steps }) %>)'>
+              <i class="fas fa-pen"></i>
+            </button>
+            <form action="/requests/forms/<%= f.id %>/toggle" method="POST" style="display:inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-sm btn-outline" title="<%= f.is_active ? 'Ẩn' : 'Hiện' %>">
+                <i class="fas fa-<%= f.is_active ? 'eye-slash' : 'eye' %>"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal tạo/sửa quy trình -->
+<dialog id="formModal" class="modal" style="max-width:640px">
+  <form id="formBuilderForm" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3 id="formModalTitle">Tạo quy trình mới</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tên quy trình *</label>
+        <input type="text" name="name" id="fb_name" class="form-control" required maxlength="200">
+      </div>
+      <div class="form-group">
+        <label>Phân loại</label>
+        <select name="category" id="fb_category" class="form-control">
+          <option value="admin">Hành chính</option>
+          <option value="finance">Tài chính (tự động 3 bước duyệt)</option>
+          <option value="project">Dự án</option>
+          <option value="other">Khác</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Mô tả</label>
+      <input type="text" name="description" id="fb_description" class="form-control">
+    </div>
+
+    <label class="fb-section">Các trường thông tin</label>
+    <div id="fieldRows"></div>
+    <button type="button" class="btn btn-sm btn-outline" onclick="addFieldRow()"><i class="fas fa-plus"></i> Thêm trường</button>
+
+    <label class="fb-section">Bước phê duyệt <small style="font-weight:400;color:var(--text-3)">(bỏ trống → tự chuyển Ban lãnh đạo; tài chính luôn tự động)</small></label>
+    <div id="stepRows"></div>
+    <button type="button" class="btn btn-sm btn-outline" onclick="addStepRow()"><i class="fas fa-plus"></i> Thêm bước</button>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="document.getElementById('formModal').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu quy trình</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const USERS = <%- JSON.stringify(users.map(u => ({ id: u.id, name: u.full_name }))) %>;
+
+function fieldRowHtml(f) {
+  f = f || {};
+  return `<div class="fb-row">
+    <input type="text" name="fields" class="form-control" placeholder="Nhãn trường (vd: Lý do)" value="${(f.label || '').replace(/"/g, '&quot;')}" required>
+    <select name="ftypes" class="form-control" onchange="this.closest('.fb-row').querySelector('.fb-opts').style.display = this.value === 'select' ? 'block' : 'none'">
+      ${['text|Chữ ngắn','textarea|Đoạn văn','number|Số','date|Ngày','select|Chọn 1'].map(o => {
+        const [v, l] = o.split('|');
+        return `<option value="${v}" ${f.type === v ? 'selected' : ''}>${l}</option>`;
+      }).join('')}
+    </select>
+    <select name="freqs" class="form-control">
+      <option value="true" ${f.required !== false ? 'selected' : ''}>Bắt buộc</option>
+      <option value="false" ${f.required === false ? 'selected' : ''}>Tùy chọn</option>
+    </select>
+    <button type="button" class="fb-del" onclick="this.closest('.fb-row').remove()"><i class="fas fa-times"></i></button>
+    <textarea name="foptions" class="form-control fb-opts" placeholder="Mỗi dòng 1 lựa chọn" rows="2"
+      style="display:${f.type === 'select' ? 'block' : 'none'};grid-column:1/-1">${(f.options || []).join('\n')}</textarea>
+  </div>`;
+}
+
+function stepRowHtml(s) {
+  s = s || {};
+  return `<div class="fb-row fb-step">
+    <input type="text" name="step_name" class="form-control" placeholder="Tên bước (vd: Trưởng bộ phận)" value="${(s.name || '').replace(/"/g, '&quot;')}">
+    <select name="step_approver" class="form-control">
+      <option value="">— Chọn người duyệt —</option>
+      ${USERS.map(u => `<option value="${u.id}" ${s.approver_id === u.id ? 'selected' : ''}>${u.name}</option>`).join('')}
+    </select>
+    <button type="button" class="fb-del" onclick="this.closest('.fb-row').remove()"><i class="fas fa-times"></i></button>
+  </div>`;
+}
+
+function addFieldRow(f) { document.getElementById('fieldRows').insertAdjacentHTML('beforeend', fieldRowHtml(f)); }
+function addStepRow(s) { document.getElementById('stepRows').insertAdjacentHTML('beforeend', stepRowHtml(s)); }
+
+function openFormModal(data) {
+  const form = document.getElementById('formBuilderForm');
+  document.getElementById('fieldRows').innerHTML = '';
+  document.getElementById('stepRows').innerHTML = '';
+  if (data) {
+    document.getElementById('formModalTitle').textContent = 'Sửa quy trình: ' + data.name;
+    form.action = '/requests/forms/' + data.id + '/edit';
+    document.getElementById('fb_name').value = data.name;
+    document.getElementById('fb_description').value = data.description || '';
+    document.getElementById('fb_category').value = data.category;
+    (data.fields || []).forEach(addFieldRow);
+    (data.steps || []).forEach(addStepRow);
+  } else {
+    document.getElementById('formModalTitle').textContent = 'Tạo quy trình mới';
+    form.action = '/requests/forms';
+    document.getElementById('fb_name').value = '';
+    document.getElementById('fb_description').value = '';
+    document.getElementById('fb_category').value = 'admin';
+    addFieldRow();
+  }
+  document.getElementById('formModal').showModal();
+}
+</script>
+
+<style>
+.modal { border: none; border-radius: var(--radius-lg); padding: 0; width: 100%; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+.modal::backdrop { background: rgba(13,27,62,.5); }
+.modal-form { padding: 26px; }
+.modal-form h3 { margin-bottom: 20px; font-size: 17px; color: var(--text); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.fb-section {
+  display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--primary); margin: 20px 0 10px; padding-top: 14px; border-top: 1.5px solid var(--border);
+}
+.fb-row { display: grid; grid-template-columns: 1fr 130px 110px 32px; gap: 8px; margin-bottom: 8px; align-items: start; }
+.fb-row.fb-step { grid-template-columns: 1fr 1fr 32px; }
+.fb-del { border: none; background: transparent; color: var(--text-3); cursor: pointer; height: 38px; border-radius: 6px; }
+.fb-del:hover { background: var(--danger-bg); color: var(--danger); }
+</style>

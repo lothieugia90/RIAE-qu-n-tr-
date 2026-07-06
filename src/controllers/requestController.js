@@ -201,7 +201,7 @@ const detail = async (req, res) => {
          JOIN users u ON u.id = r.submitted_by
          WHERE r.id = $1`, [req.params.id]),
       query(
-        `SELECT ra.*, u.full_name as approver_name, u.department as approver_dept
+        `SELECT ra.*, u.full_name as approver_name, u.department as approver_dept, u.signature_url
          FROM request_approvals ra JOIN users u ON u.id = ra.approver_id
          WHERE ra.request_id = $1 ORDER BY ra.step_order`, [req.params.id])
     ]);

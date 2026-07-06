@@ -1,0 +1,51 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Báo giá</h1>
+    <p><%= stats.total %> báo giá · <%= stats.approved %> đã chốt (<%= Number(stats.approved_value).toLocaleString('vi-VN') %> ₫)</p>
+  </div>
+  <% if (['edit','full'].includes(permLevel)) { %>
+  <a href="/quotes/create" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo báo giá</a>
+  <% } %>
+</div>
+
+<form method="GET" action="/quotes" class="filter-bar">
+  <input type="text" name="search" class="form-control" placeholder="Tìm mã, tiêu đề, khách hàng..."
+         value="<%= filters.search || '' %>" style="max-width:260px">
+  <select name="status" class="form-control" style="max-width:150px">
+    <option value="">Mọi trạng thái</option>
+    <% Object.entries(statusLabels).forEach(([v, l]) => { %>
+    <option value="<%= v %>" <%= filters.status === v ? 'selected' : '' %>><%= l %></option>
+    <% }) %>
+  </select>
+  <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Lọc</button>
+</form>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Mã</th><th>Tiêu đề</th><th>Khách hàng</th><th>Dự án</th><th>Tổng tiền</th><th>Hiệu lực đến</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (quotes.length === 0) { %>
+        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-3)">Chưa có báo giá nào</td></tr>
+        <% } %>
+        <% quotes.forEach(q => { %>
+        <tr>
+          <td><a href="/quotes/<%= q.id %>"><span class="project-code"><%= q.code %></span></a></td>
+          <td><a href="/quotes/<%= q.id %>" style="font-weight:500;color:var(--text)"><%= q.title %></a><br><small style="color:var(--text-3)"><%= q.item_count %> hạng mục</small></td>
+          <td><%= q.client_name || '—' %></td>
+          <td><%= q.project_name || '—' %></td>
+          <td style="white-space:nowrap"><strong><%= Number(q.total_amount).toLocaleString('vi-VN') %> ₫</strong></td>
+          <td style="white-space:nowrap"><%= fmtDate(q.valid_until) %></td>
+          <td>
+            <span class="badge <%= q.status === 'approved' ? 'badge-success' : q.status === 'rejected' ? 'badge-danger' : q.status === 'sent' ? 'badge-info' : 'badge-warning' %>"><%= statusLabels[q.status] %></span>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+</style>

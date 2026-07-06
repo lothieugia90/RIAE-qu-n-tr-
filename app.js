@@ -46,8 +46,8 @@ app.use(methodOverride((req) => {
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Session (PostgreSQL store)
-app.use(session({
+// Session (PostgreSQL store) — dùng chung cho HTTP và Socket.IO
+const sessionMiddleware = session({
   store: new PgSession({ pool, tableName: 'session' }),
   secret: process.env.SESSION_SECRET || 'dev-only-secret',
   resave: false,
@@ -58,7 +58,8 @@ app.use(session({
     httpOnly: true,
     sameSite: 'lax'
   }
-}));
+});
+app.use(sessionMiddleware);
 
 app.use(flash());
 app.use(csrfProtection);
@@ -96,11 +97,19 @@ app.use(async (req, res, next) => {
         `SELECT
            (SELECT COUNT(*)::int FROM notifications WHERE user_id=$1 AND is_read=false) AS notif,
            (SELECT COUNT(*)::int FROM tasks
-            WHERE assignee_id=$1 AND status!='done' AND due_date <= CURRENT_DATE) AS due_tasks`,
+            WHERE assignee_id=$1 AND status!='done' AND due_date <= CURRENT_DATE) AS due_tasks,
+           (SELECT COUNT(*)::int FROM request_approvals ra
+            JOIN requests rq ON rq.id=ra.request_id
+            WHERE ra.approver_id=$1 AND ra.status='pending' AND rq.status='pending') AS approvals,
+           (SELECT COUNT(*)::int FROM chat_messages cm
+            JOIN chat_room_members crm ON crm.room_id=cm.room_id AND crm.user_id=$1
+            WHERE cm.user_id != $1 AND cm.created_at > COALESCE(crm.last_read_at, '1970-01-01')) AS chats`,
         [req.session.userId]
       );
       res.locals.unreadNotifications = r.rows[0].notif || 0;
-      res.locals.myWorkCount = r.rows[0].due_tasks || 0;
+      res.locals.myWorkCount = (r.rows[0].due_tasks || 0) + (r.rows[0].approvals || 0);
+      res.locals.pendingApprovals = r.rows[0].approvals || 0;
+      res.locals.unreadChats = r.rows[0].chats || 0;
     } catch (e) { /* badge không được làm hỏng trang */ }
   }
   next();
@@ -112,6 +121,13 @@ app.use('/dashboard', require('./src/routes/dashboard'));
 app.use('/projects', require('./src/routes/projects'));
 app.use('/tasks', require('./src/routes/tasks'));
 app.use('/notifications', require('./src/routes/notifications'));
+app.use('/hr', require('./src/routes/hr'));
+app.use('/attendance', require('./src/routes/attendance'));
+app.use('/requests', require('./src/routes/requests'));
+app.use('/warehouse', require('./src/routes/warehouse'));
+app.use('/partners', require('./src/routes/partners'));
+app.use('/quotes', require('./src/routes/quotes'));
+app.use('/chat', require('./src/routes/chat'));
 app.use('/admin', require('./src/routes/admin'));
 
 app.get('/', (req, res) => {
@@ -133,8 +149,61 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ===== HTTP server + Socket.IO (chat realtime) =====
+const http = require('http');
+const { Server: SocketIO } = require('socket.io');
+const server = http.createServer(app);
+const io = new SocketIO(server);
+app.set('io', io);
+
+// Socket xác thực bằng CHÍNH session Express (không tin client tự khai userId như v1)
+io.engine.use(sessionMiddleware);
+io.use((socket, next) => {
+  const sess = socket.request.session;
+  if (sess && sess.userId) {
+    socket.userId = sess.userId;
+    socket.userName = sess.userName;
+    return next();
+  }
+  next(new Error('unauthorized'));
+});
+
+io.on('connection', async (socket) => {
+  // Chỉ join các phòng user là thành viên (kiểm tra server-side)
+  try {
+    const rooms = await query('SELECT room_id FROM chat_room_members WHERE user_id=$1', [socket.userId]);
+    rooms.rows.forEach(r => socket.join('room:' + r.room_id));
+  } catch (e) { /* silent */ }
+
+  socket.on('message:send', async ({ roomId, content }) => {
+    if (!content?.trim() || !roomId) return;
+    try {
+      const member = await query(
+        'SELECT 1 FROM chat_room_members WHERE room_id=$1 AND user_id=$2', [roomId, socket.userId]);
+      if (!member.rows.length) return;
+      const r = await query(
+        `INSERT INTO chat_messages (room_id, user_id, content) VALUES ($1,$2,$3) RETURNING *`,
+        [roomId, socket.userId, content.trim().slice(0, 4000)]
+      );
+      const u = await query('SELECT full_name, avatar_url FROM users WHERE id=$1', [socket.userId]);
+      io.to('room:' + roomId).emit('message:new', {
+        ...r.rows[0],
+        full_name: u.rows[0]?.full_name || socket.userName,
+        avatar_url: u.rows[0]?.avatar_url || null
+      });
+      query('UPDATE chat_room_members SET last_read_at=NOW() WHERE room_id=$1 AND user_id=$2',
+        [roomId, socket.userId]).catch(() => {});
+    } catch (e) { console.error('chat send:', e.message); }
+  });
+
+  socket.on('room:read', ({ roomId }) => {
+    query('UPDATE chat_room_members SET last_read_at=NOW() WHERE room_id=$1 AND user_id=$2',
+      [roomId, socket.userId]).catch(() => {});
+  });
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`RIAE Management System v2 running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`URL: http://localhost:${PORT}`);

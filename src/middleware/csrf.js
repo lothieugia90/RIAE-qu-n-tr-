@@ -18,7 +18,10 @@ function csrfProtection(req, res, next) {
 
   if (SAFE_METHODS.has(req.method)) return next();
 
-  const sent = (req.body && req.body._csrf) || req.headers['x-csrf-token'];
+  // Token nhận qua: body (form thường), header (AJAX), hoặc query (?_csrf=)
+  // Query bắt buộc cho form multipart/form-data: middleware này chạy TRƯỚC multer
+  // nên không đọc được body multipart.
+  const sent = (req.body && req.body._csrf) || req.headers['x-csrf-token'] || req.query._csrf;
   if (typeof sent === 'string' && sent.length === req.session.csrfToken.length &&
       crypto.timingSafeEqual(Buffer.from(sent), Buffer.from(req.session.csrfToken))) {
     if (req.body) delete req.body._csrf;

@@ -1,0 +1,43 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Lịch sử Nhập / Xuất kho</h1>
+    <p>Toàn bộ phiếu nhập, xuất, điều chỉnh (mới nhất trước)</p>
+  </div>
+  <a href="/warehouse" class="btn btn-outline"><i class="fas fa-boxes"></i> Về Kho vật tư</a>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Thời gian</th><th>Loại</th><th>Vật tư</th><th>Số lượng</th><th>Dự án</th><th>Chứng từ</th><th>Người thực hiện</th></tr></thead>
+      <tbody>
+        <% if (transactions.length === 0) { %>
+        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-3)">Chưa có phiếu nào</td></tr>
+        <% } %>
+        <% transactions.forEach(t => { %>
+        <tr>
+          <td style="white-space:nowrap"><%= fmtDateTime(t.created_at) %></td>
+          <td>
+            <% if (t.transaction_type === 'import') { %><span class="badge badge-success"><i class="fas fa-arrow-down"></i> Nhập</span>
+            <% } else if (t.transaction_type === 'export') { %><span class="badge badge-danger"><i class="fas fa-arrow-up"></i> Xuất</span>
+            <% } else { %><span class="badge badge-warning"><i class="fas fa-sliders-h"></i> Điều chỉnh</span><% } %>
+          </td>
+          <td><span class="project-code"><%= t.item_code %></span> <%= t.item_name %></td>
+          <td><strong><%= parseFloat(t.quantity) %></strong> <%= t.unit %></td>
+          <td><%= t.project_name || '—' %></td>
+          <td><%= t.reference_code || '—' %></td>
+          <td><%= t.performer_name || '—' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<% if (totalPages > 1) { %>
+<div style="margin-top:16px;display:flex;gap:6px;justify-content:center">
+  <% for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) { %>
+  <a href="/warehouse/transactions?page=<%= p %>" class="btn btn-sm <%= p === page ? 'btn-primary' : 'btn-outline' %>"><%= p %></a>
+  <% } %>
+</div>
+<% } %>

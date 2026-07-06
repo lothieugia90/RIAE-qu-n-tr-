@@ -31,8 +31,7 @@ const ROLE_INHERIT = {
   accountant:       [],
 };
 
-// Module hiện có (GĐ A + B + C). Các giai đoạn sau bổ sung: payroll,
-// warehouse, signatures, chat, quotes...
+// Module hiện có (GĐ A-D). Sẽ bổ sung sau: payroll (C.2)
 const MODULES = [
   { key: 'dashboard',   label: 'Dashboard' },
   { key: 'projects',    label: 'Dự án' },
@@ -40,6 +39,10 @@ const MODULES = [
   { key: 'hr',          label: 'Nhân sự' },
   { key: 'attendance',  label: 'Chấm công' },
   { key: 'requests',    label: 'Phê duyệt' },
+  { key: 'warehouse',   label: 'Kho vật tư' },
+  { key: 'partners',    label: 'Đối tác' },
+  { key: 'quotes',      label: 'Báo giá' },
+  { key: 'chat',        label: 'Chat nội bộ' },
   { key: 'users',       label: 'Người dùng' },
   { key: 'permissions', label: 'Phân quyền' },
   { key: 'audit',       label: 'Nhật ký hệ thống' },

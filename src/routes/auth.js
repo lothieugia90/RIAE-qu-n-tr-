@@ -39,5 +39,6 @@ router.get('/logout', requireAuth, authController.logout);
 router.get('/profile', requireAuth, authController.getProfile);
 router.post('/profile', requireAuth, avatarUpload.single('avatar'), authController.updateProfile);
 router.post('/change-password', requireAuth, authController.changePassword);
+router.post('/signature', requireAuth, authController.saveSignature);
 
 module.exports = router;

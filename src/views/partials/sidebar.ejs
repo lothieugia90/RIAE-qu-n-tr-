@@ -112,9 +112,49 @@
         <span class="nav-badge"><%= unreadNotifications %></span>
         <% } %>
       </a>
+      <a href="/requests" class="nav-link <%= path.startsWith('/requests') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-stamp"></i></span>
+        <span class="nav-text">Phê duyệt</span>
+        <% if (locals.pendingApprovals > 0) { %>
+        <span class="nav-badge"><%= pendingApprovals %></span>
+        <% } %>
+      </a>
+      <a href="/attendance" class="nav-link <%= path.startsWith('/attendance') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-calendar-check"></i></span>
+        <span class="nav-text">Chấm công</span>
+      </a>
+      <% if (['admin','director','hr','head_hr'].includes(locals.userRole)) { %>
+      <a href="/hr" class="nav-link <%= path.startsWith('/hr') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-users"></i></span>
+        <span class="nav-text">Nhân sự</span>
+      </a>
+      <% } %>
     </div>
 
-    <%# Các module GĐ C-D (Chấm công, Nhân sự, Kho, Chữ ký số, Chat...) sẽ thêm vào đây khi port xong %>
+    <div class="nav-group">
+      <span class="nav-group-label">NGHIỆP VỤ</span>
+      <a href="/chat" class="nav-link <%= path.startsWith('/chat') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-comments"></i></span>
+        <span class="nav-text">Chat</span>
+        <% if (locals.unreadChats > 0) { %>
+        <span class="nav-badge"><%= unreadChats %></span>
+        <% } %>
+      </a>
+      <a href="/warehouse" class="nav-link <%= path.startsWith('/warehouse') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-boxes"></i></span>
+        <span class="nav-text">Kho vật tư</span>
+      </a>
+      <% if (['admin','director','pm','head_sales','accountant'].includes(locals.userRole)) { %>
+      <a href="/partners" class="nav-link <%= path.startsWith('/partners') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-handshake"></i></span>
+        <span class="nav-text">Đối tác</span>
+      </a>
+      <a href="/quotes" class="nav-link <%= path.startsWith('/quotes') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-file-invoice-dollar"></i></span>
+        <span class="nav-text">Báo giá</span>
+      </a>
+      <% } %>
+    </div>
 
     <% if (['admin','director','hr','head_hr'].includes(locals.userRole)) { %>
     <div class="nav-group">

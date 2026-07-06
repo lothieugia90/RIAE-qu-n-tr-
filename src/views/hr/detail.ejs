@@ -134,7 +134,7 @@
         <% }) %>
 
         <% if (['edit','full'].includes(permLevel)) { %>
-        <form action="/hr/<%= employee.id %>/documents" method="POST" enctype="multipart/form-data" class="doc-upload">
+        <form action="/hr/<%= employee.id %>/documents?_csrf=<%= csrfToken %>" method="POST" enctype="multipart/form-data" class="doc-upload">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <select name="doc_type" class="form-control" style="margin-bottom:8px">
             <option value="contract">Hợp đồng</option>

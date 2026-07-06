@@ -1,0 +1,69 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1><span class="project-code" style="font-size:13px"><%= quote.code %></span> <%= quote.title %></h1>
+    <p>
+      <span class="badge <%= quote.status === 'approved' ? 'badge-success' : quote.status === 'rejected' ? 'badge-danger' : quote.status === 'sent' ? 'badge-info' : 'badge-warning' %>"><%= statusLabels[quote.status] %></span>
+      <% if (quote.client_name) { %> · KH: <%= quote.client_name %><% } %>
+      <% if (quote.project_name) { %> · Dự án: <a href="/projects/<%= quote.project_id %>"><%= quote.project_code %></a><% } %>
+      · Lập bởi <%= quote.creator_name %> · <%= fmtDate(quote.created_at) %>
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <% if (['edit','full'].includes(permLevel)) { %>
+    <a href="/quotes/<%= quote.id %>/edit" class="btn btn-outline"><i class="fas fa-pen"></i> Sửa</a>
+    <% if (quote.status === 'draft') { %>
+    <form action="/quotes/<%= quote.id %>/status" method="POST" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="sent">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Đánh dấu đã gửi</button>
+    </form>
+    <% } else if (quote.status === 'sent') { %>
+    <form action="/quotes/<%= quote.id %>/status" method="POST" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="approved">
+      <button type="submit" class="btn btn-primary" style="background:var(--success)"><i class="fas fa-check"></i> Khách chốt</button>
+    </form>
+    <form action="/quotes/<%= quote.id %>/status" method="POST" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="rejected">
+      <button type="submit" class="btn btn-outline" style="color:var(--danger)"><i class="fas fa-times"></i> Khách từ chối</button>
+    </form>
+    <% } %>
+    <% } %>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;overflow-x:auto">
+    <table class="table">
+      <thead><tr><th style="width:36px">#</th><th>Mô tả</th><th>ĐVT</th><th>SL</th><th>Đơn giá</th><th>CK</th><th style="text-align:right">Thành tiền</th></tr></thead>
+      <tbody>
+        <% items.forEach((it, i) => { %>
+        <tr>
+          <td style="color:var(--text-3)"><%= i + 1 %></td>
+          <td><strong><%= it.description %></strong><% if (it.notes) { %><br><small style="color:var(--text-3)"><%= it.notes %></small><% } %></td>
+          <td><%= it.unit || '—' %></td>
+          <td><%= parseFloat(it.quantity) %></td>
+          <td style="white-space:nowrap"><%= Number(it.unit_price).toLocaleString('vi-VN') %> ₫</td>
+          <td><%= parseFloat(it.discount_percent) > 0 ? parseFloat(it.discount_percent) + '%' : '—' %></td>
+          <td style="text-align:right;white-space:nowrap;font-weight:600"><%= Number(it.amount).toLocaleString('vi-VN') %> ₫</td>
+        </tr>
+        <% }) %>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="6" style="text-align:right;font-weight:700;padding:14px 12px;font-size:14px">TỔNG CỘNG</td>
+          <td style="text-align:right;font-weight:800;color:var(--primary);font-size:16px;white-space:nowrap">
+            <%= Number(quote.total_amount).toLocaleString('vi-VN') %> ₫
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<% if (quote.notes || quote.valid_until) { %>
+<div class="card" style="margin-top:16px">
+  <div class="card-body" style="font-size:13.5px;color:var(--text-2)">
+    <% if (quote.valid_until) { %><p><strong>Hiệu lực đến:</strong> <%= fmtDate(quote.valid_until) %></p><% } %>
+    <% if (quote.notes) { %><p style="white-space:pre-line;margin-top:6px"><strong>Ghi chú:</strong> <%= quote.notes %></p><% } %>
+  </div>
+</div>
+<% } %>

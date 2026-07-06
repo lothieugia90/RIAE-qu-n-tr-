@@ -148,4 +148,32 @@ const changePassword = async (req, res) => {
   res.redirect('/auth/profile');
 };
 
-module.exports = { getLogin, postLogin, logout, getProfile, updateProfile, changePassword };
+// Lưu chữ ký vẽ tay (canvas dataURL → file PNG)
+const saveSignature = async (req, res) => {
+  const { signature_data } = req.body;
+  const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(signature_data || '');
+  if (!m) {
+    req.flash('error', 'Chữ ký không hợp lệ');
+    return res.redirect('/auth/profile');
+  }
+  try {
+    const buf = Buffer.from(m[1], 'base64');
+    if (buf.length > 500 * 1024) throw new Error('Chữ ký quá lớn');
+    const fs = require('fs');
+    const path = require('path');
+    const dir = path.join(__dirname, '../../public/uploads/signatures');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const filename = req.session.userId + '-' + Date.now() + '.png';
+    fs.writeFileSync(path.join(dir, filename), buf);
+    await query('UPDATE users SET signature_url=$1, updated_at=NOW() WHERE id=$2',
+      ['/uploads/signatures/' + filename, req.session.userId]);
+    logActivity(req.session.userId, 'SIGNATURE_UPDATE', 'Cập nhật chữ ký nội bộ', { ip: req.ip });
+    req.flash('success', 'Đã lưu chữ ký — chữ ký sẽ hiện trên các bước phê duyệt của bạn');
+  } catch (err) {
+    console.error('saveSignature:', err.message);
+    req.flash('error', 'Lỗi lưu chữ ký');
+  }
+  res.redirect('/auth/profile');
+};
+
+module.exports = { getLogin, postLogin, logout, getProfile, updateProfile, changePassword, saveSignature };

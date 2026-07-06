@@ -1,0 +1,102 @@
+<% const m = categoryMeta[form.category] || categoryMeta.other;
+   const fields = Array.isArray(form.fields) ? form.fields : JSON.parse(form.fields || '[]'); %>
+
+<div class="page-header">
+  <div class="page-header-title">
+    <h1><%= form.name %></h1>
+    <p><span class="badge" style="background:<%= m.bg %>;color:<%= m.color %>"><%= m.label %></span>
+       <%= form.description || '' %></p>
+  </div>
+</div>
+
+<div class="req-new-grid">
+  <div class="card">
+    <div class="card-body">
+      <form action="/requests/submit?_csrf=<%= csrfToken %>" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="form_id" value="<%= form.id %>">
+
+        <div class="form-group">
+          <label>Tiêu đề yêu cầu *</label>
+          <input type="text" name="title" class="form-control" required maxlength="300"
+                 placeholder="vd: <%= form.name %> — <%= currentUser.full_name %>">
+        </div>
+        <div class="form-group">
+          <label>Mức độ ưu tiên</label>
+          <select name="priority" class="form-control" style="max-width:220px">
+            <option value="normal">Bình thường</option>
+            <option value="low">Thấp</option>
+            <option value="high">Cao</option>
+            <option value="urgent">Khẩn cấp</option>
+          </select>
+        </div>
+
+        <hr style="border:none;border-top:1.5px solid var(--border);margin:18px 0">
+
+        <% fields.forEach((f, i) => { %>
+        <div class="form-group">
+          <label><%= f.label %><% if (f.required) { %> *<% } %></label>
+          <% if (f.type === 'textarea') { %>
+          <textarea name="field_<%= i %>" class="form-control" rows="3" <%= f.required ? 'required' : '' %>></textarea>
+          <% } else if (f.type === 'select') { %>
+          <select name="field_<%= i %>" class="form-control" <%= f.required ? 'required' : '' %>>
+            <option value="">— Chọn —</option>
+            <% (f.options || []).forEach(o => { %><option value="<%= o %>"><%= o %></option><% }) %>
+          </select>
+          <% } else { %>
+          <input type="<%= ['date','number'].includes(f.type) ? f.type : 'text' %>" name="field_<%= i %>"
+                 class="form-control" <%= f.required ? 'required' : '' %> <%= f.type === 'number' ? 'step="any"' : '' %>>
+          <% } %>
+        </div>
+        <% }) %>
+
+        <div class="form-group">
+          <label>File đính kèm (tối đa 5 file, 10MB/file)</label>
+          <input type="file" name="attachments" class="form-control" multiple
+                 accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx">
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+          <a href="/requests" class="btn btn-outline">Hủy</a>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Gửi yêu cầu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card req-approvers">
+    <div class="card-header"><h3>Luồng phê duyệt</h3></div>
+    <div class="card-body">
+      <% if (approvers.length === 0) { %>
+      <p style="color:var(--text-3);font-size:13px">Hệ thống sẽ tự xác định người duyệt khi gửi.</p>
+      <% } %>
+      <% approvers.forEach((a, i) => { %>
+      <div class="approver-step">
+        <span class="step-num"><%= i + 1 %></span>
+        <span class="step-info">
+          <strong><%= a.full_name %></strong>
+          <small><%= a.name || 'Người duyệt' %></small>
+        </span>
+      </div>
+      <% }) %>
+      <p style="margin-top:14px;font-size:12px;color:var(--text-3)">
+        <i class="fas fa-info-circle"></i> Yêu cầu được duyệt khi <strong>tất cả</strong> các bước đồng ý.
+        Một bước từ chối → yêu cầu bị từ chối.
+      </p>
+    </div>
+  </div>
+</div>
+
+<style>
+.req-new-grid { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .req-new-grid { grid-template-columns: 1fr; } }
+.approver-step { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+.approver-step + .approver-step { border-top: 1px solid var(--border-light); }
+.step-num {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--primary-50); color: var(--primary);
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0;
+}
+.step-info { display: flex; flex-direction: column; }
+.step-info strong { font-size: 13px; color: var(--text); }
+.step-info small { font-size: 11.5px; color: var(--text-3); }
+</style>
