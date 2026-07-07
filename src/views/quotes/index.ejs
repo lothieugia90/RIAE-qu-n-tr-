@@ -1,63 +1,51 @@
 <div class="page-header">
-  <div class="page-header-title"><h2><i class="fas fa-file-invoice-dollar" style="color:var(--primary);margin-right:8px"></i>Bộ Báo giá</h2><p><%= quotes.length %> báo giá</p></div>
-  <div class="page-header-actions">
-    <% if (['admin','director','pm'].includes(locals.userRole)) { %>
-    <a href="/quotes/catalog" class="btn btn-outline"><i class="fas fa-boxes"></i> Danh mục vật tư</a>
-    <a href="/quotes/create" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo báo giá</a>
-    <% } %>
+  <div class="page-header-title">
+    <h1>Báo giá</h1>
+    <p><%= stats.total %> báo giá · <%= stats.approved %> đã chốt (<%= Number(stats.approved_value).toLocaleString('vi-VN') %> ₫)</p>
   </div>
+  <% if (['edit','full'].includes(permLevel)) { %>
+  <a href="/quotes/create" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo báo giá</a>
+  <% } %>
 </div>
 
-<form method="GET" class="filter-bar">
-  <input type="text" name="search" class="form-control" placeholder="Tìm mã, tiêu đề, khách hàng..." value="<%= filters.search||'' %>" style="flex:1;max-width:280px">
-  <select name="status" class="form-control" style="width:160px">
-    <option value="">Tất cả trạng thái</option>
-    <option value="draft"    <%= filters.status==='draft'   ?'selected':'' %>>Nháp</option>
-    <option value="pending"  <%= filters.status==='pending' ?'selected':'' %>>Đang duyệt</option>
-    <option value="approved" <%= filters.status==='approved'?'selected':'' %>>Đã duyệt</option>
-    <option value="rejected" <%= filters.status==='rejected'?'selected':'' %>>Từ chối</option>
-    <option value="sent"     <%= filters.status==='sent'    ?'selected':'' %>>Đã gửi</option>
-    <option value="won"      <%= filters.status==='won'     ?'selected':'' %>>Đã chốt</option>
-    <option value="lost"     <%= filters.status==='lost'    ?'selected':'' %>>Không thành</option>
+<form method="GET" action="/quotes" class="filter-bar">
+  <input type="text" name="search" class="form-control" placeholder="Tìm mã, tiêu đề, khách hàng..."
+         value="<%= filters.search || '' %>" style="max-width:260px">
+  <select name="status" class="form-control" style="max-width:150px">
+    <option value="">Mọi trạng thái</option>
+    <% Object.entries(statusLabels).forEach(([v, l]) => { %>
+    <option value="<%= v %>" <%= filters.status === v ? 'selected' : '' %>><%= l %></option>
+    <% }) %>
   </select>
-  <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
-  <a href="/quotes" class="btn btn-outline">Reset</a>
+  <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Lọc</button>
 </form>
 
-<% const statusStyle = {
-  draft:    { bg:'#F1F5F9', color:'#64748B', label:'Nháp' },
-  pending:  { bg:'#FEF3C7', color:'#B45309', label:'Đang duyệt' },
-  approved: { bg:'#DCFCE7', color:'#15803D', label:'Đã duyệt' },
-  rejected: { bg:'#FEE2E2', color:'#B91C1C', label:'Từ chối' },
-  sent:     { bg:'#DBEAFE', color:'#1D4ED8', label:'Đã gửi' },
-  won:      { bg:'#D1FAE5', color:'#065F46', label:'Đã chốt' },
-  lost:     { bg:'#F3F4F6', color:'#6B7280', label:'Không thành' },
-}; %>
-
-<% if (quotes.length === 0) { %>
-<div class="card"><div class="empty-state" style="padding:48px"><div class="empty-state-icon"><i class="fas fa-file-invoice-dollar"></i></div><h3>Chưa có báo giá nào</h3></div></div>
-<% } else { %>
 <div class="card">
-  <div class="table-wrap" style="border:none">
-    <table>
-      <thead><tr><th>Mã BG</th><th>Tiêu đề</th><th>Khách hàng</th><th>Dự án</th><th style="text-align:right">Tổng tiền</th><th>Trạng thái</th><th>Ngày tạo</th><th></th></tr></thead>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Mã</th><th>Tiêu đề</th><th>Khách hàng</th><th>Dự án</th><th>Tổng tiền</th><th>Hiệu lực đến</th><th>Trạng thái</th></tr></thead>
       <tbody>
-      <% quotes.forEach(function(q) {
-         const s = statusStyle[q.status] || statusStyle.draft;
-      %>
-      <tr>
-        <td style="font-size:11px;font-weight:700;color:var(--text-3)"><%= q.code %></td>
-        <td><a href="/quotes/<%= q.id %>" style="font-weight:500"><%= q.title %></a></td>
-        <td style="font-size:13px"><%= q.client_name || '—' %></td>
-        <td style="font-size:12px;color:var(--text-3)"><%= q.project_name || '—' %></td>
-        <td style="text-align:right;font-weight:700;color:var(--primary)"><%= q.total_amount ? Number(q.total_amount).toLocaleString('vi-VN') + ' đ' : '—' %></td>
-        <td><span class="badge" style="background:<%= s.bg %>;color:<%= s.color %>"><%= s.label %></span></td>
-        <td style="font-size:12px;color:var(--text-3)"><%= new Date(q.created_at).toLocaleDateString('vi-VN') %></td>
-        <td><a href="/quotes/<%= q.id %>" class="btn btn-sm btn-outline"><i class="fas fa-eye"></i></a></td>
-      </tr>
-      <% }) %>
+        <% if (quotes.length === 0) { %>
+        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-3)">Chưa có báo giá nào</td></tr>
+        <% } %>
+        <% quotes.forEach(q => { %>
+        <tr>
+          <td><a href="/quotes/<%= q.id %>"><span class="project-code"><%= q.code %></span></a></td>
+          <td><a href="/quotes/<%= q.id %>" style="font-weight:500;color:var(--text)"><%= q.title %></a><br><small style="color:var(--text-3)"><%= q.item_count %> hạng mục</small></td>
+          <td><%= q.client_name || '—' %></td>
+          <td><%= q.project_name || '—' %></td>
+          <td style="white-space:nowrap"><strong><%= Number(q.total_amount).toLocaleString('vi-VN') %> ₫</strong></td>
+          <td style="white-space:nowrap"><%= fmtDate(q.valid_until) %></td>
+          <td>
+            <span class="badge <%= q.status === 'approved' ? 'badge-success' : q.status === 'rejected' ? 'badge-danger' : q.status === 'sent' ? 'badge-info' : 'badge-warning' %>"><%= statusLabels[q.status] %></span>
+          </td>
+        </tr>
+        <% }) %>
       </tbody>
     </table>
   </div>
 </div>
-<% } %>
+
+<style>
+.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+</style>

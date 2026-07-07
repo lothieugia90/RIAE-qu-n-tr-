@@ -1,101 +1,38 @@
 <div class="page-header">
-  <div>
-    <h1 class="page-title"><i class="fas fa-history" style="color:var(--primary);margin-right:8px"></i>Nhật ký thao tác</h1>
-    <p class="page-sub">Ghi lại mọi thay đổi quan trọng trong hệ thống</p>
-  </div>
-  <a href="/admin" class="btn btn-outline"><i class="fas fa-arrow-left" style="margin-right:6px"></i>Quay lại</a>
-</div>
-
-<!-- Filters -->
-<div class="card mb-4">
-  <div class="card-body" style="padding:14px">
-    <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-      <div>
-        <label class="form-label" style="font-size:11px">Loại đối tượng</label>
-        <select name="entity_type" class="form-input" style="width:140px" onchange="this.form.submit()">
-          <option value="">Tất cả</option>
-          <option value="task" <%=filters.entity_type==='task'?'selected':''%>>Task</option>
-          <option value="user" <%=filters.entity_type==='user'?'selected':''%>>Nhân sự</option>
-          <option value="project" <%=filters.entity_type==='project'?'selected':''%>>Dự án</option>
-        </select>
-      </div>
-      <div>
-        <label class="form-label" style="font-size:11px">Hành động</label>
-        <select name="action" class="form-input" style="width:160px" onchange="this.form.submit()">
-          <option value="">Tất cả</option>
-          <option value="CREATE" <%=filters.action==='CREATE'?'selected':''%>>Tạo mới</option>
-          <option value="UPDATE" <%=filters.action==='UPDATE'?'selected':''%>>Cập nhật</option>
-          <option value="DELETE" <%=filters.action==='DELETE'?'selected':''%>>Xóa</option>
-          <option value="STATUS" <%=filters.action==='STATUS'?'selected':''%>>Đổi trạng thái</option>
-          <option value="ACTIVATE" <%=filters.action==='ACTIVATE'?'selected':''%>>Mở khóa TK</option>
-          <option value="DEACTIVATE" <%=filters.action==='DEACTIVATE'?'selected':''%>>Khóa TK</option>
-          <option value="ROLE_CHANGE" <%=filters.action==='ROLE_CHANGE'?'selected':''%>>Đổi vai trò</option>
-        </select>
-      </div>
-      <% if (filters.entity_type || filters.action) { %>
-      <a href="/admin/audit" class="btn btn-outline" style="align-self:flex-end">Xóa lọc</a>
-      <% } %>
-      <span style="margin-left:auto;font-size:12px;color:var(--text-3);align-self:flex-end">Tổng: <strong><%= total %></strong> bản ghi</span>
-    </form>
+  <div class="page-header-title">
+    <h1>Nhật ký hệ thống</h1>
+    <p>Lịch sử thao tác của người dùng (mới nhất trước)</p>
   </div>
 </div>
 
 <div class="card">
   <div class="card-body" style="padding:0">
-    <% if (!logs.length) { %>
-    <div class="empty-state" style="padding:40px">
-      <div class="empty-state-icon"><i class="fas fa-history"></i></div>
-      <h3>Chưa có nhật ký</h3>
-    </div>
-    <% } else { %>
-    <div style="overflow-x:auto">
-      <table>
-        <thead><tr>
-          <th style="width:160px">Thời gian</th>
-          <th>Người thực hiện</th>
-          <th style="width:110px">Hành động</th>
-          <th style="width:90px">Đối tượng</th>
-          <th>Mô tả</th>
-          <th style="width:120px">IP</th>
-        </tr></thead>
-        <tbody>
-        <% logs.forEach(log => {
-          const actionColors = {
-            CREATE: 'success', UPDATE: 'primary', DELETE: 'danger',
-            STATUS: 'warning', ACTIVATE: 'success', DEACTIVATE: 'danger',
-            ROLE_CHANGE: 'warning'
-          };
-          const color = actionColors[log.action] || 'default';
-        %>
+    <table class="table">
+      <thead>
+        <tr><th>Thời gian</th><th>Người dùng</th><th>Hành động</th><th>Chi tiết</th><th>IP</th></tr>
+      </thead>
+      <tbody>
+        <% if (logs.length === 0) { %>
+        <tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-3)">Chưa có nhật ký nào</td></tr>
+        <% } %>
+        <% logs.forEach(log => { %>
         <tr>
-          <td style="font-size:12px;white-space:nowrap;color:var(--text-3)">
-            <%= new Date(log.created_at).toLocaleString('vi-VN') %>
-          </td>
-          <td>
-            <span style="font-size:13px;font-weight:500"><%= log.actor_name || '(hệ thống)' %></span>
-          </td>
-          <td>
-            <span class="badge badge-<%= color %>" style="font-size:10px"><%= log.action %></span>
-          </td>
-          <td style="font-size:12px;color:var(--text-2)"><%= log.entity_type %></td>
-          <td style="font-size:13px"><%= log.description || '—' %></td>
-          <td style="font-size:11px;color:var(--text-3)"><%= log.ip_addr || '—' %></td>
+          <td style="white-space:nowrap"><%= new Date(log.created_at).toLocaleString('vi-VN') %></td>
+          <td><%= log.full_name || '—' %><% if (log.username) { %> <small style="color:var(--text-3)">(<%= log.username %>)</small><% } %></td>
+          <td><span class="badge badge-info"><%= log.action %></span></td>
+          <td><%= log.description || '' %></td>
+          <td><small><%= log.ip_address || '—' %></small></td>
         </tr>
         <% }) %>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Pagination -->
-    <% const totalPages = Math.ceil(total / limit); %>
-    <% if (totalPages > 1) { %>
-    <div style="display:flex;justify-content:center;gap:6px;padding:16px">
-      <% for (let i=1; i<=totalPages; i++) { %>
-      <a href="?page=<%= i %>&entity_type=<%= filters.entity_type||'' %>&action=<%= filters.action||'' %>"
-         class="btn btn-sm <%= i===page ? 'btn-primary' : 'btn-outline' %>"><%= i %></a>
-      <% } %>
-    </div>
-    <% } %>
-    <% } %>
+      </tbody>
+    </table>
   </div>
 </div>
+
+<% if (totalPages > 1) { %>
+<div class="pagination" style="margin-top:16px;display:flex;gap:6px;justify-content:center">
+  <% for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) { %>
+    <a href="/admin/audit?page=<%= p %>" class="btn btn-sm <%= p === page ? 'btn-primary' : 'btn-outline' %>"><%= p %></a>
+  <% } %>
+</div>
+<% } %>

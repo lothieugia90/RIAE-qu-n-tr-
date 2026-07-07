@@ -1,0 +1,252 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1><%= task.title %></h1>
+    <p>
+      Dự án: <a href="/projects/<%= task.project_id %>"><%= task.project_name %></a>
+      · <span class="badge badge-<%= task.status %>"><%= STATUS_LABELS[task.status] %></span>
+      <span class="badge badge-<%= task.priority %>"><%= PRIORITY_LABELS[task.priority] %></span>
+    </p>
+  </div>
+  <a href="/projects/<%= task.project_id %>/kanban" class="btn btn-outline"><i class="fas fa-columns"></i> Về Kanban</a>
+</div>
+
+<div class="detail-grid">
+  <div class="detail-main">
+    <% if (canEdit) { %>
+    <div class="card">
+      <div class="card-header"><h3>Thông tin task</h3></div>
+      <div class="card-body">
+        <form action="/tasks/<%= task.id %>" method="POST">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="form-group">
+            <label>Tiêu đề *</label>
+            <input type="text" name="title" class="form-control" required maxlength="300" value="<%= task.title %>">
+          </div>
+          <div class="form-group">
+            <label>Mô tả</label>
+            <textarea name="description" class="form-control" rows="3"><%= task.description || '' %></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Trạng thái</label>
+              <select name="status" class="form-control">
+                <% Object.entries(STATUS_LABELS).forEach(([v, l]) => { %>
+                <option value="<%= v %>" <%= task.status === v ? 'selected' : '' %>><%= l %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Ưu tiên</label>
+              <select name="priority" class="form-control">
+                <% Object.entries(PRIORITY_LABELS).forEach(([v, l]) => { %>
+                <option value="<%= v %>" <%= task.priority === v ? 'selected' : '' %>><%= l %></option>
+                <% }) %>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Giao cho</label>
+              <select name="assignee_id" class="form-control">
+                <option value="">— Chưa giao —</option>
+                <% members.forEach(u => { %>
+                <option value="<%= u.id %>" <%= task.assignee_id === u.id ? 'selected' : '' %>><%= u.full_name %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Hạn hoàn thành</label>
+              <input type="date" name="due_date" class="form-control"
+                     value="<%= task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '' %>">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Ước tính (giờ)</label>
+              <input type="number" name="estimated_hours" class="form-control" min="0" step="0.5" value="<%= task.estimated_hours || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Ghi chú</label>
+              <input type="text" name="notes" class="form-control" value="<%= task.notes || '' %>">
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu thay đổi</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <% } else { %>
+    <div class="card">
+      <div class="card-header"><h3>Thông tin task</h3></div>
+      <div class="card-body">
+        <% if (task.description) { %><p style="white-space:pre-line;line-height:1.65;color:var(--text-2)"><%= task.description %></p><% } %>
+        <div class="pd-info-grid" style="margin-top:14px">
+          <div><label>Người làm</label><span><%= task.assignee_name || '—' %></span></div>
+          <div><label>Người tạo</label><span><%= task.creator_name || '—' %></span></div>
+          <div><label>Hạn</label><span><%= fmtDate(task.due_date) %></span></div>
+          <div><label>Ước tính</label><span><%= task.estimated_hours || 0 %>h</span></div>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Checklist -->
+    <div class="card" style="margin-top:20px">
+      <div class="card-header"><h3>Checklist (<span id="clDone"><%= checklists.filter(c => c.is_done).length %></span>/<span id="clTotal"><%= checklists.length %></span>)</h3></div>
+      <div class="card-body">
+        <div id="checklistItems">
+          <% checklists.forEach(c => { %>
+          <div class="cl-item <%= c.is_done ? 'done' : '' %>" data-cid="<%= c.id %>">
+            <button class="cl-toggle" onclick="toggleChecklist('<%= c.id %>')" aria-label="Đánh dấu hoàn thành">
+              <i class="<%= c.is_done ? 'fas fa-check-square' : 'far fa-square' %>"></i>
+            </button>
+            <span class="cl-title"><%= c.title %></span>
+            <% if (canEdit) { %>
+            <button class="cl-del" onclick="deleteChecklist('<%= c.id %>')" aria-label="Xóa"><i class="fas fa-times"></i></button>
+            <% } %>
+          </div>
+          <% }) %>
+        </div>
+        <% if (canEdit) { %>
+        <div class="cl-add">
+          <input type="text" id="newChecklistTitle" class="form-control" placeholder="Thêm mục checklist..." maxlength="300"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addChecklist()}">
+          <button class="btn btn-primary btn-sm" onclick="addChecklist()"><i class="fas fa-plus"></i></button>
+        </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Bình luận -->
+    <div class="card" style="margin-top:20px">
+      <div class="card-header"><h3>Bình luận (<%= comments.length %>)</h3></div>
+      <div class="card-body">
+        <% comments.forEach(c => { %>
+        <div class="comment-row">
+          <div class="member-avatar" style="width:32px;height:32px;font-size:12px">
+            <% if (c.avatar_url) { %><img src="<%= c.avatar_url %>" alt=""><% } else { %><span><%= c.full_name.charAt(0).toUpperCase() %></span><% } %>
+          </div>
+          <div class="comment-body">
+            <div class="comment-head"><strong><%= c.full_name %></strong><small><%= fmtDateTime(c.created_at) %></small></div>
+            <p><%= c.content %></p>
+          </div>
+        </div>
+        <% }) %>
+        <form action="/tasks/<%= task.id %>/comments" method="POST" class="comment-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <textarea name="content" class="form-control" rows="2" required placeholder="Viết bình luận..."></textarea>
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i> Gửi</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-side">
+    <!-- Chấm giờ -->
+    <div class="card">
+      <div class="card-header"><h3>Thời gian · <%= totalHours %>h<% if (task.estimated_hours) { %>/<%= task.estimated_hours %>h<% } %></h3></div>
+      <div class="card-body">
+        <% if (canEdit) { %>
+        <form action="/tasks/<%= task.id %>/time-logs" method="POST" class="time-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="form-row">
+            <input type="number" name="hours_spent" class="form-control" min="0.5" max="24" step="0.5" required placeholder="Giờ">
+            <input type="date" name="log_date" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>">
+          </div>
+          <input type="text" name="notes" class="form-control" placeholder="Ghi chú (tùy chọn)" style="margin-top:8px">
+          <button type="submit" class="btn btn-primary btn-sm" style="margin-top:10px;width:100%"><i class="fas fa-clock"></i> Ghi nhận</button>
+        </form>
+        <% } %>
+        <% if (timeLogs.length > 0) { %>
+        <div class="time-list">
+          <% timeLogs.slice(0, 8).forEach(l => { %>
+          <div class="time-row">
+            <span class="time-hours"><%= l.hours_spent %>h</span>
+            <span class="time-info"><%= l.full_name %> · <%= fmtDate(l.log_date) %><% if (l.notes) { %><br><small><%= l.notes %></small><% } %></span>
+          </div>
+          <% }) %>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const csrf = document.querySelector('meta[name="csrf-token"]').content;
+const taskId = '<%= task.id %>';
+
+async function post(url, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf, 'Accept': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  return r.json();
+}
+
+async function addChecklist() {
+  const input = document.getElementById('newChecklistTitle');
+  const title = input.value.trim();
+  if (!title) return;
+  const r = await post('/tasks/' + taskId + '/checklists', { title });
+  if (r.success) location.reload();
+  else alert(r.error || 'Lỗi');
+}
+
+async function toggleChecklist(cid) {
+  const r = await post('/tasks/' + taskId + '/checklists/' + cid + '/toggle');
+  if (r.success) {
+    const item = document.querySelector('[data-cid="' + cid + '"]');
+    item.classList.toggle('done', r.is_done);
+    item.querySelector('.cl-toggle i').className = r.is_done ? 'fas fa-check-square' : 'far fa-square';
+    document.getElementById('clDone').textContent = document.querySelectorAll('.cl-item.done').length;
+  }
+}
+
+async function deleteChecklist(cid) {
+  if (!confirm('Xóa mục này?')) return;
+  const r = await post('/tasks/' + taskId + '/checklists/' + cid + '/delete');
+  if (r.success) {
+    document.querySelector('[data-cid="' + cid + '"]').remove();
+    document.getElementById('clTotal').textContent = document.querySelectorAll('.cl-item').length;
+    document.getElementById('clDone').textContent = document.querySelectorAll('.cl-item.done').length;
+  }
+}
+</script>
+
+<style>
+.detail-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .detail-grid { grid-template-columns: 1fr; } }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+.pd-info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.pd-info-grid label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); margin-bottom: 3px; }
+.cl-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.cl-item + .cl-item { border-top: 1px solid var(--border-light); }
+.cl-item.done .cl-title { text-decoration: line-through; color: var(--text-3); }
+.cl-toggle { border: none; background: transparent; cursor: pointer; color: var(--primary); font-size: 15px; }
+.cl-title { flex: 1; font-size: 13.5px; color: var(--text); }
+.cl-del { border: none; background: transparent; color: var(--text-3); cursor: pointer; width: 26px; height: 26px; border-radius: 6px; }
+.cl-del:hover { background: var(--danger-bg); color: var(--danger); }
+.cl-add { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.comment-row { display: flex; gap: 11px; padding: 10px 0; }
+.comment-row + .comment-row { border-top: 1px solid var(--border-light); }
+.member-avatar { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+.member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.comment-body { flex: 1; }
+.comment-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+.comment-head strong { font-size: 13px; color: var(--text); }
+.comment-head small { font-size: 11px; color: var(--text-3); }
+.comment-body p { font-size: 13.5px; color: var(--text-2); line-height: 1.55; white-space: pre-line; }
+.comment-form { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.comment-form textarea { width: 100%; }
+.time-form .form-row { grid-template-columns: 90px 1fr; }
+.time-list { margin-top: 14px; }
+.time-row { display: flex; gap: 10px; padding: 7px 0; font-size: 12.5px; }
+.time-row + .time-row { border-top: 1px solid var(--border-light); }
+.time-hours { font-weight: 700; color: var(--primary); min-width: 36px; }
+.time-info { color: var(--text-2); }
+.time-info small { color: var(--text-3); }
+</style>

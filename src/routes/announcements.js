@@ -1,28 +1,34 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const ctrl = require('../controllers/announcementController');
-const { requireAuth, requireRole } = require('../middleware/auth');
-const { announcementUpload } = require('../config/upload');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 router.use(requireAuth);
 
-router.get('/', ctrl.index);
-router.get('/create', requireRole('admin', 'director', 'pm'), ctrl.getCreate);
+const annDir = path.join(__dirname, '../../public/uploads/announcements');
+if (!fs.existsSync(annDir)) fs.mkdirSync(annDir, { recursive: true });
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: annDir,
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + Math.round(Math.random() * 1e6) + path.extname(file.originalname).toLowerCase())
+  }),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = ['.jpg', '.jpeg', '.png', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx'].includes(path.extname(file.originalname).toLowerCase());
+    cb(ok ? null : new Error('Định dạng file không hỗ trợ'), ok);
+  }
+});
 
-router.post('/', requireRole('admin', 'director', 'pm'), announcementUpload.array('files', 10), ctrl.postCreate);
-router.post('/create', requireRole('admin', 'director', 'pm'), announcementUpload.array('files', 10), ctrl.postCreate);
-
-router.get('/:id', ctrl.detail);
-router.get('/:id/edit', requireRole('admin', 'director', 'pm'), ctrl.getEditForm);
-
-router.put('/:id', requireRole('admin', 'director', 'pm'), announcementUpload.array('files', 10), ctrl.edit);
-router.post('/:id/edit', requireRole('admin', 'director', 'pm'), announcementUpload.array('files', 10), ctrl.edit);
-
-router.delete('/:id', requireRole('admin', 'director'), ctrl.deleteAnnouncement);
-router.post('/:id/delete', requireRole('admin', 'director'), ctrl.deleteAnnouncement);
-
-router.post('/:id/read', ctrl.markRead);
-router.post('/:id/react', ctrl.react);
-router.post('/:id/files/:fileId/delete', requireRole('admin', 'director', 'pm'), ctrl.deleteFile);
+router.get('/', requirePermission('announcements', 'view'), ctrl.index);
+router.get('/create', requirePermission('announcements', 'full'), ctrl.getCreate);
+router.post('/', requirePermission('announcements', 'full'), upload.array('files', 5), ctrl.postCreate);
+router.get('/:id', requirePermission('announcements', 'view'), ctrl.detail);
+router.get('/:id/edit', requirePermission('announcements', 'full'), ctrl.getEdit);
+router.post('/:id', requirePermission('announcements', 'full'), upload.array('files', 5), ctrl.postEdit);
+router.post('/:id/delete', requirePermission('announcements', 'full'), ctrl.remove);
+router.post('/:id/files/:fileId/delete', requirePermission('announcements', 'full'), ctrl.deleteFile);
 
 module.exports = router;

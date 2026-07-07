@@ -1,210 +1,74 @@
-# RIAE Management System
+# RIAE Management System v2
 
-Hệ thống quản lý nội bộ cho **Công ty TNHH Kỹ thuật Công nghệ RIAE**.
+Hệ thống quản lý nội bộ cho **Công ty TNHH Kỹ thuật Công nghệ RIAE** — bản xây mới (v2), kế thừa và cải tiến từ hệ thống v1.
 
-## Tính năng
+## Khác biệt so với v1
 
-- **Dashboard** — Tổng quan dự án, task, nhân sự, kho
-- **Quản lý Dự án** — Tạo/sửa dự án, phân công thành viên, Kanban Board, Gantt Chart
-- **Quản lý Task** — Kéo thả Kanban, theo dõi tiến độ
-- **Nhân sự** — Hồ sơ nhân viên, đơn nghỉ phép, phân quyền
-- **Kho vật tư** — Danh mục vật tư, nhập/xuất kho, cảnh báo tồn kho
-- **Thông báo & Quyết định** — Đăng thông báo, ghim, phân loại
-- **Phân quyền** — 5 vai trò: admin, director, pm, engineer, warehouse
+| Hạng mục | v1 | v2 |
+|---|---|---|
+| Migration | schema.sql + 14 file migrate chạy lúc khởi động app | Thư mục `database/migrations/` đánh số, chạy 1 lần qua `npm run migrate`, có bảng `schema_migrations` |
+| CSRF | Không có | Synchronizer token cho mọi POST/PUT/DELETE |
+| Brute-force | Không có | Rate-limit 10 lần/15 phút/IP + khóa tài khoản 15 phút sau 5 lần sai |
+| Session fixation | Không xử lý | `session.regenerate()` sau đăng nhập |
+| Vai trò | ENUM cứng trong DB | VARCHAR + `src/config/roles.js` (13 vai trò, kế thừa quyền) |
+| Phân quyền | Hardcode theo role trong route | Ma trận `role_permissions` (role × module × mức) chỉnh được trong UI |
+| Backup | Không có | `scripts/backup-db.sh` + hướng dẫn cron |
+| Dependencies | Có `moment`, `jsonwebtoken` không dùng | Đã loại bỏ |
+| Contrast | `--text-3: #94A3B8` (2.9:1) | `#64748B` (4.76:1, đạt WCAG AA) |
+
+## Trạng thái module (lộ trình)
+
+- ✅ **GĐ A — Nền tảng**: Đăng nhập, RBAC (ma trận phân quyền), Quản lý người dùng, Nhật ký hệ thống, Dashboard
+- ✅ **GĐ B — Vận hành**: Dự án (Kanban kéo-thả), Task (comment, checklist, chấm giờ), Việc của tôi, Thông báo
+- ✅ **GĐ C — Admin & HR**: Nhân sự (hồ sơ + tài liệu), Chấm công (lưới tháng), Phê duyệt (form động + duyệt nhiều bước)
+- ✅ **GĐ D — Chuyên biệt**: Kho vật tư (nhập/xuất, cảnh báo tồn), Đối tác, Báo giá (dòng hàng + tổng tự tính), Chat realtime (Socket.IO, xác thực session), Chữ ký nội bộ (vẽ tay, hiện trên phê duyệt)
+- ⏳ **Đợt sau**: Lương (C.2), workflow tùy biến nhiều bước, Gantt, file đính kèm task, xuất PDF báo giá
 
 ## Công nghệ
 
-| Lớp | Công nghệ |
-|-----|-----------|
-| Runtime | Node.js 18+ |
-| Web framework | Express.js |
-| Template engine | EJS + express-ejs-layouts |
-| Database | PostgreSQL 14+ |
-| Session | express-session + connect-pg-simple |
-| Auth | bcryptjs |
-| Deploy | PM2 + Nginx |
+Node.js 18+ · Express · EJS · PostgreSQL 14+ · express-session (PG store) · bcryptjs · helmet · express-rate-limit · PM2 + Nginx
 
 ## Cài đặt local
 
 ```bash
-# 1. Clone repo
-git clone <repo-url>
-cd claude.code
-
-# 2. Cài dependencies
 npm install
-
-# 3. Tạo file .env
-cp .env.example .env
-# Chỉnh sửa .env với thông tin DB của bạn
-
-# 4. Tạo database PostgreSQL
-createdb riae_management
-
-# 5. Chạy migration
-node database/migrate.js
-
-# 6. Khởi động dev server
-npm run dev
+cp .env.example .env        # điền DB_PASSWORD, SESSION_SECRET
+createdb riae_site          # hoặc: CREATE DATABASE riae_site; trong psql
+npm run migrate             # tạo bảng
+npm run seed                # tạo tài khoản admin đầu tiên
+npm run dev                 # http://localhost:3000
 ```
 
-Mở trình duyệt: `http://localhost:3000`  
-Tài khoản mặc định: `admin` / `Admin@2024`
+Đăng nhập: `admin` / giá trị `ADMIN_PASSWORD` trong `.env` (mặc định `Admin@2026`). **Đổi mật khẩu ngay sau lần đăng nhập đầu.**
 
-## Deploy lên Hostinger VPS
+## Thêm migration mới
 
-### 1. Chuẩn bị VPS (Ubuntu 22.04)
+Tạo file `database/migrations/00X_ten_migration.sql` (số thứ tự tăng dần), rồi chạy `npm run migrate`. File đã chạy sẽ không chạy lại.
+
+## Backup
 
 ```bash
-# Cập nhật hệ thống
-sudo apt update && sudo apt upgrade -y
+# Trên VPS, thêm cron chạy 2h sáng hằng đêm:
+crontab -e
+0 2 * * * /var/www/riae-site/scripts/backup-db.sh >> /var/www/riae-site/logs/backup.log 2>&1
 
-# Cài Node.js 18
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# Cài PostgreSQL
-sudo apt install -y postgresql postgresql-contrib
-
-# Cài PM2 và Nginx
-sudo npm install -g pm2
-sudo apt install -y nginx
+# Khôi phục:
+pg_restore -d riae_site --clean backups/riae_site_YYYYMMDD_HHMMSS.dump
 ```
 
-### 2. Cấu hình PostgreSQL
+## Deploy (PM2 + Nginx)
 
 ```bash
-sudo -u postgres psql
-CREATE USER riae_user WITH PASSWORD 'your_strong_password';
-CREATE DATABASE riae_management OWNER riae_user;
-GRANT ALL PRIVILEGES ON DATABASE riae_management TO riae_user;
-\q
-```
-
-### 3. Upload code lên VPS
-
-```bash
-# Trên máy local — push lên GitHub
-git add .
-git commit -m "Deploy RIAE Management System"
-git push origin main
-
-# Trên VPS
-cd /var/www
-git clone https://github.com/your-username/claude.code.git riae
-cd riae
-npm install --production
-```
-
-### 4. Cấu hình .env trên VPS
-
-```bash
-cp .env.example .env
-nano .env
-```
-
-```env
-NODE_ENV=production
-PORT=3000
-SESSION_SECRET=your_very_long_random_secret_here
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=riae_management
-DB_USER=riae_user
-DB_PASSWORD=your_strong_password
-JWT_SECRET=another_long_random_secret
-APP_URL=https://yourdomain.com
-```
-
-### 5. Chạy migration và khởi động
-
-```bash
-node database/migrate.js
-pm2 start ecosystem.config.js --env production
+npm ci --omit=dev
+npm run migrate && npm run seed
+pm2 start ecosystem.config.js
 pm2 save
-pm2 startup
 ```
 
-### 6. Cấu hình Nginx
+Nginx reverse proxy về `localhost:3000` (app đã bật `trust proxy`).
 
-```bash
-sudo nano /etc/nginx/sites-available/riae
-```
+## Ghi chú bảo mật
 
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com www.yourdomain.com;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    client_max_body_size 10M;
-}
-```
-
-```bash
-sudo ln -s /etc/nginx/sites-available/riae /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 7. HTTPS với Let's Encrypt
-
-```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
-```
-
-## Cấu trúc thư mục
-
-```
-├── app.js                  # Entry point
-├── ecosystem.config.js     # PM2 config
-├── database/
-│   ├── schema.sql          # Database schema
-│   └── migrate.js          # Migration script
-├── src/
-│   ├── config/
-│   │   └── database.js
-│   ├── controllers/        # Business logic
-│   ├── middleware/         # Auth middleware
-│   ├── routes/             # Express routes
-│   └── views/              # EJS templates
-└── public/
-    ├── css/style.css
-    ├── js/main.js
-    └── uploads/
-```
-
-## Phân quyền
-
-| Tính năng | admin | director | pm | engineer | warehouse |
-|-----------|-------|----------|----|----------|-----------|
-| Quản lý dự án | ✅ | ✅ | ✅ | Xem | — |
-| Quản lý nhân sự | ✅ | ✅ | — | — | — |
-| Quản lý kho | ✅ | ✅ | — | — | ✅ |
-| Đăng thông báo | ✅ | ✅ | — | — | — |
-| Quản trị system | ✅ | — | — | — | — |
-
-## Lệnh hữu ích
-
-```bash
-# Dev
-npm run dev          # Nodemon hot-reload
-
-# Production
-pm2 status           # Xem trạng thái
-pm2 logs riae-management  # Xem logs
-pm2 restart riae-management  # Restart
-pm2 reload riae-management   # Zero-downtime reload
-```
+- `SESSION_SECRET` bắt buộc ở production — app từ chối khởi động nếu thiếu.
+- CSP của helmet đang tắt vì views dùng CDN (Font Awesome, Google Fonts) + inline script; khi chuyển asset về self-host thì bật lại.
+- Mọi form phải có `<input type="hidden" name="_csrf" value="<%= csrfToken %>">`; request AJAX gửi header `x-csrf-token`.

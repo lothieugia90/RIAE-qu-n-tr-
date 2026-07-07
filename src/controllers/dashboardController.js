@@ -1,147 +1,206 @@
 const { query } = require('../config/database');
+const { getPermLevel } = require('../middleware/auth');
+const { PERM_LEVELS } = require('../config/roles');
+const { TYPE_META: ANN_TYPE_META } = require('./announcementController');
+
+// Nhóm vai trò → quyết định KPI và widget hiển thị.
+// Quy trình RIAE: lãnh đạo nhìn toàn cảnh, PM nhìn dự án của mình,
+// HR nhìn chấm công/đơn từ, kho nhìn tồn/phiếu, kế toán nhìn thanh toán/báo giá,
+// kỹ thuật hiện trường nhìn việc hôm nay + công + đơn từ của mình.
+const GROUP_BY_ROLE = {
+  admin: 'leadership', director: 'leadership',
+  pm: 'manager', head_tech: 'manager', head_sales: 'manager',
+  hr: 'hr', head_hr: 'hr',
+  warehouse: 'warehouse', warehouse_keeper: 'warehouse',
+  accountant: 'finance',
+};
+
+const QUICK_ACTIONS = [
+  { module: 'announcements', href: '/announcements',   icon: 'fa-bullhorn',            label: 'Bảng tin công ty' },
+  { module: 'projects',    href: '/projects',          icon: 'fa-folder-open',         label: 'Dự án' },
+  { module: 'tasks',       href: '/tasks/my-tasks',    icon: 'fa-list-check',          label: 'Việc của tôi' },
+  { module: 'requests',    href: '/requests',          icon: 'fa-stamp',               label: 'Phê duyệt' },
+  { module: 'attendance',  href: '/attendance',        icon: 'fa-calendar-check',      label: 'Chấm công' },
+  { module: 'chat',        href: '/chat',              icon: 'fa-comments',            label: 'Chat' },
+  { module: 'hr',          href: '/hr',                icon: 'fa-users',               label: 'Nhân sự' },
+  { module: 'warehouse',   href: '/warehouse',         icon: 'fa-boxes',               label: 'Kho' },
+  { module: 'partners',    href: '/partners',          icon: 'fa-handshake',           label: 'Đối tác' },
+  { module: 'quotes',      href: '/quotes',            icon: 'fa-file-invoice-dollar', label: 'Báo giá' },
+  { module: 'users',       href: '/admin/users',       icon: 'fa-users-cog',           label: 'Người dùng' },
+  { module: 'permissions', href: '/admin/permissions', icon: 'fa-shield-alt',          label: 'Phân quyền' },
+  { module: 'audit',       href: '/admin/audit',       icon: 'fa-history',             label: 'Nhật ký' },
+];
+
+const atLeast = (level, min) => PERM_LEVELS.indexOf(level) >= PERM_LEVELS.indexOf(min);
 
 const index = async (req, res) => {
   try {
-    const role = req.session.userRole;
     const userId = req.session.userId;
+    const role = req.session.userRole;
+    const group = GROUP_BY_ROLE[role] || 'staff';
 
-    // Core dashboard data — must all succeed
-    const [projectStats, taskStats, userStats, warehouseStats,
-           recentProjects, myTasks, recentAnnouncements, projectsByStatus,
-           activeProjects, onlineUsers, urgentTasks] = await Promise.all([
-      query(`SELECT
-        COUNT(*)::int as total,
-        COUNT(*) FILTER (WHERE status='active')::int as active,
-        COUNT(*) FILTER (WHERE status='completed')::int as completed,
-        COUNT(*) FILTER (WHERE status='planning')::int as planning,
-        COUNT(*) FILTER (WHERE status='on_hold')::int as on_hold,
-        COUNT(*) FILTER (WHERE end_date < NOW() AND status NOT IN ('completed','cancelled'))::int as overdue
-        FROM projects`),
+    // Mức quyền các module (1 vòng, dùng cache trong middleware)
+    const perms = {};
+    for (const m of ['projects', 'hr', 'attendance', 'warehouse', 'quotes', 'audit']) {
+      perms[m] = await getPermLevel(role, m);
+    }
 
-      query(`SELECT
-        COUNT(*)::int as total,
-        COUNT(*) FILTER (WHERE status='todo')::int as todo,
-        COUNT(*) FILTER (WHERE status='in_progress')::int as in_progress,
-        COUNT(*) FILTER (WHERE status='review')::int as review,
-        COUNT(*) FILTER (WHERE status='done')::int as done,
-        COUNT(*) FILTER (WHERE due_date < NOW() AND status != 'done')::int as overdue
-        FROM tasks WHERE ($1='admin' OR $1='director' OR assignee_id=$2::uuid)`,
-        [role, userId]),
+    const showProjects   = group === 'leadership' || group === 'manager';
+    const showAttendance = group === 'leadership' || group === 'hr';
+    const showWarehouse  = group === 'leadership' || group === 'warehouse';
+    const showQuotes     = (group === 'leadership' || group === 'finance' || role === 'head_sales' || role === 'pm')
+                           && perms.quotes !== 'none';
+    const showActivity   = atLeast(perms.audit, 'view');
 
-      query(`SELECT
-        COUNT(*)::int as total,
-        COUNT(*) FILTER (WHERE is_active=true)::int as active,
-        COUNT(*) FILTER (WHERE role='engineer')::int as engineers,
-        COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '7 days')::int as recent_active
-        FROM users`),
+    const [
+      myTaskStats, myAgenda, myApprovals, myRequests, myAttendance, myNotifications,
+      companyStats, projectList, attendanceToday, lowStock, quotesPipeline, recentActivity, companyAnnouncements
+    ] = await Promise.all([
+      // --- Cá nhân (mọi vai trò) ---
+      query(`SELECT COUNT(*) FILTER (WHERE status != 'done')::int AS pending,
+                    COUNT(*) FILTER (WHERE status != 'done' AND due_date < CURRENT_DATE)::int AS overdue,
+                    COUNT(*) FILTER (WHERE status != 'done' AND due_date = CURRENT_DATE)::int AS today
+             FROM tasks WHERE assignee_id=$1`, [userId]),
+      query(`SELECT t.id, t.title, t.due_date, t.priority, t.status, p.name AS project_name,
+               CASE WHEN t.due_date < CURRENT_DATE THEN 'overdue'
+                    WHEN t.due_date = CURRENT_DATE THEN 'today' ELSE 'upcoming' END AS bucket
+             FROM tasks t JOIN projects p ON p.id=t.project_id
+             WHERE t.assignee_id=$1 AND t.status != 'done'
+             ORDER BY CASE WHEN t.due_date < CURRENT_DATE THEN 0
+                           WHEN t.due_date = CURRENT_DATE THEN 1 ELSE 2 END,
+               t.due_date ASC NULLS LAST LIMIT 6`, [userId]),
+      query(`SELECT r.id, r.title, r.priority, rf.name AS form_name, u.full_name AS submitter_name, r.created_at
+             FROM requests r
+             JOIN request_forms rf ON rf.id=r.form_id
+             JOIN users u ON u.id=r.submitted_by
+             JOIN request_approvals ra ON ra.request_id=r.id
+             WHERE ra.approver_id=$1 AND ra.status='pending' AND r.status='pending'
+             ORDER BY r.created_at LIMIT 5`, [userId]),
+      query(`SELECT id, title, status, created_at FROM requests
+             WHERE submitted_by=$1 ORDER BY created_at DESC LIMIT 3`, [userId]),
+      query(`SELECT COUNT(*) FILTER (WHERE status IN ('present','late','remote'))::int AS work_days,
+                    COALESCE(SUM(overtime_hours),0)::float AS ot_hours
+             FROM attendance_records
+             WHERE user_id=$1 AND date_trunc('month', work_date)=date_trunc('month', CURRENT_DATE)`, [userId]),
+      query(`SELECT id, type, title, link, created_at, is_read FROM notifications
+             WHERE user_id=$1 ORDER BY created_at DESC LIMIT 5`, [userId]),
 
-      query(`SELECT
-        COUNT(*)::int as total_items,
-        COUNT(*) FILTER (WHERE quantity <= min_quantity AND quantity > 0)::int as low_stock,
-        COUNT(*) FILTER (WHERE quantity = 0)::int as out_of_stock,
-        COALESCE(SUM(quantity * unit_price), 0) as total_value
-        FROM warehouse_items WHERE is_active=true`),
+      // --- Toàn công ty (lãnh đạo) ---
+      group === 'leadership'
+        ? query(`SELECT
+            (SELECT COUNT(*)::int FROM projects WHERE status='active') AS active_projects,
+            (SELECT COUNT(*)::int FROM tasks WHERE status!='done' AND due_date < CURRENT_DATE) AS company_overdue,
+            (SELECT COUNT(*)::int FROM users WHERE is_active=true) AS active_users,
+            (SELECT COUNT(*)::int FROM users WHERE last_seen_at > NOW() - INTERVAL '10 minutes') AS online_users`)
+        : Promise.resolve({ rows: [{}] }),
 
-      query(`SELECT p.*, u.full_name as manager_name
-        FROM projects p LEFT JOIN users u ON u.id=p.manager_id
-        ORDER BY p.updated_at DESC LIMIT 6`),
+      // --- Dự án (lãnh đạo: tất cả; quản lý: của mình) ---
+      showProjects
+        ? query(`SELECT p.id, p.code, p.name, p.status, p.progress_percent, p.end_date,
+                   u.full_name AS manager_name,
+                   (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id=p.id AND t.status!='done' AND t.due_date < CURRENT_DATE) AS overdue_tasks,
+                   (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id=p.id AND t.status='review') AS review_tasks
+                 FROM projects p LEFT JOIN users u ON u.id=p.manager_id
+                 WHERE p.status IN ('active','planning')
+                 ${group === 'manager' ? `AND (p.manager_id=$1 OR p.id IN (SELECT project_id FROM project_members WHERE user_id=$1))` : ''}
+                 ORDER BY p.updated_at DESC LIMIT 6`, group === 'manager' ? [userId] : [])
+        : Promise.resolve({ rows: [] }),
 
-      query(`SELECT t.*, p.name as project_name, p.id as project_id
-        FROM tasks t JOIN projects p ON p.id=t.project_id
-        WHERE t.assignee_id=$1 AND t.status != 'done'
-        ORDER BY
-          CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
-          t.due_date ASC NULLS LAST
-        LIMIT 10`, [userId]),
+      // --- Chấm công hôm nay (HR + lãnh đạo) ---
+      showAttendance
+        ? query(`SELECT
+            (SELECT COUNT(*)::int FROM users WHERE is_active=true) AS total,
+            (SELECT COUNT(DISTINCT user_id)::int FROM attendance_records WHERE work_date=CURRENT_DATE) AS checked,
+            (SELECT COUNT(*)::int FROM attendance_records WHERE work_date=CURRENT_DATE AND status='late') AS late`)
+        : Promise.resolve({ rows: [null] }),
 
-      query(`SELECT a.*, u.full_name as author_name
-        FROM announcements a LEFT JOIN users u ON u.id=a.created_by
-        WHERE a.is_published=true AND (a.expires_at IS NULL OR a.expires_at > NOW())
-        ORDER BY a.is_pinned DESC, a.published_at DESC LIMIT 5`),
+      // --- Kho tồn thấp (kho + lãnh đạo) ---
+      showWarehouse
+        ? query(`SELECT code, name, quantity, min_quantity, unit FROM warehouse_items
+                 WHERE is_active=true AND quantity <= min_quantity
+                 ORDER BY (quantity / NULLIF(min_quantity, 0)) ASC NULLS FIRST LIMIT 5`)
+        : Promise.resolve({ rows: [] }),
 
-      query(`SELECT status, COUNT(*)::int as count FROM projects GROUP BY status ORDER BY count DESC`),
+      // --- Báo giá pipeline ---
+      showQuotes
+        ? query(`SELECT COUNT(*) FILTER (WHERE status='draft')::int AS draft,
+                        COUNT(*) FILTER (WHERE status='sent')::int AS sent,
+                        COUNT(*) FILTER (WHERE status='approved')::int AS approved,
+                        COALESCE(SUM(total_amount) FILTER (WHERE status='approved'),0) AS approved_value
+                 FROM quotes`)
+        : Promise.resolve({ rows: [null] }),
 
-      query(`SELECT id, name, code FROM projects WHERE status='active' ORDER BY name`),
+      // --- Nhật ký (theo quyền audit) ---
+      showActivity
+        ? query(`SELECT al.action, al.description, al.created_at, u.full_name
+                 FROM activity_logs al LEFT JOIN users u ON u.id = al.user_id
+                 ORDER BY al.created_at DESC LIMIT 8`)
+        : Promise.resolve({ rows: [] }),
 
-      query(`SELECT id, full_name, role, avatar_url, department, last_seen_at
-             FROM users WHERE is_active=true AND last_seen_at > NOW() - INTERVAL '15 minutes'
-             ORDER BY last_seen_at DESC LIMIT 20`),
-
-      query(`SELECT t.*, p.name as project_name
-        FROM tasks t JOIN projects p ON p.id=t.project_id
-        WHERE t.assignee_id=$1 AND t.status != 'done'
-          AND (t.due_date < NOW() + INTERVAL '3 days' OR t.priority IN ('urgent','high'))
-        ORDER BY t.due_date ASC NULLS LAST, CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END
-        LIMIT 8`, [userId])
+      // --- Bảng tin công ty: mọi vai trò đều thấy (thông báo chung/quyết định/quy chế/bổ nhiệm) ---
+      query(
+        `SELECT a.id, a.title, a.type, a.is_pinned, a.published_at,
+                EXISTS(SELECT 1 FROM announcement_reads ar WHERE ar.announcement_id=a.id AND ar.user_id=$1) AS is_read
+         FROM announcements a
+         WHERE a.is_published=true AND (a.expires_at IS NULL OR a.expires_at > NOW())
+         ORDER BY a.is_pinned DESC, a.published_at DESC LIMIT 4`, [userId])
     ]);
 
-    // Action items — fetched separately so a failure doesn't crash the whole dashboard
-    let pendingApprovals = [], needsSignature = [], pendingReturns = [], approvedRequests = [];
-    try {
-      const [aRes, sRes, rRes, apRes] = await Promise.all([
-        query(`SELECT r.id, r.title, r.created_at, u.full_name as requester_name
-          FROM requests r
-          JOIN request_approvals ra ON ra.request_id = r.id
-          JOIN users u ON u.id = r.submitted_by
-          WHERE ra.approver_id = $1 AND ra.status = 'pending' AND r.status = 'pending'
-          ORDER BY r.created_at ASC LIMIT 5`, [userId]),
+    const t = myTaskStats.rows[0];
+    const att = myAttendance.rows[0];
+    const cs = companyStats.rows[0] || {};
+    const approvalsCount = res.locals.pendingApprovals || myApprovals.rows.length;
+    const myPendingRequests = myRequests.rows.filter(r => r.status === 'pending').length;
 
-        query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit, wa.assigned_at
-          FROM warehouse_assignments wa
-          JOIN warehouse_items wi ON wi.id = wa.item_id
-          WHERE wa.assigned_to_user = $1 AND wa.status = 'active' AND wa.signed_at IS NULL
-          ORDER BY wa.assigned_at DESC LIMIT 5`, [userId]),
+    // ===== KPI theo nhóm vai trò =====
+    const KPI_LIB = {
+      myTasks:     { icon: 'fa-list-check', tone: t.overdue > 0 ? 'danger' : 'primary', value: t.pending, label: 'Việc của tôi', sub: t.overdue > 0 ? t.overdue + ' quá hạn' : (t.today > 0 ? t.today + ' đến hạn hôm nay' : 'Không có việc trễ'), href: '/tasks/my-tasks' },
+      approvals:   { icon: 'fa-stamp', tone: approvalsCount > 0 ? 'warning' : 'success', value: approvalsCount, label: 'Chờ tôi duyệt', sub: approvalsCount > 0 ? 'Cần xử lý sớm' : 'Đã xử lý hết', href: '/requests?tab=pending' },
+      workDays:    { icon: 'fa-calendar-check', tone: 'info', value: att.work_days, label: 'Công tháng này', sub: att.ot_hours > 0 ? '+' + att.ot_hours + 'h tăng ca' : null, href: '/attendance' },
+      myRequests:  { icon: 'fa-paper-plane', tone: 'purple', value: myPendingRequests, label: 'Đơn từ đang chờ', sub: 'Của bạn', href: '/requests' },
+      projects:    { icon: 'fa-folder-open', tone: 'primary', value: cs.active_projects ?? projectList.rows.length, label: group === 'manager' ? 'Dự án của tôi' : 'Dự án đang chạy', href: '/projects' },
+      companyOverdue: { icon: 'fa-triangle-exclamation', tone: (cs.company_overdue || 0) > 0 ? 'danger' : 'success', value: cs.company_overdue || 0, label: 'Task quá hạn toàn cty', href: '/projects' },
+      online:      { icon: 'fa-circle-dot', tone: 'success', value: (cs.online_users || 0) + '/' + (cs.active_users || 0), label: 'Đang trực tuyến', href: '/hr' },
+      attToday:    attendanceToday.rows[0] ? { icon: 'fa-user-clock', tone: 'info', value: attendanceToday.rows[0].checked + '/' + attendanceToday.rows[0].total, label: 'Chấm công hôm nay', sub: attendanceToday.rows[0].late > 0 ? attendanceToday.rows[0].late + ' đi trễ' : null, href: '/attendance' } : null,
+      lowStock:    { icon: 'fa-boxes', tone: lowStock.rows.length > 0 ? 'warning' : 'success', value: lowStock.rows.length, label: 'Vật tư tồn thấp', href: '/warehouse?low=1' },
+      quoteValue:  quotesPipeline.rows[0] ? { icon: 'fa-file-invoice-dollar', tone: 'success', value: (Number(quotesPipeline.rows[0].approved_value) / 1e6).toFixed(0) + 'tr', label: 'Báo giá đã chốt', sub: quotesPipeline.rows[0].sent + ' đang chờ khách', href: '/quotes' } : null,
+    };
+    const KPI_SETS = {
+      leadership: ['projects', 'companyOverdue', 'approvals', 'online'],
+      manager:    ['projects', 'myTasks', 'approvals', 'workDays'],
+      hr:         ['attToday', 'approvals', 'myTasks', 'workDays'],
+      warehouse:  ['lowStock', 'myTasks', 'workDays', 'myRequests'],
+      finance:    ['approvals', 'quoteValue', 'myTasks', 'workDays'],
+      staff:      ['myTasks', 'workDays', 'myRequests', 'approvals'],
+    };
+    const kpis = KPI_SETS[group].map(k => KPI_LIB[k]).filter(Boolean);
 
-        query(`SELECT wa.id, wi.name as item_name, wa.quantity, wi.unit,
-                 u.full_name as assignee_name, wa.return_requested_at
-          FROM warehouse_assignments wa
-          JOIN warehouse_items wi ON wi.id = wa.item_id
-          LEFT JOIN users u ON u.id = wa.assigned_to_user
-          WHERE wa.status = 'pending_return'
-          ORDER BY wa.return_requested_at ASC LIMIT 5`),
-
-        query(`SELECT r.id, r.title, r.updated_at
-          FROM requests r
-          WHERE r.submitted_by = $1 AND r.status = 'approved' AND r.updated_at > NOW() - INTERVAL '7 days'
-          ORDER BY r.updated_at DESC LIMIT 5`, [userId])
-      ]);
-      pendingApprovals = aRes.rows;
-      needsSignature   = sRes.rows;
-      pendingReturns   = rRes.rows;
-      approvedRequests = apRes.rows;
-    } catch (actionErr) {
-      console.error('Dashboard action items error:', actionErr.message);
+    // Lối tắt theo quyền
+    const shortcuts = [];
+    for (const a of QUICK_ACTIONS) {
+      if ((await getPermLevel(role, a.module)) !== 'none') shortcuts.push(a);
     }
 
     res.render('dashboard/index', {
-      title: 'Tổng quan',
-      projectStats: projectStats.rows[0],
-      taskStats: taskStats.rows[0],
-      userStats: userStats.rows[0],
-      warehouseStats: warehouseStats.rows[0],
-      recentProjects: recentProjects.rows,
-      myTasks: myTasks.rows,
-      recentAnnouncements: recentAnnouncements.rows,
-      projectsByStatus: projectsByStatus.rows,
-      activeProjects: activeProjects.rows,
-      onlineUsers: onlineUsers.rows,
-      urgentTasks: urgentTasks.rows,
-      pendingApprovals,
-      needsSignature,
-      pendingReturns,
-      approvedRequests
+      title: 'Dashboard',
+      group, kpis, shortcuts,
+      agenda: myAgenda.rows,
+      taskStats: t,
+      approvals: myApprovals.rows,
+      approvalsCount,
+      myRequests: myRequests.rows,
+      notifications: myNotifications.rows,
+      projects: projectList.rows,
+      attendanceToday: attendanceToday.rows[0],
+      lowStock: lowStock.rows,
+      quotes: quotesPipeline.rows[0],
+      recentActivity: recentActivity.rows,
+      companyAnnouncements: companyAnnouncements.rows,
+      annTypeMeta: ANN_TYPE_META
     });
   } catch (err) {
     console.error('Dashboard error:', err);
-    res.render('dashboard/index', {
-      title: 'Tổng quan',
-      projectStats: {}, taskStats: {}, userStats: {},
-      warehouseStats: {}, recentProjects: [], myTasks: [],
-      recentAnnouncements: [], projectsByStatus: [],
-      activeProjects: [], onlineUsers: [], urgentTasks: [],
-      pendingApprovals: [], needsSignature: [], pendingReturns: [], approvedRequests: [],
-      error: err.message
-    });
+    res.status(500).render('errors/500', { title: 'Lỗi hệ thống', error: process.env.NODE_ENV !== 'production' ? err : {} });
   }
 };
 

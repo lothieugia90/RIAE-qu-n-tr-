@@ -1,15 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requireRole } = require('../middleware/auth');
 const ctrl = require('../controllers/payrollSettingsController');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
-const guard = [requireAuth, requireRole('admin', 'director', 'hr')];
+router.use(requireAuth);
 
-router.get('/',                  ...guard, ctrl.index);
-router.post('/',                 ...guard, ctrl.create);
-router.put('/:id',               ...guard, ctrl.update);
-router.delete('/:id',            ...guard, ctrl.remove);
-router.get('/audit',             ...guard, ctrl.auditLog);
-router.get('/:id/preview',       ...guard, ctrl.preview);
+router.get('/audit', requirePermission('payroll', 'view'), ctrl.auditLog);
+router.get('/:id/preview', requirePermission('payroll', 'edit'), ctrl.preview);
+
+router.get('/', requirePermission('payroll', 'view'), ctrl.index);
+router.post('/', requirePermission('payroll', 'full'), ctrl.create);
+// method-override (app.js) đã chuyển POST + _method=PUT/DELETE thành đúng verb trước khi tới đây
+router.put('/:id', requirePermission('payroll', 'edit'), ctrl.update);
+router.delete('/:id', requirePermission('payroll', 'full'), ctrl.remove);
 
 module.exports = router;

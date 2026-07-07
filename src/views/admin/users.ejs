@@ -1,0 +1,190 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Quản lý người dùng</h1>
+    <p>Tài khoản, vai trò và trạng thái truy cập</p>
+  </div>
+  <button class="btn btn-primary" onclick="document.getElementById('createModal').showModal()">
+    <i class="fas fa-plus"></i> Thêm tài khoản
+  </button>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Họ tên</th><th>Tài khoản</th><th>Vai trò</th><th>Phòng ban</th>
+          <th>Trạng thái</th><th>Đăng nhập cuối</th><th style="width:120px">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(u => { %>
+        <tr>
+          <td><strong><%= u.full_name %></strong></td>
+          <td><%= u.username %><br><small style="color:var(--text-3)"><%= u.email %></small></td>
+          <td><span class="badge badge-info"><%= roleLabels[u.role] || u.role %></span></td>
+          <td><%= u.department || '—' %></td>
+          <td>
+            <% if (u.is_active) { %><span class="badge badge-success">Hoạt động</span>
+            <% } else { %><span class="badge badge-danger">Đã khóa</span><% } %>
+          </td>
+          <td style="white-space:nowrap"><%= u.last_login ? new Date(u.last_login).toLocaleString('vi-VN') : 'Chưa đăng nhập' %></td>
+          <td>
+            <button class="btn btn-sm btn-outline" title="Sửa"
+              onclick='openEditModal(<%- JSON.stringify({id:u.id, full_name:u.full_name, email:u.email, role:u.role, department:u.department, position:u.position, is_active:u.is_active}) %>)'>
+              <i class="fas fa-pen"></i>
+            </button>
+            <button class="btn btn-sm btn-outline" title="Đặt lại mật khẩu"
+              onclick='openResetModal("<%= u.id %>", "<%= u.username %>")'>
+              <i class="fas fa-key"></i>
+            </button>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal tạo tài khoản -->
+<dialog id="createModal" class="modal">
+  <form action="/admin/users" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3>Thêm tài khoản mới</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tên đăng nhập *</label>
+        <input type="text" name="username" class="form-control" required pattern="[a-zA-Z0-9._-]{3,50}">
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" name="email" class="form-control" required>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Họ và tên *</label>
+      <input type="text" name="full_name" class="form-control" required>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vai trò *</label>
+        <select name="role" class="form-control" required>
+          <% let lastGroup = ''; roles.forEach(r => { %>
+            <% if (r.group !== lastGroup) { if (lastGroup) { %></optgroup><% } %><optgroup label="<%= r.group %>"><% lastGroup = r.group; } %>
+            <option value="<%= r.value %>"><%= r.label %></option>
+          <% }) %></optgroup>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Mật khẩu * (≥8 ký tự)</label>
+        <input type="password" name="password" class="form-control" required minlength="8" autocomplete="new-password">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Phòng ban</label>
+        <input type="text" name="department" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Chức vụ</label>
+        <input type="text" name="position" class="form-control">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="this.closest('dialog').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo tài khoản</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal sửa tài khoản -->
+<dialog id="editModal" class="modal">
+  <form id="editForm" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3>Cập nhật tài khoản</h3>
+    <div class="form-group">
+      <label>Họ và tên</label>
+      <input type="text" name="full_name" id="edit_full_name" class="form-control" required>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" id="edit_email" class="form-control" required>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vai trò</label>
+        <select name="role" id="edit_role" class="form-control" required>
+          <% roles.forEach(r => { %><option value="<%= r.value %>"><%= r.label %></option><% }) %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Trạng thái</label>
+        <select name="is_active" id="edit_is_active" class="form-control">
+          <option value="true">Hoạt động</option>
+          <option value="false">Khóa tài khoản</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Phòng ban</label>
+        <input type="text" name="department" id="edit_department" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Chức vụ</label>
+        <input type="text" name="position" id="edit_position" class="form-control">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="this.closest('dialog').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal reset mật khẩu -->
+<dialog id="resetModal" class="modal">
+  <form id="resetForm" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3>Đặt lại mật khẩu cho <span id="reset_username"></span></h3>
+    <div class="form-group">
+      <label>Mật khẩu mới (≥8 ký tự)</label>
+      <input type="password" name="new_password" class="form-control" required minlength="8" autocomplete="new-password">
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="this.closest('dialog').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> Đặt lại</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+function openEditModal(u) {
+  document.getElementById('editForm').action = '/admin/users/' + u.id;
+  document.getElementById('edit_full_name').value = u.full_name;
+  document.getElementById('edit_email').value = u.email;
+  document.getElementById('edit_role').value = u.role;
+  document.getElementById('edit_is_active').value = String(u.is_active);
+  document.getElementById('edit_department').value = u.department || '';
+  document.getElementById('edit_position').value = u.position || '';
+  document.getElementById('editModal').showModal();
+}
+function openResetModal(id, username) {
+  document.getElementById('resetForm').action = '/admin/users/' + id + '/reset-password';
+  document.getElementById('reset_username').textContent = username;
+  document.getElementById('resetModal').showModal();
+}
+</script>
+
+<style>
+.modal {
+  border: none; border-radius: var(--radius-lg); padding: 0; width: 100%; max-width: 520px;
+  box-shadow: var(--shadow-lg);
+}
+.modal::backdrop { background: rgba(13,27,62,.5); }
+.modal-form { padding: 26px; }
+.modal-form h3 { margin-bottom: 20px; font-size: 17px; color: var(--text); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+</style>

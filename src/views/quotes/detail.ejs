@@ -1,495 +1,69 @@
-<style>
-.qb-section { background:var(--card); border:1px solid var(--border); border-radius:10px; margin-bottom:16px; overflow:hidden; }
-.qb-section-hdr { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg); border-bottom:1px solid var(--border); }
-.qb-section-name { font-weight:700; font-size:14px; color:var(--text-1); display:flex; align-items:center; gap:8px; }
-.qb-section-sub { font-size:13px; font-weight:700; color:var(--primary); }
-.qb-items-table { width:100%; border-collapse:collapse; font-size:13px; }
-.qb-items-table th { padding:8px 12px; background:var(--bg); color:var(--text-3); font-weight:600; font-size:11px; text-transform:uppercase; border-bottom:1px solid var(--border); white-space:nowrap; }
-.qb-items-table td { padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
-.qb-items-table tr:last-child td { border-bottom:none; }
-.qb-items-table tr:hover td { background:var(--bg); }
-.qb-summary { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px; margin-top:8px; }
-.qb-summary-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
-.qb-summary-row:last-child { border-bottom:none; padding-top:12px; font-size:16px; font-weight:800; color:var(--primary); }
-.status-pill { display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; }
-.status-draft    { background:#F1F5F9; color:#64748B; }
-.status-pending  { background:#FEF3C7; color:#B45309; }
-.status-approved { background:#DCFCE7; color:#15803D; }
-.status-rejected { background:#FEE2E2; color:#B91C1C; }
-.status-sent     { background:#DBEAFE; color:#1D4ED8; }
-.status-won      { background:#D1FAE5; color:#065F46; }
-.status-lost     { background:#F3F4F6; color:#6B7280; }
-.catalog-results { position:absolute; top:100%; left:0; right:0; background:var(--card); border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.1); max-height:220px; overflow-y:auto; z-index:99; display:none; }
-.catalog-result-item { padding:9px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); }
-.catalog-result-item:last-child { border-bottom:none; }
-.catalog-result-item:hover { background:var(--bg); }
-.catalog-result-name { font-weight:500; }
-.catalog-result-meta { font-size:11px; color:var(--text-3); }
-</style>
-
-<%
-const statusLabel = {draft:'Nháp',pending:'Đang duyệt',approved:'Đã duyệt',rejected:'Từ chối',sent:'Đã gửi',won:'Đã chốt',lost:'Không thành'};
-const isAdminDir = ['admin','director'].includes(locals.userRole);
-const canEdit = ['admin','director','pm'].includes(locals.userRole) && ['draft','pending'].includes(quote.status);
-const sectionNames = Object.keys(sections);
-%>
-
 <div class="page-header">
   <div class="page-header-title">
-    <div style="font-size:11px;color:var(--text-3);margin-bottom:2px"><%= quote.code %></div>
-    <h2><%= quote.title %></h2>
-    <span class="status-pill status-<%= quote.status %>">
-      <i class="fas fa-circle" style="font-size:6px"></i> <%= statusLabel[quote.status] || quote.status %>
-    </span>
+    <h1><span class="project-code" style="font-size:13px"><%= quote.code %></span> <%= quote.title %></h1>
+    <p>
+      <span class="badge <%= quote.status === 'approved' ? 'badge-success' : quote.status === 'rejected' ? 'badge-danger' : quote.status === 'sent' ? 'badge-info' : 'badge-warning' %>"><%= statusLabels[quote.status] %></span>
+      <% if (quote.client_name) { %> · KH: <%= quote.client_name %><% } %>
+      <% if (quote.project_name) { %> · Dự án: <a href="/projects/<%= quote.project_id %>"><%= quote.project_code %></a><% } %>
+      · Lập bởi <%= quote.creator_name %> · <%= fmtDate(quote.created_at) %>
+    </p>
   </div>
-  <div class="page-header-actions">
-    <% if (canEdit) { %>
-    <a href="/quotes/<%= quote.id %>/edit" class="btn btn-outline"><i class="fas fa-edit"></i> Sửa thông tin</a>
-    <% } %>
-    <a href="/quotes/<%= quote.id %>/export" class="btn btn-outline" title="Xuất Excel"><i class="fas fa-file-excel" style="color:#16A34A"></i> Xuất Excel</a>
-    <a href="/quotes" class="btn btn-outline"><i class="fas fa-arrow-left"></i></a>
-  </div>
-</div>
-
-<div class="grid-70-30">
-  <!-- LEFT: Builder -->
-  <div>
-    <% if (sectionNames.length === 0) { %>
-    <div class="card" style="padding:40px;text-align:center">
-      <div style="font-size:40px;margin-bottom:12px">📋</div>
-      <div style="font-weight:600;margin-bottom:6px">Chưa có hạng mục nào</div>
-      <div style="font-size:13px;color:var(--text-3);margin-bottom:16px">Thêm hạng mục đầu tiên để bắt đầu lập báo giá</div>
-      <% if (canEdit) { %>
-      <button onclick="openAddModal('')" class="btn btn-primary"><i class="fas fa-plus"></i> Thêm hạng mục</button>
-      <% } %>
-    </div>
-    <% } else { %>
-
-    <% sectionNames.forEach(function(secName) {
-       const secItems = sections[secName];
-       const secTotal = secItems.reduce(function(s,i){ return s + Number(i.amount||0); }, 0);
-    %>
-    <div class="qb-section">
-      <div class="qb-section-hdr">
-        <div class="qb-section-name">
-          <i class="fas fa-layer-group" style="color:var(--primary)"></i>
-          <%= secName %>
-          <span style="font-size:11px;color:var(--text-3);font-weight:400">(<%= secItems.length %> hạng mục)</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="qb-section-sub"><%= secTotal.toLocaleString('vi-VN') %> đ</span>
-          <% if (canEdit) { %>
-          <button onclick="openAddModal(<%- JSON.stringify(secName) %>)" class="btn btn-sm btn-outline" title="Thêm vào danh mục này">
-            <i class="fas fa-plus"></i> Thêm
-          </button>
-          <% } %>
-        </div>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="qb-items-table">
-          <thead>
-            <tr>
-              <th style="width:36px">STT</th>
-              <th>Mô tả / Hạng mục</th>
-              <th style="width:60px">ĐVT</th>
-              <th style="width:60px;text-align:right">SL</th>
-              <th style="width:120px;text-align:right">Đơn giá (đ)</th>
-              <th style="width:50px;text-align:right">CK%</th>
-              <th style="width:130px;text-align:right">Thành tiền (đ)</th>
-              <% if (canEdit) { %><th style="width:70px"></th><% } %>
-            </tr>
-          </thead>
-          <tbody>
-          <% secItems.forEach(function(item, idx) { %>
-          <tr>
-            <td style="text-align:center;color:var(--text-3)"><%= idx+1 %></td>
-            <td>
-              <div style="font-weight:500"><%= item.description %></div>
-              <% if (item.notes) { %><div style="font-size:11px;color:var(--text-3)"><%= item.notes %></div><% } %>
-            </td>
-            <td style="color:var(--text-3)"><%= item.unit || '—' %></td>
-            <td style="text-align:right"><%= Number(item.quantity).toLocaleString('vi-VN',{maximumFractionDigits:3}) %></td>
-            <td style="text-align:right"><%= Number(item.unit_price||0).toLocaleString('vi-VN') %></td>
-            <td style="text-align:right"><%= Number(item.discount_percent||0) > 0 ? Number(item.discount_percent)+'%' : '—' %></td>
-            <td style="text-align:right;font-weight:700;color:var(--primary)"><%= Number(item.amount||0).toLocaleString('vi-VN') %></td>
-            <% if (canEdit) { %>
-            <td style="text-align:right">
-              <button onclick='openEditItem(<%- JSON.stringify({id:item.id,description:item.description,unit:item.unit||"",quantity:item.quantity,unit_price:item.unit_price,discount_percent:item.discount_percent,notes:item.notes||"",section:item.section||"Chung"}) %>)' class="btn btn-sm btn-outline" style="padding:3px 7px"><i class="fas fa-pen"></i></button>
-              <form action="/quotes/<%= quote.id %>/items/<%= item.id %>/delete" method="POST" style="display:inline" onsubmit="return confirm('Xóa hạng mục này?')">
-                <button type="submit" class="btn btn-sm btn-danger" style="padding:3px 7px"><i class="fas fa-trash"></i></button>
-              </form>
-            </td>
-            <% } %>
-          </tr>
-          <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <% }) %>
-
-    <!-- Final Summary -->
-    <div class="qb-summary">
-      <div style="font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-        <i class="fas fa-calculator" style="color:var(--primary)"></i> Tổng hợp
-      </div>
-      <% let grandTotal = 0; %>
-      <% sectionNames.forEach(function(secName) {
-         const sub = sections[secName].reduce(function(s,i){ return s+Number(i.amount||0); },0);
-         grandTotal += sub;
-      %>
-      <div class="qb-summary-row">
-        <span style="color:var(--text-2)"><%= secName %></span>
-        <span style="font-weight:600"><%= sub.toLocaleString('vi-VN') %> đ</span>
-      </div>
-      <% }) %>
-      <div class="qb-summary-row">
-        <span>TỔNG CỘNG</span>
-        <span><%= grandTotal.toLocaleString('vi-VN') %> đ</span>
-      </div>
-    </div>
-
-    <% if (canEdit) { %>
-    <div style="margin-top:12px;text-align:center">
-      <button onclick="openAddModal('')" class="btn btn-outline" style="border-style:dashed">
-        <i class="fas fa-plus"></i> Thêm hạng mục / Danh mục mới
-      </button>
-    </div>
-    <% } %>
-
-    <% } %>
-  </div>
-
-  <!-- RIGHT: Info + Status -->
-  <div>
-    <!-- Status card -->
-    <div class="card mb-4">
-      <div class="card-header"><span class="card-title">Trạng thái</span></div>
-      <div class="card-body">
-        <div style="margin-bottom:14px">
-          <span class="status-pill status-<%= quote.status %>">
-            <i class="fas fa-circle" style="font-size:6px"></i> <%= statusLabel[quote.status] || quote.status %>
-          </span>
-          <% if (quote.status === 'rejected' && quote.rejected_reason) { %>
-          <div style="margin-top:8px;padding:8px;background:#FEF2F2;border-radius:6px;font-size:12px;color:#B91C1C">
-            <i class="fas fa-times-circle"></i> <%= quote.rejected_reason %>
-          </div>
-          <% } %>
-          <% if (quote.status === 'approved' && quote.approver_name) { %>
-          <div style="margin-top:8px;font-size:12px;color:var(--text-3)">
-            Duyệt bởi: <strong><%= quote.approver_name %></strong><br>
-            <%= quote.approved_at ? new Date(quote.approved_at).toLocaleDateString('vi-VN') : '' %>
-          </div>
-          <% } %>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <% if (quote.status === 'draft' && ['admin','director','pm'].includes(locals.userRole)) { %>
-          <form action="/quotes/<%= quote.id %>/status" method="POST">
-            <input type="hidden" name="action" value="submit">
-            <button type="submit" class="btn btn-primary" style="width:100%"><i class="fas fa-paper-plane"></i> Gửi duyệt</button>
-          </form>
-          <% if (isAdminDir) { %>
-          <form action="/quotes/<%= quote.id %>/status" method="POST">
-            <input type="hidden" name="action" value="send">
-            <button type="submit" class="btn btn-outline" style="width:100%"><i class="fas fa-envelope"></i> Gửi thẳng cho khách</button>
-          </form>
-          <% } %>
-          <% } %>
-
-          <% if (quote.status === 'pending') { %>
-          <% if (isAdminDir) { %>
-          <form action="/quotes/<%= quote.id %>/status" method="POST">
-            <input type="hidden" name="action" value="approve">
-            <button type="submit" class="btn btn-primary" style="width:100%;background:#16A34A;border-color:#16A34A"><i class="fas fa-check"></i> Duyệt</button>
-          </form>
-          <form action="/quotes/<%= quote.id %>/status" method="POST" onsubmit="return setRejectReason(this)">
-            <input type="hidden" name="action" value="reject">
-            <input type="hidden" name="rejected_reason" id="rejectReasonInput">
-            <button type="submit" class="btn btn-danger" style="width:100%"><i class="fas fa-times"></i> Từ chối</button>
-          </form>
-          <form action="/quotes/<%= quote.id %>/status" method="POST">
-            <input type="hidden" name="action" value="revert">
-            <button type="submit" class="btn btn-outline" style="width:100%"><i class="fas fa-undo"></i> Trả về Nháp</button>
-          </form>
-          <% } else { %>
-          <div style="text-align:center;padding:8px;background:var(--bg);border-radius:6px;font-size:13px;color:var(--text-3)">
-            <i class="fas fa-clock"></i> Đang chờ duyệt...
-          </div>
-          <% } %>
-          <% } %>
-
-          <% if (quote.status === 'approved' && isAdminDir) { %>
-          <form action="/quotes/<%= quote.id %>/status" method="POST">
-            <input type="hidden" name="action" value="send">
-            <button type="submit" class="btn btn-primary" style="width:100%"><i class="fas fa-envelope"></i> Đã gửi cho khách</button>
-          </form>
-          <% } %>
-
-          <% if (quote.status === 'rejected' && isAdminDir) { %>
-          <form action="/quotes/<%= quote.id %>/status" method="POST">
-            <input type="hidden" name="action" value="revert">
-            <button type="submit" class="btn btn-outline" style="width:100%"><i class="fas fa-undo"></i> Trả về Nháp</button>
-          </form>
-          <% } %>
-
-          <% if (quote.status === 'sent') { %>
-          <form action="/quotes/<%= quote.id %>/status" method="POST">
-            <input type="hidden" name="action" value="win">
-            <button type="submit" class="btn btn-primary" style="width:100%;background:#16A34A;border-color:#16A34A"><i class="fas fa-trophy"></i> Chốt thành công</button>
-          </form>
-          <form action="/quotes/<%= quote.id %>/status" method="POST">
-            <input type="hidden" name="action" value="lose">
-            <button type="submit" class="btn btn-outline" style="width:100%"><i class="fas fa-times-circle"></i> Không thành</button>
-          </form>
-          <% } %>
-        </div>
-      </div>
-    </div>
-
-    <!-- Info card -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <span class="card-title">Thông tin</span>
-        <% if (['admin','director','pm'].includes(locals.userRole)) { %>
-        <a href="/quotes/<%= quote.id %>/edit" class="btn btn-sm btn-outline"><i class="fas fa-edit"></i></a>
-        <% } %>
-      </div>
-      <div class="card-body">
-        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
-          <div><span style="color:var(--text-3)">Khách hàng</span><br><strong><%= quote.client_name || '—' %></strong></div>
-          <% if (quote.client_contact) { %><div><span style="color:var(--text-3)">Liên hệ</span><br><%= quote.client_contact %></div><% } %>
-          <% if (quote.project_name) { %><div><span style="color:var(--text-3)">Dự án</span><br><%= quote.project_name %></div><% } %>
-          <% if (quote.valid_until) { %>
-          <div><span style="color:var(--text-3)">Hiệu lực đến</span><br><%= new Date(quote.valid_until).toLocaleDateString('vi-VN') %></div>
-          <% } %>
-          <div style="padding-top:6px;border-top:1px solid var(--border)">
-            <span style="color:var(--text-3)">Tổng báo giá</span><br>
-            <span style="font-size:18px;font-weight:800;color:var(--primary)"><%= Number(quote.total_amount||0).toLocaleString('vi-VN') %> đ</span>
-          </div>
-          <div style="font-size:11px;color:var(--text-3)">Tạo bởi <%= quote.creator_name %> · <%= new Date(quote.created_at).toLocaleDateString('vi-VN') %></div>
-          <% if (quote.notes) { %><div style="padding:8px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--text-2)"><%= quote.notes %></div><% } %>
-        </div>
-      </div>
-    </div>
-
-    <!-- Delete -->
-    <% if (['admin','director'].includes(locals.userRole)) { %>
-    <form action="/quotes/<%= quote.id %>/delete" method="POST" onsubmit="return confirm('Xóa vĩnh viễn báo giá này?')">
-      <button type="submit" class="btn btn-outline" style="width:100%;color:var(--danger);border-color:var(--danger)"><i class="fas fa-trash"></i> Xóa báo giá</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <% if (['edit','full'].includes(permLevel)) { %>
+    <a href="/quotes/<%= quote.id %>/edit" class="btn btn-outline"><i class="fas fa-pen"></i> Sửa</a>
+    <% if (quote.status === 'draft') { %>
+    <form action="/quotes/<%= quote.id %>/status" method="POST" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="sent">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Đánh dấu đã gửi</button>
+    </form>
+    <% } else if (quote.status === 'sent') { %>
+    <form action="/quotes/<%= quote.id %>/status" method="POST" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="approved">
+      <button type="submit" class="btn btn-primary" style="background:var(--success)"><i class="fas fa-check"></i> Khách chốt</button>
+    </form>
+    <form action="/quotes/<%= quote.id %>/status" method="POST" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="rejected">
+      <button type="submit" class="btn btn-outline" style="color:var(--danger)"><i class="fas fa-times"></i> Khách từ chối</button>
     </form>
     <% } %>
+    <% } %>
   </div>
 </div>
 
-<!-- Add Item Modal -->
-<div class="modal-overlay" id="addItemModal" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-header">
-      <span class="modal-title">Thêm Hạng mục</span>
-      <button class="modal-close" onclick="document.getElementById('addItemModal').classList.remove('open')"><i class="fas fa-times"></i></button>
-    </div>
-    <form action="/quotes/<%= quote.id %>/items" method="POST">
-      <div class="modal-body">
-
-        <!-- Section selector -->
-        <div class="form-group mb-3">
-          <label class="form-label">Danh mục (Section)</label>
-          <div style="display:flex;gap:8px">
-            <select name="section" id="addSection" class="form-control" onchange="toggleNewSection(this)" style="flex:1">
-              <% sectionNames.forEach(function(s) { %>
-              <option value="<%= s %>"><%= s %></option>
-              <% }) %>
-              <option value="__new__">+ Tạo danh mục mới...</option>
-            </select>
-          </div>
-          <input type="text" name="new_section" id="newSectionInput" class="form-control" placeholder="Tên danh mục mới (VD: ELV, FA, Hệ thống điện...)" style="display:none;margin-top:6px">
-        </div>
-
-        <!-- Catalog search -->
-        <div class="form-group mb-3">
-          <label class="form-label">Tìm nhanh từ danh mục vật tư</label>
-          <div style="position:relative">
-            <input type="text" id="catalogSearch" class="form-control" placeholder="Gõ tên hoặc mã hàng để tìm kiếm..." autocomplete="off">
-            <div class="catalog-results" id="catalogResults"></div>
-          </div>
-          <input type="hidden" name="catalog_id" id="selectedCatalogId">
-        </div>
-
-        <div style="height:1px;background:var(--border);margin:12px 0"></div>
-
-        <div class="form-group mb-3">
-          <label class="form-label">Mô tả / Hạng mục <span style="color:var(--danger)">*</span></label>
-          <input type="text" name="description" id="addDesc" class="form-control" required placeholder="Tên hạng mục, thiết bị...">
-        </div>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Đơn vị tính</label>
-            <input type="text" name="unit" id="addUnit" class="form-control" placeholder="cái, bộ, m...">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Số lượng</label>
-            <input type="number" name="quantity" class="form-control" value="1" min="0.001" step="0.001">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Đơn giá (đ)</label>
-            <input type="number" name="unit_price" id="addPrice" class="form-control" value="0" min="0">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Chiết khấu (%)</label>
-            <input type="number" name="discount_percent" class="form-control" value="0" min="0" max="100" step="0.1">
-          </div>
-          <div class="form-group col-span-2">
-            <label class="form-label">Ghi chú</label>
-            <input type="text" name="notes" class="form-control" placeholder="Thông số kỹ thuật, thương hiệu...">
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline" onclick="document.getElementById('addItemModal').classList.remove('open')">Hủy</button>
-        <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Thêm</button>
-      </div>
-    </form>
+<div class="card">
+  <div class="card-body" style="padding:0;overflow-x:auto">
+    <table class="table">
+      <thead><tr><th style="width:36px">#</th><th>Mô tả</th><th>ĐVT</th><th>SL</th><th>Đơn giá</th><th>CK</th><th style="text-align:right">Thành tiền</th></tr></thead>
+      <tbody>
+        <% items.forEach((it, i) => { %>
+        <tr>
+          <td style="color:var(--text-3)"><%= i + 1 %></td>
+          <td><strong><%= it.description %></strong><% if (it.notes) { %><br><small style="color:var(--text-3)"><%= it.notes %></small><% } %></td>
+          <td><%= it.unit || '—' %></td>
+          <td><%= parseFloat(it.quantity) %></td>
+          <td style="white-space:nowrap"><%= Number(it.unit_price).toLocaleString('vi-VN') %> ₫</td>
+          <td><%= parseFloat(it.discount_percent) > 0 ? parseFloat(it.discount_percent) + '%' : '—' %></td>
+          <td style="text-align:right;white-space:nowrap;font-weight:600"><%= Number(it.amount).toLocaleString('vi-VN') %> ₫</td>
+        </tr>
+        <% }) %>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="6" style="text-align:right;font-weight:700;padding:14px 12px;font-size:14px">TỔNG CỘNG</td>
+          <td style="text-align:right;font-weight:800;color:var(--primary);font-size:16px;white-space:nowrap">
+            <%= Number(quote.total_amount).toLocaleString('vi-VN') %> ₫
+          </td>
+        </tr>
+      </tfoot>
+    </table>
   </div>
 </div>
 
-<!-- Edit Item Modal -->
-<div class="modal-overlay" id="editItemModal" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-header">
-      <span class="modal-title">Sửa Hạng mục</span>
-      <button class="modal-close" onclick="document.getElementById('editItemModal').classList.remove('open')"><i class="fas fa-times"></i></button>
-    </div>
-    <form id="editItemForm" action="" method="POST">
-      <div class="modal-body">
-        <div class="form-group mb-3">
-          <label class="form-label">Danh mục (Section)</label>
-          <div style="display:flex;gap:8px">
-            <select name="section" id="editSection" class="form-control" onchange="toggleEditNewSection(this)" style="flex:1">
-              <% sectionNames.forEach(function(s) { %>
-              <option value="<%= s %>"><%= s %></option>
-              <% }) %>
-              <option value="__new__">+ Tạo danh mục mới...</option>
-            </select>
-          </div>
-          <input type="text" name="new_section" id="editNewSectionInput" class="form-control" placeholder="Tên danh mục mới" style="display:none;margin-top:6px">
-        </div>
-        <div class="form-group mb-3">
-          <label class="form-label">Mô tả / Hạng mục <span style="color:var(--danger)">*</span></label>
-          <input type="text" name="description" id="ei_desc" class="form-control" required>
-        </div>
-        <div class="form-grid-2">
-          <div class="form-group"><label class="form-label">Đơn vị tính</label><input type="text" name="unit" id="ei_unit" class="form-control"></div>
-          <div class="form-group"><label class="form-label">Số lượng</label><input type="number" name="quantity" id="ei_qty" class="form-control" step="0.001"></div>
-          <div class="form-group"><label class="form-label">Đơn giá (đ)</label><input type="number" name="unit_price" id="ei_price" class="form-control" min="0"></div>
-          <div class="form-group"><label class="form-label">Chiết khấu (%)</label><input type="number" name="discount_percent" id="ei_disc" class="form-control" min="0" max="100" step="0.1"></div>
-          <div class="form-group col-span-2"><label class="form-label">Ghi chú</label><input type="text" name="notes" id="ei_notes" class="form-control"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline" onclick="document.getElementById('editItemModal').classList.remove('open')">Hủy</button>
-        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu</button>
-      </div>
-    </form>
+<% if (quote.notes || quote.valid_until) { %>
+<div class="card" style="margin-top:16px">
+  <div class="card-body" style="font-size:13.5px;color:var(--text-2)">
+    <% if (quote.valid_until) { %><p><strong>Hiệu lực đến:</strong> <%= fmtDate(quote.valid_until) %></p><% } %>
+    <% if (quote.notes) { %><p style="white-space:pre-line;margin-top:6px"><strong>Ghi chú:</strong> <%= quote.notes %></p><% } %>
   </div>
 </div>
-
-<script>
-const QUOTE_ID = '<%= quote.id %>';
-
-function openAddModal(section) {
-  var sel = document.getElementById('addSection');
-  if (section && sel) {
-    for (var i = 0; i < sel.options.length; i++) {
-      if (sel.options[i].value === section) { sel.selectedIndex = i; break; }
-    }
-  }
-  toggleNewSection(sel);
-  document.getElementById('addItemModal').classList.add('open');
-}
-
-function toggleNewSection(sel) {
-  var inp = document.getElementById('newSectionInput');
-  if (!inp) return;
-  if (sel && sel.value === '__new__') {
-    inp.style.display = 'block'; inp.required = true;
-  } else {
-    inp.style.display = 'none'; inp.required = false;
-  }
-}
-
-function toggleEditNewSection(sel) {
-  var inp = document.getElementById('editNewSectionInput');
-  if (!inp) return;
-  if (sel && sel.value === '__new__') {
-    inp.style.display = 'block'; inp.required = true;
-  } else {
-    inp.style.display = 'none'; inp.required = false;
-  }
-}
-
-function openEditItem(item) {
-  document.getElementById('editItemForm').action = '/quotes/' + QUOTE_ID + '/items/' + item.id + '/edit';
-  document.getElementById('ei_desc').value = item.description;
-  document.getElementById('ei_unit').value = item.unit || '';
-  document.getElementById('ei_qty').value = item.quantity;
-  document.getElementById('ei_price').value = item.unit_price;
-  document.getElementById('ei_disc').value = item.discount_percent || 0;
-  document.getElementById('ei_notes').value = item.notes || '';
-  var sel = document.getElementById('editSection');
-  if (sel) {
-    var found = false;
-    for (var i = 0; i < sel.options.length; i++) {
-      if (sel.options[i].value === item.section) { sel.selectedIndex = i; found = true; break; }
-    }
-    if (!found) sel.value = '__new__';
-  }
-  toggleEditNewSection(sel);
-  document.getElementById('editItemModal').classList.add('open');
-}
-
-function setRejectReason(form) {
-  var reason = prompt('Lý do từ chối (tùy chọn):');
-  if (reason === null) return false;
-  document.getElementById('rejectReasonInput').value = reason;
-  return true;
-}
-
-// Catalog search
-var searchTimeout;
-document.getElementById('catalogSearch').addEventListener('input', function() {
-  clearTimeout(searchTimeout);
-  var q = this.value.trim();
-  if (q.length < 2) { document.getElementById('catalogResults').style.display = 'none'; return; }
-  searchTimeout = setTimeout(function() {
-    fetch('/quotes/catalog/search?q=' + encodeURIComponent(q))
-      .then(function(r) { return r.json(); })
-      .then(function(items) {
-        var box = document.getElementById('catalogResults');
-        if (!items.length) { box.style.display = 'none'; return; }
-        box.innerHTML = items.map(function(it) {
-          return '<div class="catalog-result-item" onclick="selectCatalogItem(' + JSON.stringify(it).replace(/"/g,'&quot;') + ')">' +
-            '<div class="catalog-result-name">' + it.name + '</div>' +
-            '<div class="catalog-result-meta">' + (it.code ? it.code + ' · ' : '') + it.unit + ' · ' + Number(it.unit_price).toLocaleString('vi-VN') + ' đ</div>' +
-          '</div>';
-        }).join('');
-        box.style.display = 'block';
-      });
-  }, 280);
-});
-
-function selectCatalogItem(item) {
-  document.getElementById('addDesc').value = item.name;
-  document.getElementById('addUnit').value = item.unit || '';
-  document.getElementById('addPrice').value = item.unit_price || 0;
-  document.getElementById('selectedCatalogId').value = item.id;
-  document.getElementById('catalogSearch').value = item.name;
-  document.getElementById('catalogResults').style.display = 'none';
-}
-
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('#catalogSearch') && !e.target.closest('#catalogResults')) {
-    document.getElementById('catalogResults').style.display = 'none';
-  }
-});
-</script>
+<% } %>

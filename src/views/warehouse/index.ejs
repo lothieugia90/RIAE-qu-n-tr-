@@ -1,295 +1,180 @@
 <div class="page-header">
   <div class="page-header-title">
-    <h2>Quản lý Kho bãi</h2>
-    <p>Tổng giá trị: <strong style="color:var(--primary)"><%= Number(stats.total_value||0).toLocaleString('vi-VN') %> đ</strong></p>
+    <h1>Kho vật tư</h1>
+    <p><%= stats.total %> vật tư · Tổng giá trị <%= Number(stats.total_value).toLocaleString('vi-VN') %> ₫</p>
   </div>
-  <div class="page-header-actions">
-    <% if (['admin','director','warehouse','warehouse_keeper'].includes(locals.userRole)) { %>
-    <a href="/warehouse/items/create" class="btn btn-primary"><i class="fas fa-plus"></i> Thêm vật tư</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <a href="/warehouse/transactions" class="btn btn-outline"><i class="fas fa-history"></i> Lịch sử N/X</a>
+    <% if (['edit','full'].includes(permLevel)) { %>
+    <button class="btn btn-outline" onclick="openTxModal()"><i class="fas fa-right-left"></i> Nhập / Xuất</button>
+    <button class="btn btn-primary" onclick="openItemModal(null)"><i class="fas fa-plus"></i> Thêm vật tư</button>
     <% } %>
   </div>
 </div>
 
-<!-- Stats Row -->
-<div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
-  <div class="stat-card">
-    <div class="stat-icon" style="background:var(--primary-50)"><i class="fas fa-boxes" style="color:var(--primary)"></i></div>
-    <div class="stat-body">
-      <div class="stat-value"><%= stats.total_items %></div>
-      <div class="stat-label">Tổng mặt hàng</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:#FFF3E0"><i class="fas fa-exclamation-triangle" style="color:#FF9800"></i></div>
-    <div class="stat-body">
-      <div class="stat-value" style="color:#FF9800"><%= stats.low_stock %></div>
-      <div class="stat-label">Sắp hết hàng</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:#FFEBEE"><i class="fas fa-times-circle" style="color:#F44336"></i></div>
-    <div class="stat-body">
-      <div class="stat-value" style="color:#F44336"><%= stats.out_of_stock %></div>
-      <div class="stat-label">Hết hàng</div>
-    </div>
-  </div>
-  <a href="/warehouse/assignments" style="text-decoration:none" class="stat-card">
-    <div class="stat-icon" style="background:#E3F2FD"><i class="fas fa-clipboard-list" style="color:#1565C0"></i></div>
-    <div class="stat-body">
-      <div class="stat-value" style="color:#1565C0"><%= typeof activeAssignments !== 'undefined' ? activeAssignments : 0 %></div>
-      <div class="stat-label">Đang giao</div>
-    </div>
-  </a>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:#E8F5E9"><i class="fas fa-layer-group" style="color:#4CAF50"></i></div>
-    <div class="stat-body">
-      <div class="stat-value" style="color:#4CAF50"><%= stats.category_count %></div>
-      <div class="stat-label">Danh mục</div>
-    </div>
-  </div>
-</div>
-
-<!-- Overdue Assignments Alert -->
-<% if (typeof overdueAssignments !== 'undefined' && overdueAssignments.length > 0) { %>
-<div style="background:#FFF3E0;border:1px solid #FFB74D;border-radius:8px;padding:12px 16px;margin-bottom:16px">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-    <i class="fas fa-clock" style="color:#E65100"></i>
-    <strong style="color:#E65100">Quá hạn 30 ngày (<%= overdueAssignments.length %> phiếu)</strong>
-    <a href="/warehouse/assignments?status=active" style="margin-left:auto;font-size:12px;color:#1565C0"><i class="fas fa-arrow-right"></i> Xem phiếu giao</a>
-  </div>
-  <div style="display:flex;flex-wrap:wrap;gap:6px">
-    <% overdueAssignments.forEach(a => { %>
-    <span style="font-size:12px;background:#fff;padding:3px 10px;border-radius:10px;border:1px solid #FFB74D">
-      <strong><%= a.item_name %></strong> — <%= a.assignee_name || 'Chưa rõ' %>
-      (<%= Math.floor((Date.now() - new Date(a.assigned_at).getTime()) / 86400000) %> ngày)
-    </span>
-    <% }) %>
-  </div>
+<% if (stats.low_stock > 0) { %>
+<div class="wh-warning">
+  <i class="fas fa-triangle-exclamation"></i>
+  <strong><%= stats.low_stock %> vật tư</strong> dưới mức tồn tối thiểu —
+  <a href="/warehouse?low=1">xem danh sách</a>
 </div>
 <% } %>
 
-<!-- Tabs -->
-<div class="tabs" style="margin-bottom:0">
-  <button class="tab-btn" id="tab-vattu" onclick="switchTab('vattu')"><i class="fas fa-boxes"></i> Vật tư (<span id="cnt-vattu">0</span>)</button>
-  <button class="tab-btn" id="tab-dungcu" onclick="switchTab('dungcu')"><i class="fas fa-tools"></i> Dụng cụ thi công (<span id="cnt-dungcu">0</span>)</button>
-  <button class="tab-btn" id="tab-tx" onclick="switchTab('tx')"><i class="fas fa-exchange-alt"></i> Giao dịch gần đây</button>
+<form method="GET" action="/warehouse" class="filter-bar">
+  <input type="text" name="search" class="form-control" placeholder="Tìm theo tên, mã vật tư..."
+         value="<%= filters.search || '' %>" style="max-width:250px">
+  <select name="category" class="form-control" style="max-width:180px">
+    <option value="">Mọi danh mục</option>
+    <% categories.forEach(c => { %>
+    <option value="<%= c.id %>" <%= filters.category === c.id ? 'selected' : '' %>><%= c.name %></option>
+    <% }) %>
+  </select>
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2)">
+    <input type="checkbox" name="low" value="1" <%= filters.low === '1' ? 'checked' : '' %> onchange="this.form.submit()"> Tồn thấp
+  </label>
+  <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Lọc</button>
+</form>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead>
+        <tr><th>Mã</th><th>Vật tư</th><th>Danh mục</th><th>Tồn kho</th><th>Tối thiểu</th><th>Đơn giá</th><th>Vị trí</th><% if (['edit','full'].includes(permLevel)) { %><th style="width:80px"></th><% } %></tr>
+      </thead>
+      <tbody>
+        <% if (items.length === 0) { %>
+        <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-3)">Chưa có vật tư nào</td></tr>
+        <% } %>
+        <% items.forEach(it => { const isLow = parseFloat(it.quantity) <= parseFloat(it.min_quantity); %>
+        <tr>
+          <td><span class="project-code"><%= it.code %></span></td>
+          <td><strong><%= it.name %></strong><% if (it.supplier) { %><br><small style="color:var(--text-3)">NCC: <%= it.supplier %></small><% } %></td>
+          <td><%= it.category_name || '—' %></td>
+          <td>
+            <strong style="color:<%= isLow ? 'var(--danger)' : 'var(--text)' %>"><%= parseFloat(it.quantity) %></strong> <%= it.unit %>
+            <% if (isLow) { %><i class="fas fa-triangle-exclamation" style="color:var(--danger)" title="Dưới mức tối thiểu"></i><% } %>
+          </td>
+          <td><%= parseFloat(it.min_quantity) || 0 %></td>
+          <td style="white-space:nowrap"><%= it.unit_price ? Number(it.unit_price).toLocaleString('vi-VN') + ' ₫' : '—' %></td>
+          <td><%= it.location || '—' %></td>
+          <% if (['edit','full'].includes(permLevel)) { %>
+          <td>
+            <button class="btn btn-sm btn-outline" title="Sửa" onclick='openItemModal(<%- JSON.stringify({id:it.id, code:it.code, name:it.name, description:it.description, category_id:it.category_id, unit:it.unit, min_quantity:it.min_quantity, unit_price:it.unit_price, location:it.location, supplier:it.supplier, notes:it.notes}) %>)'><i class="fas fa-pen"></i></button>
+            <button class="btn btn-sm btn-outline" title="Nhập/Xuất" onclick='openTxModal("<%= it.id %>")'><i class="fas fa-right-left"></i></button>
+          </td>
+          <% } %>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<!-- Vật tư Tab -->
-<div id="pane-vattu">
-  <div class="card" style="border-top-left-radius:0">
-    <div class="card-body" style="padding:12px">
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <input type="text" id="search-vattu" class="form-control" placeholder="Tìm vật tư..." oninput="filterItems('vattu')" style="flex:1;max-width:280px">
-        <select id="cat-vattu" class="form-control" onchange="filterItems('vattu')" style="max-width:220px">
-          <option value="">Tất cả danh mục</option>
-          <% categories.filter(c => c.name !== 'Dụng cụ thi công').forEach(c => { %>
-          <option value="<%= c.id %>"><%= c.name %></option>
-          <% }) %>
+<% if (['edit','full'].includes(permLevel)) { %>
+<!-- Modal vật tư -->
+<dialog id="itemModal" class="modal" style="max-width:560px">
+  <form action="/warehouse/items" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="id" id="it_id">
+    <h3 id="itemModalTitle">Thêm vật tư</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Mã vật tư *</label><input type="text" name="code" id="it_code" class="form-control" required style="text-transform:uppercase"></div>
+      <div class="form-group"><label>Đơn vị tính *</label><input type="text" name="unit" id="it_unit" class="form-control" required placeholder="cái, mét, kg..."></div>
+    </div>
+    <div class="form-group"><label>Tên vật tư *</label><input type="text" name="name" id="it_name" class="form-control" required></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Danh mục</label>
+        <select name="category_id" id="it_category" class="form-control">
+          <option value="">— Chọn —</option>
+          <% categories.forEach(c => { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
         </select>
       </div>
+      <div class="form-group"><label>Tồn tối thiểu</label><input type="number" name="min_quantity" id="it_min" class="form-control" min="0" step="any" value="0"></div>
     </div>
-    <div style="overflow-x:auto">
-      <table id="tbl-vattu">
-        <thead><tr><th>Mã</th><th>Tên vật tư</th><th>Danh mục</th><th>ĐVT</th><th>Tồn kho</th><th>Đơn giá</th><th>Giá trị</th><th>Vị trí</th><th></th></tr></thead>
-        <tbody>
-        <% items.filter(i => i.category_name !== 'Dụng cụ thi công').forEach(item => { %>
-        <tr data-name="<%= item.name.toLowerCase() %>" data-cat="<%= item.category_id||'' %>">
-          <td style="font-size:11px;font-weight:700;color:var(--text-3)"><%= item.code %></td>
-          <td>
-            <a href="/warehouse/items/<%= item.id %>" style="font-weight:500"><%= item.name %></a>
-            <% if (item.quantity <= item.min_quantity && item.quantity > 0) { %>
-            <span class="badge" style="background:#FFF3E0;color:#FF9800;font-size:10px;margin-left:4px">Sắp hết</span>
-            <% } else if (item.quantity === 0) { %>
-            <span class="badge" style="background:#FFEBEE;color:#F44336;font-size:10px;margin-left:4px">Hết hàng</span>
-            <% } %>
-          </td>
-          <td style="font-size:12px;color:var(--text-3)"><%= item.category_name||'—' %></td>
-          <td style="font-size:12px"><%= item.unit %></td>
-          <td style="font-weight:600;color:<%= item.quantity===0 ? '#F44336' : item.quantity<=item.min_quantity ? '#FF9800' : 'var(--text)' %>"><%= Number(item.quantity).toLocaleString('vi-VN') %></td>
-          <td style="font-size:13px"><%= item.unit_price ? Number(item.unit_price).toLocaleString('vi-VN') + ' đ' : '—' %></td>
-          <td style="font-size:12px;color:var(--primary)"><%= item.unit_price ? (Number(item.quantity)*Number(item.unit_price)).toLocaleString('vi-VN') + ' đ' : '—' %></td>
-          <td style="font-size:12px;color:var(--text-3)"><%= item.location||'—' %></td>
-          <td style="white-space:nowrap">
-            <a href="/warehouse/items/<%= item.id %>" class="btn btn-sm btn-outline"><i class="fas fa-eye"></i></a>
-            <% if (['admin','warehouse'].includes(locals.userRole)) { %>
-            <button onclick="openExport('<%= item.id %>','<%= item.name %>','<%= item.unit %>',<%= item.quantity %>)" class="btn btn-sm btn-primary" title="Xuất kho"><i class="fas fa-arrow-up"></i></button>
-            <% } %>
-          </td>
-        </tr>
+    <div class="form-row">
+      <div class="form-group"><label>Đơn giá (VNĐ)</label><input type="number" name="unit_price" id="it_price" class="form-control" min="0" step="1000"></div>
+      <div class="form-group"><label>Vị trí trong kho</label><input type="text" name="location" id="it_location" class="form-control" placeholder="vd: Kệ A2"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Nhà cung cấp</label><input type="text" name="supplier" id="it_supplier" class="form-control"></div>
+      <div class="form-group"><label>Ghi chú</label><input type="text" name="notes" id="it_notes" class="form-control"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="this.closest('dialog').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal nhập/xuất -->
+<dialog id="txModal" class="modal" style="max-width:480px">
+  <form action="/warehouse/transactions" method="POST" class="modal-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3>Phiếu Nhập / Xuất kho</h3>
+    <div class="form-group">
+      <label>Vật tư *</label>
+      <select name="item_id" id="tx_item" class="form-control" required>
+        <option value="">— Chọn vật tư —</option>
+        <% items.forEach(it => { %>
+        <option value="<%= it.id %>"><%= it.code %> — <%= it.name %> (tồn: <%= parseFloat(it.quantity) %> <%= it.unit %>)</option>
         <% }) %>
-        </tbody>
-      </table>
+      </select>
     </div>
-  </div>
-</div>
-
-<!-- Dụng cụ Tab -->
-<div id="pane-dungcu" style="display:none">
-  <div class="card" style="border-top-left-radius:0">
-    <div class="card-body" style="padding:12px">
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <input type="text" id="search-dungcu" class="form-control" placeholder="Tìm dụng cụ..." oninput="filterItems('dungcu')" style="flex:1;max-width:280px">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Loại phiếu *</label>
+        <select name="transaction_type" class="form-control" required>
+          <option value="import">Nhập kho</option>
+          <option value="export">Xuất kho</option>
+          <option value="adjust">Điều chỉnh tồn (đặt lại số)</option>
+        </select>
       </div>
+      <div class="form-group"><label>Số lượng *</label><input type="number" name="quantity" class="form-control" required min="0.001" step="any"></div>
     </div>
-    <div style="overflow-x:auto">
-      <table id="tbl-dungcu">
-        <thead><tr><th>Mã</th><th>Tên dụng cụ</th><th>ĐVT</th><th>Số lượng</th><th>Tình trạng</th><th>Vị trí</th><th></th></tr></thead>
-        <tbody>
-        <% items.filter(i => i.category_name === 'Dụng cụ thi công').forEach(item => { %>
-        <tr data-name="<%= item.name.toLowerCase() %>">
-          <td style="font-size:11px;font-weight:700;color:var(--text-3)"><%= item.code %></td>
-          <td><a href="/warehouse/items/<%= item.id %>" style="font-weight:500"><%= item.name %></a></td>
-          <td style="font-size:12px"><%= item.unit %></td>
-          <td style="font-weight:600"><%= Number(item.quantity).toLocaleString('vi-VN') %></td>
-          <td>
-            <% if (item.quantity === 0) { %>
-            <span class="badge" style="background:#FFEBEE;color:#F44336">Đang sử dụng hết</span>
-            <% } else { %>
-            <span class="badge" style="background:#E8F5E9;color:#4CAF50">Có sẵn (<%= item.quantity %>)</span>
-            <% } %>
-          </td>
-          <td style="font-size:12px;color:var(--text-3)"><%= item.location||'—' %></td>
-          <td style="white-space:nowrap">
-            <a href="/warehouse/items/<%= item.id %>" class="btn btn-sm btn-outline"><i class="fas fa-eye"></i></a>
-            <% if (['admin','warehouse'].includes(locals.userRole)) { %>
-            <button onclick="openExport('<%= item.id %>','<%= item.name %>','<%= item.unit %>',<%= item.quantity %>)" class="btn btn-sm btn-primary" title="Xuất/Giao dự án"><i class="fas fa-arrow-up"></i></button>
-            <% } %>
-          </td>
-        </tr>
-        <% }) %>
-        </tbody>
-      </table>
+    <div class="form-row">
+      <div class="form-group"><label>Đơn giá (VNĐ)</label><input type="number" name="unit_price" class="form-control" min="0" step="1000"></div>
+      <div class="form-group"><label>Số chứng từ</label><input type="text" name="reference_code" class="form-control" placeholder="vd: PNK-001"></div>
     </div>
-  </div>
-</div>
-
-<!-- Transactions Tab -->
-<div id="pane-tx" style="display:none">
-  <div class="card" style="border-top-left-radius:0">
-    <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>Thời gian</th><th>Loại</th><th>Vật tư</th><th>SL</th><th>Dự án</th><th>Người thực hiện</th><th>Ghi chú</th></tr></thead>
-        <tbody>
-        <% if (!recentTransactions || recentTransactions.length === 0) { %>
-        <tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:32px">Chưa có giao dịch</td></tr>
-        <% } else { %>
-        <% recentTransactions.forEach(tx => { %>
-        <tr>
-          <td style="font-size:12px;color:var(--text-3)"><%= new Date(tx.transaction_date).toLocaleDateString('vi-VN') %></td>
-          <td><span class="badge" style="background:<%= tx.transaction_type==='in' ? '#E8F5E9' : tx.transaction_type==='out' ? '#FFEBEE' : '#E3F2FD' %>;color:<%= tx.transaction_type==='in' ? '#4CAF50' : tx.transaction_type==='out' ? '#F44336' : '#2196F3' %>"><%= tx.transaction_type==='in' ? '▲ Nhập' : tx.transaction_type==='out' ? '▼ Xuất' : '↔ Điều chỉnh' %></span></td>
-          <td style="font-weight:500"><%= tx.item_name %> <span style="color:var(--text-3);font-size:11px">(<%= tx.item_code %>)</span></td>
-          <td style="font-weight:600;color:<%= tx.transaction_type==='in' ? '#4CAF50' : '#F44336' %>"><%= tx.transaction_type==='in' ? '+' : '-' %><%= tx.quantity %> <%= tx.unit %></td>
-          <td style="font-size:12px"><%= tx.project_name||'—' %></td>
-          <td style="font-size:12px"><%= tx.performer_name||'—' %></td>
-          <td style="font-size:12px;color:var(--text-3)"><%= tx.notes||'' %></td>
-        </tr>
-        <% }) %>
-        <% } %>
-        </tbody>
-      </table>
+    <div class="form-group"><label>Ghi chú</label><input type="text" name="notes" class="form-control"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="this.closest('dialog').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Xác nhận</button>
     </div>
-  </div>
-</div>
-
-<!-- Low Stock Alert -->
-<% if (lowStockItems && lowStockItems.length > 0) { %>
-<div class="card mt-4" style="border-left:3px solid #FF9800">
-  <div class="card-header" style="background:#FFF8E1">
-    <span class="card-title" style="color:#FF9800"><i class="fas fa-exclamation-triangle"></i> Cảnh báo tồn kho thấp (<%= lowStockItems.length %> mặt hàng)</span>
-  </div>
-  <div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px">
-    <% lowStockItems.forEach(item => { %>
-    <a href="/warehouse/items/<%= item.id %>" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;background:<%= item.quantity===0 ? '#FFEBEE' : '#FFF3E0' %>;color:<%= item.quantity===0 ? '#F44336' : '#FF9800' %>;font-size:12px;text-decoration:none;border:1px solid currentColor">
-      <i class="fas fa-<%= item.quantity===0 ? 'times-circle' : 'exclamation-circle' %>"></i>
-      <%= item.name %> (<%= item.quantity %> <%= item.unit %>)
-    </a>
-    <% }) %>
-  </div>
-</div>
-<% } %>
-
-<!-- Export Modal -->
-<div class="modal-overlay" id="exportModal">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">Xuất kho / Giao dự án</span>
-      <button class="modal-close" onclick="document.getElementById('exportModal').classList.remove('open')"><i class="fas fa-times"></i></button>
-    </div>
-    <form action="/warehouse/transactions" method="POST">
-      <input type="hidden" name="item_id" id="exportItemId">
-      <input type="hidden" name="transaction_type" value="out">
-      <div class="modal-body">
-        <div style="padding:10px;background:var(--border-light);border-radius:8px;margin-bottom:16px">
-          <div style="font-weight:600" id="exportItemName"></div>
-          <div style="font-size:12px;color:var(--text-3)">Tồn kho: <span id="exportItemStock"></span></div>
-        </div>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Số lượng xuất <span class="req">*</span></label>
-            <input type="number" name="quantity" id="exportQty" class="form-control" min="1" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Đơn vị</label>
-            <input type="text" name="unit" id="exportUnit" class="form-control" readonly>
-          </div>
-        </div>
-        <div class="form-group mt-3">
-          <label class="form-label">Xuất đến Dự án</label>
-          <select name="project_id" class="form-control">
-            <option value="">— Không gắn dự án —</option>
-            <% if (typeof projects !== 'undefined') { projects.forEach(p => { %><option value="<%= p.id %>"><%= p.name %></option><% }) } %>
-          </select>
-        </div>
-        <div class="form-group mt-3">
-          <label class="form-label">Người phụ trách</label>
-          <input type="text" name="notes" class="form-control" placeholder="Tên người nhận / ghi chú...">
-        </div>
-        <input type="hidden" name="transaction_date" value="<%= new Date().toISOString().split('T')[0] %>">
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline" onclick="document.getElementById('exportModal').classList.remove('open')">Hủy</button>
-        <button type="submit" class="btn btn-primary"><i class="fas fa-arrow-up"></i> Xuất kho</button>
-      </div>
-    </form>
-  </div>
-</div>
+  </form>
+</dialog>
 
 <script>
-// Count items per tab
-const vattuRows = document.querySelectorAll('#tbl-vattu tbody tr').length;
-const dungcuRows = document.querySelectorAll('#tbl-dungcu tbody tr').length;
-document.getElementById('cnt-vattu').textContent = vattuRows;
-document.getElementById('cnt-dungcu').textContent = dungcuRows;
-
-// Set initial active tab
-switchTab('vattu');
-
-function switchTab(tab) {
-  ['vattu','dungcu','tx'].forEach(t => {
-    document.getElementById('pane-' + t).style.display = t === tab ? 'block' : 'none';
-    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+function openItemModal(it) {
+  document.getElementById('itemModalTitle').textContent = it ? 'Sửa vật tư: ' + it.name : 'Thêm vật tư';
+  document.getElementById('it_id').value = it ? it.id : '';
+  ['code','name','unit','location','supplier','notes'].forEach(k => {
+    document.getElementById('it_' + k).value = it ? (it[k] || '') : '';
   });
+  document.getElementById('it_category').value = it ? (it.category_id || '') : '';
+  document.getElementById('it_min').value = it ? (it.min_quantity || 0) : 0;
+  document.getElementById('it_price').value = it ? (it.unit_price || '') : '';
+  document.getElementById('itemModal').showModal();
 }
-
-function filterItems(tab) {
-  const search = document.getElementById('search-' + tab).value.toLowerCase();
-  const cat = tab === 'vattu' ? document.getElementById('cat-vattu').value : '';
-  const rows = document.querySelectorAll('#tbl-' + tab + ' tbody tr');
-  rows.forEach(row => {
-    const nameMatch = row.dataset.name.includes(search);
-    const catMatch = !cat || row.dataset.cat === cat;
-    row.style.display = nameMatch && catMatch ? '' : 'none';
-  });
-}
-
-function openExport(id, name, unit, stock) {
-  document.getElementById('exportItemId').value = id;
-  document.getElementById('exportItemName').textContent = name;
-  document.getElementById('exportItemStock').textContent = stock + ' ' + unit;
-  document.getElementById('exportUnit').value = unit;
-  document.getElementById('exportQty').value = 1;
-  document.getElementById('exportQty').max = stock;
-  document.getElementById('exportModal').classList.add('open');
+function openTxModal(itemId) {
+  if (itemId) document.getElementById('tx_item').value = itemId;
+  document.getElementById('txModal').showModal();
 }
 </script>
+<% } %>
+
+<style>
+.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.wh-warning {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px;
+  background: var(--warning-bg); color: #92400E; border-radius: var(--radius-sm); font-size: 13.5px;
+}
+.wh-warning i { color: var(--warning); }
+.modal { border: none; border-radius: var(--radius-lg); padding: 0; width: 100%; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+.modal::backdrop { background: rgba(13,27,62,.5); }
+.modal-form { padding: 26px; }
+.modal-form h3 { margin-bottom: 20px; font-size: 17px; color: var(--text); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+</style>

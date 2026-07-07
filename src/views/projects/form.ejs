@@ -1,82 +1,101 @@
-<div style="max-width:900px;margin:0 auto">
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title"><%= project ? 'Chỉnh sửa Dự án' : 'Tạo Dự án mới' %></span>
-      <a href="/projects" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Quay lại</a>
-    </div>
-    <div class="card-body">
-      <form action="<%= project ? '/projects/' + project.id + '/edit' : '/projects/create' %>" method="POST">
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Mã dự án <span class="req">*</span></label>
-            <input type="text" name="code" class="form-control" value="<%= project ? project.code : '' %>" placeholder="VD: RIAE-2024-001" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Tên dự án <span class="req">*</span></label>
-            <input type="text" name="name" class="form-control" value="<%= project ? project.name : '' %>" required>
-          </div>
-          <div class="form-group col-span-2">
-            <label class="form-label">Mô tả dự án</label>
-            <textarea name="description" class="form-control"><%= project ? project.description || '' : '' %></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Khách hàng</label>
-            <input type="text" name="client_name" class="form-control" value="<%= project ? project.client_name || '' : '' %>">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Liên hệ khách hàng</label>
-            <input type="text" name="client_contact" class="form-control" value="<%= project ? project.client_contact || '' : '' %>">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Trạng thái</label>
-            <select name="status" class="form-control">
-              <option value="planning" <%= (!project || project.status==='planning') ? 'selected' : '' %>>Lên kế hoạch</option>
-              <option value="active" <%= project && project.status==='active' ? 'selected' : '' %>>Đang hoạt động</option>
-              <option value="on_hold" <%= project && project.status==='on_hold' ? 'selected' : '' %>>Tạm dừng</option>
-              <option value="completed" <%= project && project.status==='completed' ? 'selected' : '' %>>Hoàn thành</option>
-              <option value="cancelled" <%= project && project.status==='cancelled' ? 'selected' : '' %>>Đã hủy</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Độ ưu tiên</label>
-            <select name="priority" class="form-control">
-              <option value="low" <%= project && project.priority==='low' ? 'selected' : '' %>>Thấp</option>
-              <option value="medium" <%= (!project || project.priority==='medium') ? 'selected' : '' %>>Trung bình</option>
-              <option value="high" <%= project && project.priority==='high' ? 'selected' : '' %>>Cao</option>
-              <option value="urgent" <%= project && project.priority==='urgent' ? 'selected' : '' %>>Khẩn cấp</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Ngày bắt đầu</label>
-            <input type="date" name="start_date" class="form-control" value="<%= project && project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : '' %>">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Ngày kết thúc</label>
-            <input type="date" name="end_date" class="form-control" value="<%= project && project.end_date ? new Date(project.end_date).toISOString().split('T')[0] : '' %>">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Ngân sách (VNĐ)</label>
-            <input type="number" name="budget" class="form-control" value="<%= project ? project.budget || '' : '' %>" placeholder="0">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Địa điểm thi công</label>
-            <input type="text" name="location" class="form-control" value="<%= project ? project.location || '' : '' %>">
-          </div>
-          <div class="form-group col-span-2">
-            <label class="form-label">Quản lý dự án</label>
-            <select name="manager_id" class="form-control">
-              <option value="">— Chọn PM —</option>
-              <% users.forEach(u => { %>
-              <option value="<%= u.id %>" <%= project && project.manager_id === u.id ? 'selected' : '' %>><%= u.full_name %> (<%= u.role %>)</option>
-              <% }) %>
-            </select>
-          </div>
-        </div>
-        <div style="margin-top:24px;display:flex;gap:10px">
-          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <%= project ? 'Lưu thay đổi' : 'Tạo dự án' %></button>
-          <a href="<%= project ? '/projects/' + project.id : '/projects' %>" class="btn btn-outline">Hủy</a>
-        </div>
-      </form>
-    </div>
+<div class="page-header">
+  <div class="page-header-title">
+    <h1><%= project ? 'Chỉnh sửa Dự án' : 'Tạo Dự án mới' %></h1>
+    <p><%= project ? project.code + ' — ' + project.name : 'Điền thông tin dự án' %></p>
   </div>
 </div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    <form action="<%= project ? '/projects/' + project.id : '/projects' %>" method="POST">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Mã dự án *</label>
+          <input type="text" name="code" class="form-control" required maxlength="20"
+                 value="<%= project ? project.code : '' %>" placeholder="vd: PRJ-001" style="text-transform:uppercase">
+        </div>
+        <div class="form-group">
+          <label>Quản lý dự án (PM)</label>
+          <select name="manager_id" class="form-control">
+            <option value="">— Chọn PM —</option>
+            <% users.forEach(u => { %>
+            <option value="<%= u.id %>" <%= project && project.manager_id === u.id ? 'selected' : '' %>><%= u.full_name %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Tên dự án *</label>
+        <input type="text" name="name" class="form-control" required maxlength="200"
+               value="<%= project ? project.name : '' %>">
+      </div>
+      <div class="form-group">
+        <label>Mô tả</label>
+        <textarea name="description" class="form-control" rows="3"><%= project ? (project.description || '') : '' %></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Khách hàng</label>
+          <input type="text" name="client_name" class="form-control" value="<%= project ? (project.client_name || '') : '' %>">
+        </div>
+        <div class="form-group">
+          <label>Liên hệ khách hàng</label>
+          <input type="text" name="client_contact" class="form-control" value="<%= project ? (project.client_contact || '') : '' %>">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Trạng thái</label>
+          <select name="status" class="form-control">
+            <% Object.entries(PROJECT_STATUS_LABELS).forEach(([v, l]) => { %>
+            <option value="<%= v %>" <%= project && project.status === v ? 'selected' : '' %>><%= l %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Ưu tiên</label>
+          <select name="priority" class="form-control">
+            <% Object.entries(PRIORITY_LABELS).forEach(([v, l]) => { %>
+            <option value="<%= v %>" <%= (project ? project.priority === v : v === 'medium') ? 'selected' : '' %>><%= l %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ngày bắt đầu</label>
+          <input type="date" name="start_date" class="form-control"
+                 value="<%= project && project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : '' %>">
+        </div>
+        <div class="form-group">
+          <label>Hạn hoàn thành</label>
+          <input type="date" name="end_date" class="form-control"
+                 value="<%= project && project.end_date ? new Date(project.end_date).toISOString().split('T')[0] : '' %>">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ngân sách (VNĐ)</label>
+          <input type="number" name="budget" class="form-control" min="0" step="1000"
+                 value="<%= project ? (project.budget || '') : '' %>">
+        </div>
+        <div class="form-group">
+          <label>Địa điểm</label>
+          <input type="text" name="location" class="form-control" value="<%= project ? (project.location || '') : '' %>">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <a href="<%= project ? '/projects/' + project.id : '/projects' %>" class="btn btn-outline">Hủy</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> <%= project ? 'Lưu thay đổi' : 'Tạo dự án' %>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+</style>

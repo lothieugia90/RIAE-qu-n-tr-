@@ -1,57 +1,43 @@
 <div class="page-header">
   <div class="page-header-title">
-    <h2>Lịch sử Xuất/Nhập kho</h2>
-    <p><%= transactions.length %> giao dịch</p>
+    <h1>Lịch sử Nhập / Xuất kho</h1>
+    <p>Toàn bộ phiếu nhập, xuất, điều chỉnh (mới nhất trước)</p>
   </div>
-  <div class="page-header-actions">
-    <a href="/warehouse" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Kho</a>
-  </div>
+  <a href="/warehouse" class="btn btn-outline"><i class="fas fa-boxes"></i> Về Kho vật tư</a>
 </div>
-
-<form method="GET" class="filter-bar">
-  <select name="type" class="form-control">
-    <option value="">Tất cả loại</option>
-    <option value="import" <%= filters.type==='import'?'selected':'' %>>Nhập kho</option>
-    <option value="export" <%= filters.type==='export'?'selected':'' %>>Xuất kho</option>
-    <option value="adjust" <%= filters.type==='adjust'?'selected':'' %>>Điều chỉnh</option>
-  </select>
-  <input type="date" name="from_date" class="form-control" value="<%= filters.from_date || '' %>" title="Từ ngày">
-  <input type="date" name="to_date" class="form-control" value="<%= filters.to_date || '' %>" title="Đến ngày">
-  <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
-  <a href="/warehouse/transactions" class="btn btn-outline">Reset</a>
-</form>
 
 <div class="card">
-  <div class="table-wrap" style="border:none;border-radius:var(--radius)">
-    <% if (transactions.length === 0) { %>
-    <div class="empty-state" style="padding:48px">
-      <div class="empty-state-icon"><i class="fas fa-exchange-alt"></i></div>
-      <h3>Không có giao dịch nào</h3>
-    </div>
-    <% } else { %>
-    <table>
-      <thead><tr><th>Loại</th><th>Vật tư</th><th>Số lượng</th><th>Đơn giá</th><th>Dự án</th><th>Người thực hiện</th><th>Ngày</th></tr></thead>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Thời gian</th><th>Loại</th><th>Vật tư</th><th>Số lượng</th><th>Dự án</th><th>Chứng từ</th><th>Người thực hiện</th></tr></thead>
       <tbody>
-      <% transactions.forEach(tx => { %>
-      <tr>
-        <td>
-          <span class="badge" style="background:<%= tx.transaction_type==='import' ? 'var(--success-bg)' : tx.transaction_type==='export' ? 'var(--danger-bg)' : 'var(--info-bg)' %>;color:<%= tx.transaction_type==='import' ? 'var(--success)' : tx.transaction_type==='export' ? 'var(--danger)' : 'var(--info)' %>">
-            <%= tx.transaction_type==='import' ? '↑ Nhập' : tx.transaction_type==='export' ? '↓ Xuất' : '↔ Điều chỉnh' %>
-          </span>
-        </td>
-        <td>
-          <a href="/warehouse/items/<%= tx.item_id %>" style="font-weight:500"><%= tx.item_name %></a>
-          <div style="font-size:11px;color:var(--text-3)"><%= tx.item_code %></div>
-        </td>
-        <td style="font-weight:600"><%= tx.quantity %> <%= tx.unit %></td>
-        <td style="font-size:12px"><%= tx.unit_price ? Number(tx.unit_price).toLocaleString('vi-VN') + ' đ' : '—' %></td>
-        <td style="font-size:12px"><%= tx.project_name || '—' %></td>
-        <td style="font-size:12px"><%= tx.performer_name || '—' %></td>
-        <td style="font-size:12px;color:var(--text-3);white-space:nowrap"><%= new Date(tx.transaction_date).toLocaleDateString('vi-VN') %></td>
-      </tr>
-      <% }) %>
+        <% if (transactions.length === 0) { %>
+        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-3)">Chưa có phiếu nào</td></tr>
+        <% } %>
+        <% transactions.forEach(t => { %>
+        <tr>
+          <td style="white-space:nowrap"><%= fmtDateTime(t.created_at) %></td>
+          <td>
+            <% if (t.transaction_type === 'import') { %><span class="badge badge-success"><i class="fas fa-arrow-down"></i> Nhập</span>
+            <% } else if (t.transaction_type === 'export') { %><span class="badge badge-danger"><i class="fas fa-arrow-up"></i> Xuất</span>
+            <% } else { %><span class="badge badge-warning"><i class="fas fa-sliders-h"></i> Điều chỉnh</span><% } %>
+          </td>
+          <td><span class="project-code"><%= t.item_code %></span> <%= t.item_name %></td>
+          <td><strong><%= parseFloat(t.quantity) %></strong> <%= t.unit %></td>
+          <td><%= t.project_name || '—' %></td>
+          <td><%= t.reference_code || '—' %></td>
+          <td><%= t.performer_name || '—' %></td>
+        </tr>
+        <% }) %>
       </tbody>
     </table>
-    <% } %>
   </div>
 </div>
+
+<% if (totalPages > 1) { %>
+<div style="margin-top:16px;display:flex;gap:6px;justify-content:center">
+  <% for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) { %>
+  <a href="/warehouse/transactions?page=<%= p %>" class="btn btn-sm <%= p === page ? 'btn-primary' : 'btn-outline' %>"><%= p %></a>
+  <% } %>
+</div>
+<% } %>

@@ -9,40 +9,33 @@ const morgan = require('morgan');
 const helmet = require('helmet');
 const compression = require('compression');
 const path = require('path');
-const { pool } = require('./src/config/database');
+const { pool, query } = require('./src/config/database');
 const { loadUser } = require('./src/middleware/auth');
-require('./src/config/migrate-v2')();
-require('./src/config/migrate-v3')();
-require('./src/config/migrate-v4')();
-require('./src/config/migrate-v5')();
-require('./src/config/migrate-v6')();
-require('./src/config/migrate-v7')();
-require('./src/config/migrate-v8')();
-require('./src/config/migrate-v9')();
-require('./src/config/migrate-v10')();
-require('./src/config/migrate-v11')();
-require('./src/config/migrate-v12')();
-require('./src/config/migrate-v13')();
-require('./src/config/migrate-v14')();
-require('./src/config/migrate-v15')();
+const { csrfProtection } = require('./src/middleware/csrf');
+
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  console.error('FATAL: SESSION_SECRET is required in production.');
+  process.exit(1);
+}
 
 const app = express();
 
-// Trust reverse proxy (Hostinger, Railway, Render, etc.)
+// Trust reverse proxy (Nginx)
 app.set('trust proxy', 1);
 
 // Security & Performance
+// CSP tắt vì views dùng CDN (Font Awesome, Google Fonts) + inline script;
+// sẽ siết lại khi chuyển asset về self-host.
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 
-// Logging
 if (process.env.NODE_ENV !== 'production') app.use(morgan('dev'));
 
 // Body parsing
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.json({ limit: '10mb' }));
-app.use(methodOverride('_method'));                          // query string: ?_method=PUT
-app.use(methodOverride((req) => {                            // body field: <input name="_method">
+app.use(methodOverride('_method'));
+app.use(methodOverride((req) => {
   if (req.body && typeof req.body === 'object' && '_method' in req.body) {
     const method = req.body._method;
     delete req.body._method;
@@ -53,10 +46,10 @@ app.use(methodOverride((req) => {                            // body field: <inp
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Session with PostgreSQL store
-app.use(session({
+// Session (PostgreSQL store) — dùng chung cho HTTP và Socket.IO
+const sessionMiddleware = session({
   store: new PgSession({ pool, tableName: 'session' }),
-  secret: process.env.SESSION_SECRET || 'riae-secret-2024',
+  secret: process.env.SESSION_SECRET || 'dev-only-secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -65,9 +58,11 @@ app.use(session({
     httpOnly: true,
     sameSite: 'lax'
   }
-}));
+});
+app.use(sessionMiddleware);
 
 app.use(flash());
+app.use(csrfProtection);
 
 // View engine
 app.set('view engine', 'ejs');
@@ -75,88 +70,53 @@ app.set('views', path.join(__dirname, 'src/views'));
 app.use(expressLayouts);
 app.set('layout', 'layouts/main');
 
-// Load authenticated user on every request
 app.use(loadUser);
 
-// Global template locals
+// Helper định dạng dùng chung trong view
+const STATUS_LABELS = { todo: 'Cần làm', in_progress: 'Đang làm', review: 'Kiểm tra', done: 'Hoàn thành' };
+const PRIORITY_LABELS = { low: 'Thấp', medium: 'Trung bình', high: 'Cao', urgent: 'Khẩn cấp' };
+const PROJECT_STATUS_LABELS = { planning: 'Chuẩn bị', active: 'Đang chạy', on_hold: 'Tạm dừng', completed: 'Hoàn thành', cancelled: 'Đã hủy' };
 app.use((req, res, next) => {
-  res.locals.moment = require('moment');
+  res.locals.fmtDate = d => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
+  res.locals.fmtDateTime = d => d ? new Date(d).toLocaleString('vi-VN') : '—';
+  res.locals.STATUS_LABELS = STATUS_LABELS;
+  res.locals.PRIORITY_LABELS = PRIORITY_LABELS;
+  res.locals.PROJECT_STATUS_LABELS = PROJECT_STATUS_LABELS;
+  next();
+});
+
+// Context chung cho template: path hiện tại + badge đếm (gom 1 middleware,
+// 1 round-trip DB thay vì mỗi badge một query như bản cũ)
+app.use(async (req, res, next) => {
   res.locals.path = req.path;
-  res.locals.unreadAnnouncements = 0;
-  next();
-});
-
-// Load unread announcement count for authenticated users
-app.use(async (req, res, next) => {
-  if (req.session && req.session.userId) {
-    try {
-      const { query } = require('./src/config/database');
-      const result = await query(
-        `SELECT COUNT(*) FROM announcements a
-         WHERE a.is_published = true
-         AND (a.expires_at IS NULL OR a.expires_at > NOW())
-         AND NOT EXISTS (
-           SELECT 1 FROM announcement_reads ar
-           WHERE ar.announcement_id = a.id AND ar.user_id = $1
-         )`,
-        [req.session.userId]
-      );
-      res.locals.unreadAnnouncements = parseInt(result.rows[0].count) || 0;
-    } catch (e) { /* silent */ }
-  }
-  next();
-});
-
-// Load unread personal notification count
-app.use(async (req, res, next) => {
   res.locals.unreadNotifications = 0;
-  if (req.session && req.session.userId) {
-    try {
-      const { query } = require('./src/config/database');
-      const r = await query(
-        `SELECT COUNT(*)::int as count FROM notifications WHERE user_id=$1 AND is_read=false`,
-        [req.session.userId]
-      );
-      res.locals.unreadNotifications = r.rows[0].count || 0;
-    } catch (e) { /* silent */ }
-  }
-  next();
-});
-
-// Also count unread chat messages
-app.use(async (req, res, next) => {
-  if (req.session && req.session.userId) {
-    try {
-      const { query } = require('./src/config/database');
-      const result = await query(
-        `SELECT COUNT(*) FROM chat_messages cm
-         JOIN chat_room_members crm ON crm.room_id=cm.room_id AND crm.user_id=$1
-         WHERE cm.user_id != $1 AND cm.created_at > COALESCE(crm.last_read_at, '1970-01-01')`,
-        [req.session.userId]
-      );
-      res.locals.unreadChats = parseInt(result.rows[0].count) || 0;
-    } catch(e) { res.locals.unreadChats = 0; }
-  } else { res.locals.unreadChats = 0; }
-  next();
-});
-
-// Load "Việc của tôi" pending count for sidebar badge
-app.use(async (req, res, next) => {
   res.locals.myWorkCount = 0;
   if (req.session && req.session.userId) {
     try {
-      const { query } = require('./src/config/database');
-      const [over, approvals, sigs] = await Promise.all([
-        query(`SELECT COUNT(*)::int as c FROM tasks
-               WHERE assignee_id=$1 AND status!='done' AND due_date < CURRENT_DATE`, [req.session.userId]),
-        query(`SELECT COUNT(*)::int as c FROM requests r
-               JOIN request_approvals ra ON ra.request_id=r.id
-               WHERE ra.approver_id=$1 AND ra.status='pending' AND r.status='pending'`, [req.session.userId]),
-        query(`SELECT COUNT(*)::int as c FROM warehouse_assignments
-               WHERE assigned_to_user=$1 AND status='active' AND signed_at IS NULL`, [req.session.userId])
-      ]);
-      res.locals.myWorkCount = (over.rows[0].c || 0) + (approvals.rows[0].c || 0) + (sigs.rows[0].c || 0);
-    } catch(e) { /* silent */ }
+      const r = await query(
+        `SELECT
+           (SELECT COUNT(*)::int FROM notifications WHERE user_id=$1 AND is_read=false) AS notif,
+           (SELECT COUNT(*)::int FROM tasks
+            WHERE assignee_id=$1 AND status!='done' AND due_date <= CURRENT_DATE) AS due_tasks,
+           (SELECT COUNT(*)::int FROM request_approvals ra
+            JOIN requests rq ON rq.id=ra.request_id
+            WHERE ra.approver_id=$1 AND ra.status='pending' AND rq.status='pending') AS approvals,
+           (SELECT COUNT(*)::int FROM chat_messages cm
+            JOIN chat_room_members crm ON crm.room_id=cm.room_id AND crm.user_id=$1
+            WHERE cm.user_id != $1 AND cm.created_at > COALESCE(crm.last_read_at, '1970-01-01')) AS chats,
+           (SELECT COUNT(*)::int FROM announcements a
+            WHERE a.is_published=true AND (a.expires_at IS NULL OR a.expires_at > NOW())
+            AND NOT EXISTS (SELECT 1 FROM announcement_reads ar WHERE ar.announcement_id=a.id AND ar.user_id=$1)) AS announcements`,
+        [req.session.userId]
+      );
+      res.locals.unreadNotifications = r.rows[0].notif || 0;
+      // "Việc của tôi" chỉ đếm task quá hạn/đến hạn — KHÔNG cộng approvals vào đây,
+      // nếu không badge sẽ hiện số dù không có task nào (approvals đã có badge riêng ở "Phê duyệt")
+      res.locals.myWorkCount = r.rows[0].due_tasks || 0;
+      res.locals.pendingApprovals = r.rows[0].approvals || 0;
+      res.locals.unreadChats = r.rows[0].chats || 0;
+      res.locals.unreadAnnouncements = r.rows[0].announcements || 0;
+    } catch (e) { /* badge không được làm hỏng trang */ }
   }
   next();
 });
@@ -164,23 +124,20 @@ app.use(async (req, res, next) => {
 // Routes
 app.use('/auth', require('./src/routes/auth'));
 app.use('/dashboard', require('./src/routes/dashboard'));
+app.use('/announcements', require('./src/routes/announcements'));
 app.use('/projects', require('./src/routes/projects'));
 app.use('/tasks', require('./src/routes/tasks'));
-app.use('/hr', require('./src/routes/hr'));
-app.use('/warehouse', require('./src/routes/warehouse'));
-app.use('/announcements', require('./src/routes/announcements'));
 app.use('/notifications', require('./src/routes/notifications'));
-app.use('/admin', require('./src/routes/admin'));
-app.use('/api', require('./src/routes/api'));
-app.use('/partners', require('./src/routes/partners'));
-app.use('/chat', require('./src/routes/chat'));
-app.use('/quotes', require('./src/routes/quotes'));
+app.use('/hr', require('./src/routes/hr'));
 app.use('/attendance', require('./src/routes/attendance'));
-app.use('/requests', require('./src/routes/requests'));
-app.use('/signatures', require('./src/routes/signatures'));
 app.use('/payroll-settings', require('./src/routes/payrollSettings'));
+app.use('/requests', require('./src/routes/requests'));
+app.use('/warehouse', require('./src/routes/warehouse'));
+app.use('/partners', require('./src/routes/partners'));
+app.use('/quotes', require('./src/routes/quotes'));
+app.use('/chat', require('./src/routes/chat'));
+app.use('/admin', require('./src/routes/admin'));
 
-// Root redirect
 app.get('/', (req, res) => {
   if (req.session && req.session.userId) return res.redirect('/dashboard');
   res.redirect('/auth/login');
@@ -188,114 +145,74 @@ app.get('/', (req, res) => {
 
 // 404
 app.use((req, res) => {
-  res.status(404).render('errors/404', {
-    layout: 'layouts/main',
-    title: 'Không tìm thấy trang'
-  });
+  res.status(404).render('errors/404', { title: 'Không tìm thấy trang' });
 });
 
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).render('errors/500', {
-    layout: 'layouts/main',
     title: 'Lỗi hệ thống',
     error: process.env.NODE_ENV !== 'production' ? err : {}
   });
 });
 
+// ===== HTTP server + Socket.IO (chat realtime) =====
 const http = require('http');
 const { Server: SocketIO } = require('socket.io');
-const { query: dbQuery } = require('./src/config/database');
-
 const server = http.createServer(app);
-const io = new SocketIO(server, { cors: { origin: '*' } });
-app.set('io', io); // make io accessible in routes via req.app.get('io')
+const io = new SocketIO(server);
+app.set('io', io);
 
-// Socket.io auth middleware
+// Socket xác thực bằng CHÍNH session Express (không tin client tự khai userId như v1)
+io.engine.use(sessionMiddleware);
 io.use((socket, next) => {
-  const sess = socket.handshake.auth.session || socket.handshake.headers.cookie;
-  // Accept all connections from authenticated users (session check done in handler)
-  next();
+  const sess = socket.request.session;
+  if (sess && sess.userId) {
+    socket.userId = sess.userId;
+    socket.userName = sess.userName;
+    return next();
+  }
+  next(new Error('unauthorized'));
 });
 
-// Track online users: userId -> { socketId, lastSeen }
-const onlineMap = new Map();
+io.on('connection', async (socket) => {
+  // Chỉ join các phòng user là thành viên (kiểm tra server-side)
+  try {
+    const rooms = await query('SELECT room_id FROM chat_room_members WHERE user_id=$1', [socket.userId]);
+    rooms.rows.forEach(r => socket.join('room:' + r.room_id));
+  } catch (e) { /* silent */ }
 
-io.on('connection', (socket) => {
-  const userId = socket.handshake.auth.userId;
-  const userName = socket.handshake.auth.userName;
-  if (!userId) return socket.disconnect();
-
-  onlineMap.set(userId, { socketId: socket.id, lastSeen: new Date() });
-  io.emit('user:online', { userId, online: true });
-
-  // Update last_seen_at in DB
-  dbQuery('UPDATE users SET last_seen_at=NOW() WHERE id=$1', [userId]).catch(() => {});
-
-  // Join all user's rooms
-  socket.on('rooms:join', async (roomIds) => {
-    if (Array.isArray(roomIds)) roomIds.forEach(id => socket.join('room:' + id));
-  });
-
-  // Send message
-  socket.on('message:send', async ({ roomId, content, replyTo }) => {
+  socket.on('message:send', async ({ roomId, content }) => {
     if (!content?.trim() || !roomId) return;
     try {
-      const r = await dbQuery(
-        `INSERT INTO chat_messages (room_id,user_id,content,reply_to) VALUES ($1,$2,$3,$4) RETURNING *`,
-        [roomId, userId, content.trim(), replyTo || null]
+      const member = await query(
+        'SELECT 1 FROM chat_room_members WHERE room_id=$1 AND user_id=$2', [roomId, socket.userId]);
+      if (!member.rows.length) return;
+      const r = await query(
+        `INSERT INTO chat_messages (room_id, user_id, content) VALUES ($1,$2,$3) RETURNING *`,
+        [roomId, socket.userId, content.trim().slice(0, 4000)]
       );
-      const msg = r.rows[0];
-
-      // Fetch sender info
-      const userR = await dbQuery('SELECT full_name, avatar_url FROM users WHERE id=$1', [userId]);
-      const sender = userR.rows[0] || {};
-
-      const payload = {
-        ...msg,
-        full_name: sender.full_name || userName,
-        avatar_url: sender.avatar_url || null,
-        reply_content: null,
-        reply_author: null
-      };
-
-      // If reply, get original
-      if (replyTo) {
-        const orig = await dbQuery('SELECT cm.content, u.full_name FROM chat_messages cm JOIN users u ON u.id=cm.user_id WHERE cm.id=$1', [replyTo]);
-        if (orig.rows[0]) {
-          payload.reply_content = orig.rows[0].content;
-          payload.reply_author  = orig.rows[0].full_name;
-        }
-      }
-
-      io.to('room:' + roomId).emit('message:new', payload);
-    } catch (e) { console.error('Socket message:send error', e.message); }
+      const u = await query('SELECT full_name, avatar_url FROM users WHERE id=$1', [socket.userId]);
+      io.to('room:' + roomId).emit('message:new', {
+        ...r.rows[0],
+        full_name: u.rows[0]?.full_name || socket.userName,
+        avatar_url: u.rows[0]?.avatar_url || null
+      });
+      query('UPDATE chat_room_members SET last_read_at=NOW() WHERE room_id=$1 AND user_id=$2',
+        [roomId, socket.userId]).catch(() => {});
+    } catch (e) { console.error('chat send:', e.message); }
   });
 
-  // Typing indicator
-  socket.on('typing:start', ({ roomId }) => {
-    socket.to('room:' + roomId).emit('typing:update', { userId, userName, typing: true });
-  });
-  socket.on('typing:stop', ({ roomId }) => {
-    socket.to('room:' + roomId).emit('typing:update', { userId, userName, typing: false });
-  });
-
-  // Reaction
-  socket.on('message:react', async ({ messageId, roomId, emoji }) => {
-    io.to('room:' + roomId).emit('message:reaction', { messageId, userId, userName, emoji });
-  });
-
-  socket.on('disconnect', () => {
-    onlineMap.delete(userId);
-    dbQuery('UPDATE users SET last_seen_at=NOW() WHERE id=$1', [userId]).catch(() => {});
-    io.emit('user:online', { userId, online: false });
+  socket.on('room:read', ({ roomId }) => {
+    query('UPDATE chat_room_members SET last_read_at=NOW() WHERE room_id=$1 AND user_id=$2',
+      [roomId, socket.userId]).catch(() => {});
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`RIAE Management System running on port ${PORT}`);
+  console.log(`RIAE Management System v2 running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`URL: http://localhost:${PORT}`);
 });

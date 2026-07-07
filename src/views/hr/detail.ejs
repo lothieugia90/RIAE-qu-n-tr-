@@ -1,191 +1,95 @@
 <div class="page-header">
   <div class="page-header-title">
-    <h2><%= employee.full_name %></h2>
-    <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
-      <span class="badge badge-<%= employee.role %>"><%= employee.role %></span>
-      <span class="badge" style="background:<%= employee.is_active ? 'var(--success-bg)' : 'var(--danger-bg)' %>;color:<%= employee.is_active ? 'var(--success)' : 'var(--danger)' %>">
-        <%= employee.is_active ? 'Đang làm việc' : 'Nghỉ việc' %>
-      </span>
-      <% if (employee.contract_type) { %>
-      <span class="badge" style="background:var(--primary-50);color:var(--primary)"><i class="fas fa-file-contract"></i> <%= employee.contract_type %></span>
-      <% } %>
-    </div>
+    <h1><%= employee.full_name %></h1>
+    <p>
+      <span class="badge badge-info"><%= roleLabels[employee.role] || employee.role %></span>
+      <% if (employee.is_active) { %><span class="badge badge-success">Hoạt động</span>
+      <% } else { %><span class="badge badge-danger">Đã khóa</span><% } %>
+      <% if (employee.employee_code) { %> · Mã NV: <%= employee.employee_code %><% } %>
+    </p>
   </div>
-  <div class="page-header-actions">
-    <% if (['admin','director'].includes(locals.userRole)) { %>
-    <a href="/hr/<%= employee.id %>/edit" class="btn btn-outline"><i class="fas fa-edit"></i> Sửa</a>
-    <form action="/hr/<%= employee.id %>/toggle-active" method="POST" style="display:inline">
-      <button type="submit" class="btn <%= employee.is_active ? 'btn-warning' : 'btn-success' %>" onclick="return confirm('Thay đổi trạng thái tài khoản?')">
-        <i class="fas fa-<%= employee.is_active ? 'ban' : 'check' %>"></i>
-        <%= employee.is_active ? 'Khoá' : 'Kích hoạt' %>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <% if (['edit','full'].includes(permLevel)) { %>
+    <a href="/hr/<%= employee.id %>/edit" class="btn btn-primary"><i class="fas fa-pen"></i> Sửa hồ sơ</a>
+    <% } %>
+    <% if (permLevel === 'full' && employee.id !== currentUser.id) { %>
+    <form action="/hr/<%= employee.id %>/toggle-active" method="POST" style="display:inline"
+          data-confirm="<%= employee.is_active ? 'Khóa tài khoản này?' : 'Mở khóa tài khoản này?' %>">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-outline" style="color:<%= employee.is_active ? 'var(--danger)' : 'var(--success)' %>">
+        <i class="fas fa-<%= employee.is_active ? 'lock' : 'lock-open' %>"></i> <%= employee.is_active ? 'Khóa TK' : 'Mở khóa' %>
       </button>
     </form>
-    <button type="button" class="btn btn-outline" onclick="document.getElementById('resetPwdModal').style.display='flex'">
-      <i class="fas fa-key"></i> Đặt lại mật khẩu
-    </button>
     <% } %>
-    <a href="/hr" class="btn btn-outline"><i class="fas fa-arrow-left"></i></a>
   </div>
 </div>
 
-<div class="grid-70-30">
-  <div>
-    <!-- Info Card -->
-    <div class="card mb-4">
-      <div class="card-header"><span class="card-title">Thông tin nhân viên</span></div>
+<div class="detail-grid">
+  <div class="detail-main">
+    <div class="card">
+      <div class="card-header"><h3>Thông tin cá nhân</h3></div>
       <div class="card-body">
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
-          <div class="avatar avatar-lg">
-            <% if (employee.avatar_url) { %><img src="<%= employee.avatar_url %>" alt=""><% } else { %><%= employee.full_name.charAt(0).toUpperCase() %><% } %>
-          </div>
-          <div>
-            <h3 style="font-size:18px;font-weight:700"><%= employee.full_name %></h3>
-            <div style="color:var(--text-3);font-size:13px;margin-top:2px"><%= employee.position || employee.role %></div>
-            <div style="color:var(--text-3);font-size:13px"><%= employee.department || '' %></div>
-          </div>
-        </div>
-        <div class="form-grid-2">
-          <div><span style="font-size:12px;color:var(--text-3)">Email</span><div style="font-weight:500;font-size:13px"><%= employee.email %></div></div>
-          <div><span style="font-size:12px;color:var(--text-3)">Điện thoại</span><div style="font-weight:500;font-size:13px"><%= employee.phone || '—' %></div></div>
-          <div><span style="font-size:12px;color:var(--text-3)">Mã nhân viên</span><div style="font-weight:500;font-size:13px"><%= employee.employee_code || '—' %></div></div>
-          <div><span style="font-size:12px;color:var(--text-3)">Ngày vào làm</span><div style="font-weight:500;font-size:13px"><%= employee.hire_date ? new Date(employee.hire_date).toLocaleDateString('vi-VN') : '—' %></div></div>
-          <div><span style="font-size:12px;color:var(--text-3)">Loại HĐ</span><div style="font-weight:500;font-size:13px"><%= employee.contract_type || '—' %></div></div>
-          <div><span style="font-size:12px;color:var(--text-3)">HĐ hết hạn</span>
-            <% const contractEnd = employee.contract_end ? new Date(employee.contract_end) : null; %>
-            <div style="font-weight:500;font-size:13px;color:<%= contractEnd && contractEnd < new Date() ? 'var(--danger)' : 'inherit' %>">
-              <%= contractEnd ? contractEnd.toLocaleDateString('vi-VN') : '—' %>
-              <% if (contractEnd && contractEnd < new Date()) { %><span style="font-size:11px;color:var(--danger)"> (Đã hết hạn)</span><% } %>
-            </div>
-          </div>
-          <div><span style="font-size:12px;color:var(--text-3)">Địa chỉ</span><div style="font-weight:500;font-size:13px"><%= employee.address || '—' %></div></div>
-          <div><span style="font-size:12px;color:var(--text-3)">Liên hệ khẩn cấp</span><div style="font-weight:500;font-size:13px"><%= employee.emergency_contact_name || '—' %> <% if (employee.emergency_contact_phone) { %>— <%= employee.emergency_contact_phone %><% } %></div></div>
+        <div class="pd-info-grid">
+          <div><label>Email</label><span><%= employee.email %></span></div>
+          <div><label>Điện thoại</label><span><%= employee.phone || '—' %></span></div>
+          <div><label>Ngày sinh</label><span><%= fmtDate(employee.date_of_birth) %></span></div>
+          <div><label>Phòng ban</label><span><%= employee.department || '—' %></span></div>
+          <div><label>Chức vụ</label><span><%= employee.position || '—' %></span></div>
+          <div><label>Ngày vào làm</label><span><%= fmtDate(employee.hire_date) %></span></div>
+          <div><label>Hợp đồng</label><span><%= employee.contract_type || '—' %></span></div>
+          <% if (['edit','full'].includes(permLevel)) { %>
+          <div><label>Lương cơ bản</label><span><%= employee.salary ? Number(employee.salary).toLocaleString('vi-VN') + ' ₫' : '—' %></span></div>
+          <div><label>Ngân hàng</label><span><%= [employee.bank_account, employee.bank_name].filter(Boolean).join(' · ') || '—' %></span></div>
+          <% } %>
+          <div><label>Địa chỉ</label><span><%= employee.address || '—' %></span></div>
+          <div><label>Khẩn cấp</label><span><%= [employee.emergency_contact_name, employee.emergency_contact_phone].filter(Boolean).join(' · ') || '—' %></span></div>
         </div>
       </div>
     </div>
 
-    <!-- Contract Timeline -->
-    <% if (employee.hire_date) { %>
-    <div class="card mb-4">
-      <div class="card-header"><span class="card-title"><i class="fas fa-history" style="margin-right:6px;color:var(--primary)"></i>Thời gian làm việc</span></div>
-      <div class="card-body">
-        <%
-          const hire = new Date(employee.hire_date);
-          const now = new Date();
-          const diffMs = now - hire;
-          const diffDays = Math.floor(diffMs / 86400000);
-          const years = Math.floor(diffDays / 365);
-          const months = Math.floor((diffDays % 365) / 30);
-          const days = diffDays % 30;
-        %>
-        <div style="display:flex;gap:20px;flex-wrap:wrap">
-          <div style="text-align:center;padding:16px;background:var(--primary-50);border-radius:var(--radius);min-width:80px">
-            <div style="font-size:28px;font-weight:800;color:var(--primary)"><%= years %></div>
-            <div style="font-size:12px;color:var(--text-3)">Năm</div>
-          </div>
-          <div style="text-align:center;padding:16px;background:var(--success-bg);border-radius:var(--radius);min-width:80px">
-            <div style="font-size:28px;font-weight:800;color:var(--success)"><%= months %></div>
-            <div style="font-size:12px;color:var(--text-3)">Tháng</div>
-          </div>
-          <div style="text-align:center;padding:16px;background:var(--warning-bg);border-radius:var(--radius);min-width:80px">
-            <div style="font-size:28px;font-weight:800;color:var(--warning)"><%= days %></div>
-            <div style="font-size:12px;color:var(--text-3)">Ngày</div>
-          </div>
-          <div style="align-self:center;font-size:13px;color:var(--text-3)">
-            Từ ngày <strong><%= hire.toLocaleDateString('vi-VN') %></strong><br>
-            Tổng cộng <strong><%= diffDays %></strong> ngày
-          </div>
-        </div>
-      </div>
-    </div>
-    <% } %>
-
-    <!-- Documents -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <span class="card-title"><i class="fas fa-file-alt" style="margin-right:6px;color:var(--primary)"></i>Hồ sơ & Tài liệu</span>
-        <button onclick="document.getElementById('docModal').classList.add('open')" class="btn btn-sm btn-primary"><i class="fas fa-upload"></i> Upload</button>
-      </div>
-      <div class="card-body" style="padding:12px">
-        <% if (!documents || documents.length === 0) { %>
-        <div class="empty-state" style="padding:24px"><p>Chưa có tài liệu nào</p></div>
-        <% } else { %>
-        <div style="display:flex;flex-direction:column;gap:8px">
-        <% documents.forEach(doc => { %>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm)">
-          <div style="width:36px;height:36px;background:var(--primary-50);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:16px">
-            <i class="fas fa-<%= doc.file_name && doc.file_name.endsWith('.pdf') ? 'file-pdf' : 'file-image' %>"></i>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:600"><%= doc.name %></div>
-            <div style="font-size:11px;color:var(--text-3)"><%= doc.doc_type %> · <%= new Date(doc.created_at).toLocaleDateString('vi-VN') %></div>
-          </div>
-          <a href="<%= doc.file_url %>" target="_blank" class="btn btn-sm btn-outline"><i class="fas fa-eye"></i></a>
-        </div>
-        <% }) %>
-        </div>
-        <% } %>
-      </div>
-    </div>
-
-    <!-- Projects -->
-    <div class="card mb-4">
-      <div class="card-header"><span class="card-title">Dự án tham gia (<%= projects.length %>)</span></div>
-      <div style="overflow-x:auto">
+    <div class="card" style="margin-top:20px">
+      <div class="card-header"><h3>Dự án tham gia (<%= projects.length %>)</h3></div>
+      <div class="card-body" style="padding:0">
         <% if (projects.length === 0) { %>
-        <div class="empty-state" style="padding:24px"><p>Chưa tham gia dự án nào</p></div>
+        <p style="text-align:center;padding:24px;color:var(--text-3)">Chưa tham gia dự án nào</p>
         <% } else { %>
-        <table>
-          <thead><tr><th>Dự án</th><th>Trạng thái</th><th>Vai trò</th></tr></thead>
+        <table class="table">
+          <thead><tr><th>Dự án</th><th>Vai trò</th><th>Trạng thái</th></tr></thead>
           <tbody>
-          <% projects.forEach(p => { %>
-          <tr>
-            <td><a href="/projects/<%= p.id %>" style="font-weight:500"><%= p.name %></a><div style="font-size:11px;color:var(--text-3)"><%= p.code %></div></td>
-            <td><span class="badge badge-<%= p.status %>"><%= p.status %></span></td>
-            <td style="font-size:13px"><%= p.project_role %></td>
-          </tr>
-          <% }) %>
+            <% projects.forEach(p => { %>
+            <tr>
+              <td><a href="/projects/<%= p.id %>"><span class="project-code"><%= p.code %></span> <%= p.name %></a></td>
+              <td><%= p.project_role === 'manager' ? 'Quản lý' : 'Thành viên' %></td>
+              <td><span class="badge badge-<%= p.status %>"><%= PROJECT_STATUS_LABELS[p.status] %></span></td>
+            </tr>
+            <% }) %>
           </tbody>
         </table>
         <% } %>
       </div>
     </div>
 
-    <!-- Leave Requests -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Đơn xin nghỉ phép</span>
-        <% if (employee.employee_id) { %>
-        <button onclick="document.getElementById('leaveModal').classList.add('open')" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i></button>
-        <% } %>
-      </div>
-      <div style="overflow-x:auto">
-        <% if (leaves.length === 0) { %>
-        <div class="empty-state" style="padding:24px"><p>Chưa có đơn nghỉ phép</p></div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-header"><h3>Yêu cầu gần đây</h3></div>
+      <div class="card-body" style="padding:0">
+        <% if (recentRequests.length === 0) { %>
+        <p style="text-align:center;padding:24px;color:var(--text-3)">Chưa có yêu cầu nào</p>
         <% } else { %>
-        <table>
-          <thead><tr><th>Loại</th><th>Từ ngày</th><th>Đến ngày</th><th>Số ngày</th><th>Trạng thái</th><th></th></tr></thead>
+        <table class="table">
+          <thead><tr><th>Yêu cầu</th><th>Loại</th><th>Ngày gửi</th><th>Trạng thái</th></tr></thead>
           <tbody>
-          <% leaves.forEach(l => { %>
-          <tr>
-            <td style="font-size:13px"><%= l.leave_type %></td>
-            <td style="font-size:12px"><%= new Date(l.start_date).toLocaleDateString('vi-VN') %></td>
-            <td style="font-size:12px"><%= new Date(l.end_date).toLocaleDateString('vi-VN') %></td>
-            <td style="font-size:13px;text-align:center"><%= l.days_count %></td>
-            <td>
-              <span class="badge" style="background:<%= l.status==='approved' ? 'var(--success-bg)' : l.status==='rejected' ? 'var(--danger-bg)' : 'var(--warning-bg)' %>;color:<%= l.status==='approved' ? 'var(--success)' : l.status==='rejected' ? 'var(--danger)' : 'var(--warning)' %>">
-                <%= l.status === 'approved' ? 'Đã duyệt' : l.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt' %>
-              </span>
-            </td>
-            <td>
-              <% if (l.status === 'pending' && ['admin','director'].includes(locals.userRole)) { %>
-              <form action="/hr/<%= employee.id %>/leaves/<%= l.id %>/approve" method="POST" style="display:flex;gap:4px">
-                <button name="status" value="approved" class="btn btn-sm btn-success">Duyệt</button>
-                <button name="status" value="rejected" class="btn btn-sm btn-danger">Từ chối</button>
-              </form>
-              <% } %>
-            </td>
-          </tr>
-          <% }) %>
+            <% recentRequests.forEach(r => { %>
+            <tr>
+              <td><a href="/requests/<%= r.id %>"><%= r.title %></a></td>
+              <td><%= r.form_name %></td>
+              <td style="white-space:nowrap"><%= fmtDate(r.created_at) %></td>
+              <td>
+                <% if (r.status === 'approved') { %><span class="badge badge-success">Đã duyệt</span>
+                <% } else if (r.status === 'rejected') { %><span class="badge badge-danger">Từ chối</span>
+                <% } else { %><span class="badge badge-warning">Chờ duyệt</span><% } %>
+              </td>
+            </tr>
+            <% }) %>
           </tbody>
         </table>
         <% } %>
@@ -193,117 +97,78 @@
     </div>
   </div>
 
-  <!-- Right Column -->
-  <div>
-    <div class="card mb-4">
-      <div class="card-header"><span class="card-title">Thống kê Task</span></div>
+  <div class="detail-side">
+    <div class="card">
+      <div class="card-header"><h3>Tháng này</h3></div>
       <div class="card-body">
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--text-2)">Tổng task</span><strong><%= taskStats.total %></strong></div>
-          <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--success)">Hoàn thành</span><strong style="color:var(--success)"><%= taskStats.done %></strong></div>
-          <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--info)">Đang làm</span><strong style="color:var(--info)"><%= taskStats.in_progress %></strong></div>
-          <% if (taskStats.total > 0) { %>
-          <div class="progress-bar"><div class="progress-fill success" style="width:<%= (taskStats.done / taskStats.total * 100).toFixed(0) %>%"></div></div>
-          <div class="progress-label"><%= (taskStats.done / taskStats.total * 100).toFixed(0) %>% hoàn thành</div>
+        <div class="hr-stats">
+          <div><strong><%= attendanceSummary.present %></strong><small>Ngày công</small></div>
+          <div><strong><%= attendanceSummary.late %></strong><small>Đi trễ</small></div>
+          <div><strong><%= attendanceSummary.leave %></strong><small>Nghỉ</small></div>
+        </div>
+        <div class="hr-stats" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-light)">
+          <div><strong><%= taskStats.total %></strong><small>Task</small></div>
+          <div><strong><%= taskStats.in_progress %></strong><small>Đang làm</small></div>
+          <div><strong><%= taskStats.done %></strong><small>Hoàn thành</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="card-header"><h3>Tài liệu (<%= documents.length %>)</h3></div>
+      <div class="card-body">
+        <% documents.forEach(d => { %>
+        <div class="doc-row">
+          <i class="fas fa-file-alt"></i>
+          <div class="doc-info">
+            <a href="<%= d.file_url %>" target="_blank"><%= d.name %></a>
+            <small><%= d.doc_type %> · <%= fmtDate(d.created_at) %></small>
+          </div>
+          <% if (['edit','full'].includes(permLevel)) { %>
+          <form action="/hr/<%= employee.id %>/documents/<%= d.id %>/delete" method="POST" data-confirm="Xóa tài liệu này?">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="doc-del" aria-label="Xóa"><i class="fas fa-times"></i></button>
+          </form>
           <% } %>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
+        <% }) %>
 
-<!-- Document Upload Modal -->
-<div class="modal-overlay" id="docModal">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">Upload Hồ sơ / Tài liệu</span>
-      <button class="modal-close" onclick="document.getElementById('docModal').classList.remove('open')"><i class="fas fa-times"></i></button>
-    </div>
-    <form action="/hr/<%= employee.id %>/documents" method="POST" enctype="multipart/form-data">
-      <div class="modal-body">
-        <div class="form-group mb-3">
-          <label class="form-label">Loại tài liệu</label>
-          <select name="doc_type" class="form-control">
-            <option value="certificate">Bằng cấp / Chứng chỉ</option>
-            <option value="contract">Hợp đồng lao động</option>
-            <option value="id_card">CCCD / Giấy tờ tùy thân</option>
+        <% if (['edit','full'].includes(permLevel)) { %>
+        <form action="/hr/<%= employee.id %>/documents?_csrf=<%= csrfToken %>" method="POST" enctype="multipart/form-data" class="doc-upload">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <select name="doc_type" class="form-control" style="margin-bottom:8px">
+            <option value="contract">Hợp đồng</option>
+            <option value="cv">CV / Hồ sơ</option>
+            <option value="degree">Bằng cấp / Chứng chỉ</option>
+            <option value="id">CCCD / Giấy tờ</option>
             <option value="other">Khác</option>
           </select>
-        </div>
-        <div class="form-group mb-3">
-          <label class="form-label">Tên tài liệu <span class="req">*</span></label>
-          <input type="text" name="name" class="form-control" required placeholder="VD: Chứng chỉ điện 2024">
-        </div>
-        <div class="form-group mb-3">
-          <label class="form-label">File <span class="req">*</span></label>
-          <input type="file" name="document" class="form-control" required accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
-          <div style="font-size:11px;color:var(--text-3);margin-top:4px">JPG, PNG, PDF, DOC — Tối đa 10MB</div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Ngày cấp / Ngày hết hạn</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <input type="date" name="issued_date" class="form-control" placeholder="Ngày cấp">
-            <input type="date" name="expiry_date" class="form-control" placeholder="Ngày HH">
-          </div>
-        </div>
+          <input type="text" name="name" class="form-control" placeholder="Tên tài liệu" style="margin-bottom:8px">
+          <input type="file" name="file" class="form-control" required accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx" style="margin-bottom:8px">
+          <button type="submit" class="btn btn-primary btn-sm" style="width:100%"><i class="fas fa-upload"></i> Tải lên</button>
+        </form>
+        <% } %>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline" onclick="document.getElementById('docModal').classList.remove('open')">Hủy</button>
-        <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Leave Modal -->
-<div class="modal-overlay" id="leaveModal">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">Tạo đơn xin nghỉ</span>
-      <button class="modal-close" onclick="document.getElementById('leaveModal').classList.remove('open')"><i class="fas fa-times"></i></button>
     </div>
-    <form action="/hr/<%= employee.id %>/leave" method="POST">
-      <div class="modal-body">
-        <div class="form-group mb-3">
-          <label class="form-label">Loại nghỉ</label>
-          <select name="leave_type" class="form-control">
-            <option value="annual">Nghỉ phép năm</option>
-            <option value="sick">Nghỉ ốm</option>
-            <option value="personal">Việc cá nhân</option>
-            <option value="unpaid">Nghỉ không lương</option>
-          </select>
-        </div>
-        <div class="form-grid-2">
-          <div class="form-group"><label class="form-label">Từ ngày</label><input type="date" name="start_date" class="form-control" required></div>
-          <div class="form-group"><label class="form-label">Đến ngày</label><input type="date" name="end_date" class="form-control" required></div>
-        </div>
-        <div class="form-group mt-3"><label class="form-label">Lý do</label><textarea name="reason" class="form-control" rows="3"></textarea></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline" onclick="document.getElementById('leaveModal').classList.remove('open')">Hủy</button>
-        <button type="submit" class="btn btn-primary">Gửi đơn</button>
-      </div>
-    </form>
   </div>
 </div>
 
-<!-- Reset Password Modal -->
-<div id="resetPwdModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:12px;padding:28px;width:400px;max-width:90vw">
-    <h3 style="margin:0 0 16px;font-size:1.1rem">Đặt lại mật khẩu</h3>
-    <p style="color:#6b7280;font-size:.9rem;margin-bottom:16px">Nhân viên: <strong><%= employee.full_name %></strong> (<%= employee.username %>)</p>
-    <form action="/hr/<%= employee.id %>/reset-password" method="POST">
-      <div class="form-group">
-        <label class="form-label">Mật khẩu mới</label>
-        <input type="text" name="new_password" class="form-control" value="Riae@2024" required>
-        <small style="color:#6b7280">Để trống sẽ dùng mặc định: Riae@2024</small>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:16px">
-        <button type="submit" class="btn btn-primary" onclick="return confirm('Xác nhận đặt lại mật khẩu?')">
-          <i class="fas fa-key"></i> Xác nhận
-        </button>
-        <button type="button" class="btn btn-outline" onclick="document.getElementById('resetPwdModal').style.display='none'">Hủy</button>
-      </div>
-    </form>
-  </div>
-</div>
+<style>
+.detail-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .detail-grid { grid-template-columns: 1fr; } }
+.pd-info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+.pd-info-grid label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); margin-bottom: 3px; }
+.pd-info-grid span { font-size: 13.5px; color: var(--text); }
+.hr-stats { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; }
+.hr-stats strong { display: block; font-size: 20px; color: var(--primary); font-weight: 700; }
+.hr-stats small { font-size: 11px; color: var(--text-3); }
+.doc-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.doc-row + .doc-row { border-top: 1px solid var(--border-light); }
+.doc-row > i { color: var(--primary); font-size: 16px; }
+.doc-info { flex: 1; display: flex; flex-direction: column; }
+.doc-info a { font-size: 13px; font-weight: 500; }
+.doc-info small { font-size: 11px; color: var(--text-3); }
+.doc-del { border: none; background: transparent; color: var(--text-3); cursor: pointer; width: 26px; height: 26px; border-radius: 6px; }
+.doc-del:hover { background: var(--danger-bg); color: var(--danger); }
+.doc-upload { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+</style>
