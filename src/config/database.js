@@ -27,7 +27,13 @@ const pool = process.env.DATABASE_URL
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
-      ssl: isLocalHost ? false : { rejectUnauthorized: false }
+      ssl: isLocalHost ? false : { rejectUnauthorized: false },
+      // Ép search_path về "public" ngay lúc bắt tay kết nối (qua startup
+      // packet) — bắt buộc trên Supabase: mỗi project có sẵn schema "auth"
+      // chứa bảng auth.users (cho Supabase Auth) trùng tên public.users
+      // của ứng dụng. Đặt qua 'options' để tránh race-condition so với
+      // chạy SET search_path bằng 1 query riêng sau khi connect.
+      options: '-c search_path=public'
     });
 
 pool.on('error', (err) => {
