@@ -12,6 +12,13 @@
     <% if (['edit','full'].includes(permLevel)) { %>
     <a href="/hr/<%= employee.id %>/edit" class="btn btn-primary"><i class="fas fa-pen"></i> Sửa hồ sơ</a>
     <% } %>
+    <% if (permLevel === 'full') { %>
+    <form action="/hr/<%= employee.id %>/reset-password" method="POST" style="display:inline" data-password-prompt="1">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="new_password" value="">
+      <button type="submit" class="btn btn-outline"><i class="fas fa-key"></i> Đổi mật khẩu</button>
+    </form>
+    <% } %>
     <% if (permLevel === 'full' && employee.id !== currentUser.id) { %>
     <form action="/hr/<%= employee.id %>/toggle-active" method="POST" style="display:inline"
           data-confirm="<%= employee.is_active ? 'Khóa tài khoản này?' : 'Mở khóa tài khoản này?' %>">
@@ -19,11 +26,6 @@
       <button type="submit" class="btn btn-outline" style="color:<%= employee.is_active ? 'var(--danger)' : 'var(--success)' %>">
         <i class="fas fa-<%= employee.is_active ? 'lock' : 'lock-open' %>"></i> <%= employee.is_active ? 'Khóa TK' : 'Mở khóa' %>
       </button>
-    </form>
-    <form action="/hr/<%= employee.id %>/reset-password" method="POST" style="display:inline" data-password-prompt="1">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="new_password" value="">
-      <button type="submit" class="btn btn-outline"><i class="fas fa-key"></i> Đổi mật khẩu</button>
     </form>
     <form action="/hr/<%= employee.id %>/delete" method="POST" style="display:inline"
           data-confirm="Xóa VĨNH VIỄN nhân viên &quot;<%= employee.full_name %>&quot;? Toàn bộ tài liệu, yêu cầu và lịch sử liên quan sẽ bị xóa và KHÔNG thể khôi phục.">
