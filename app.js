@@ -15,7 +15,6 @@ const methodOverride = require('method-override');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const compression = require('compression');
-const path = require('path');
 const { pool, query } = require('./src/config/database');
 const { loadUser } = require('./src/middleware/auth');
 const { csrfProtection } = require('./src/middleware/csrf');
