@@ -1,7 +1,10 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
 
-const isProduction = process.env.NODE_ENV === 'production';
+const dbHost = process.env.DB_HOST || 'localhost';
+// SSL theo host thực tế, không theo NODE_ENV — Supabase/managed Postgres luôn
+// yêu cầu SSL kể cả khi chạy NODE_ENV=development để test từ máy local.
+const isLocalHost = ['localhost', '127.0.0.1'].includes(dbHost);
 
 const pool = process.env.DATABASE_URL
   ? new Pool({
@@ -12,7 +15,7 @@ const pool = process.env.DATABASE_URL
       ssl: { rejectUnauthorized: false }
     })
   : new Pool({
-      host: process.env.DB_HOST || 'localhost',
+      host: dbHost,
       port: parseInt(process.env.DB_PORT) || 5432,
       database: process.env.DB_NAME || 'riae_site',
       user: process.env.DB_USER || 'postgres',
@@ -20,7 +23,7 @@ const pool = process.env.DATABASE_URL
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
-      ssl: isProduction ? { rejectUnauthorized: false } : false
+      ssl: isLocalHost ? false : { rejectUnauthorized: false }
     });
 
 pool.on('error', (err) => {

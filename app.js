@@ -1,4 +1,7 @@
-require('dotenv').config();
+// Chỉ định path tuyệt đối cho .env — một số môi trường hosting (vd. LiteSpeed
+// lsnode trên Hostinger) khởi chạy process với cwd khác thư mục chứa app.js,
+// khiến dotenv mặc định (tìm .env theo process.cwd()) không thấy file.
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const expressLayouts = require('express-ejs-layouts');
 const session = require('express-session');
