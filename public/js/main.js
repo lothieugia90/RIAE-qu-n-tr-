@@ -55,6 +55,20 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
   });
 });
 
+// Prompt for new password before submitting reset-password forms
+document.querySelectorAll('[data-password-prompt]').forEach(form => {
+  form.addEventListener('submit', e => {
+    const pwd = prompt('Nhập mật khẩu mới (tối thiểu 8 ký tự), để trống để tự tạo mật khẩu ngẫu nhiên:');
+    if (pwd === null) { e.preventDefault(); return; }
+    if (pwd && pwd.length < 8) {
+      alert('Mật khẩu phải có ít nhất 8 ký tự');
+      e.preventDefault();
+      return;
+    }
+    form.querySelector('input[name="new_password"]').value = pwd;
+  });
+});
+
 // Tab system
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {

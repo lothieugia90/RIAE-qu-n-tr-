@@ -20,6 +20,16 @@
         <i class="fas fa-<%= employee.is_active ? 'lock' : 'lock-open' %>"></i> <%= employee.is_active ? 'Khóa TK' : 'Mở khóa' %>
       </button>
     </form>
+    <form action="/hr/<%= employee.id %>/reset-password" method="POST" style="display:inline" data-password-prompt="1">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="new_password" value="">
+      <button type="submit" class="btn btn-outline"><i class="fas fa-key"></i> Đổi mật khẩu</button>
+    </form>
+    <form action="/hr/<%= employee.id %>/delete" method="POST" style="display:inline"
+          data-confirm="Xóa VĨNH VIỄN nhân viên &quot;<%= employee.full_name %>&quot;? Toàn bộ tài liệu, yêu cầu và lịch sử liên quan sẽ bị xóa và KHÔNG thể khôi phục.">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-outline" style="color:var(--danger)"><i class="fas fa-trash"></i> Xóa nhân viên</button>
+    </form>
     <% } %>
   </div>
 </div>

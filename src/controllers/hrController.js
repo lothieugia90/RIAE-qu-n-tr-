@@ -207,6 +207,54 @@ const toggleActive = async (req, res) => {
   res.redirect('/hr/' + req.params.id);
 };
 
+const resetPassword = async (req, res) => {
+  const { new_password } = req.body;
+  if (new_password && new_password.length < 8) {
+    req.flash('error', 'Mật khẩu phải có ít nhất 8 ký tự');
+    return res.redirect('/hr/' + req.params.id);
+  }
+  const pwd = new_password || ('Riae@' + Math.random().toString(36).slice(2, 8));
+  try {
+    const hash = await bcrypt.hash(pwd, 12);
+    const r = await query(
+      `UPDATE users SET password_hash=$1, failed_login_count=0, locked_until=NULL, updated_at=NOW()
+       WHERE id=$2 RETURNING full_name`,
+      [hash, req.params.id]
+    );
+    if (!r.rows.length) {
+      req.flash('error', 'Không tìm thấy nhân viên');
+      return res.redirect('/hr');
+    }
+    logActivity(req.session.userId, 'HR_RESET_PASSWORD', `Đặt lại mật khẩu cho ${r.rows[0].full_name}`,
+      { entityType: 'user', entityId: req.params.id, ip: req.ip });
+    req.flash('success', `Đã đặt lại mật khẩu cho ${r.rows[0].full_name}. Mật khẩu mới: ${pwd}`);
+  } catch (err) {
+    console.error('hr reset-password:', err);
+    req.flash('error', 'Lỗi đặt lại mật khẩu');
+  }
+  res.redirect('/hr/' + req.params.id);
+};
+
+const deleteEmployee = async (req, res) => {
+  if (req.params.id === req.session.userId) {
+    req.flash('error', 'Không thể tự xóa tài khoản của chính mình');
+    return res.redirect('/hr/' + req.params.id);
+  }
+  try {
+    const r = await query('DELETE FROM users WHERE id=$1 RETURNING full_name', [req.params.id]);
+    if (!r.rows.length) {
+      req.flash('error', 'Không tìm thấy nhân viên');
+      return res.redirect('/hr');
+    }
+    logActivity(req.session.userId, 'HR_DELETE', `Xóa nhân viên ${r.rows[0].full_name}`, { ip: req.ip });
+    req.flash('success', `Đã xóa nhân viên ${r.rows[0].full_name}`);
+  } catch (err) {
+    console.error('hr delete:', err);
+    req.flash('error', 'Lỗi xóa nhân viên (có thể còn dữ liệu liên kết)');
+  }
+  res.redirect('/hr');
+};
+
 const uploadDocument = async (req, res) => {
   const { doc_type, name, issued_date, expiry_date, notes } = req.body;
   if (!req.file) {
@@ -234,4 +282,4 @@ const deleteDocument = async (req, res) => {
   res.redirect('/hr/' + req.params.id);
 };
 
-module.exports = { index, getCreate, postCreate, detail, getEdit, postEdit, toggleActive, uploadDocument, deleteDocument };
+module.exports = { index, getCreate, postCreate, detail, getEdit, postEdit, toggleActive, resetPassword, deleteEmployee, uploadDocument, deleteDocument };

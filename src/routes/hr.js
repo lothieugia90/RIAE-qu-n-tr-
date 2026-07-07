@@ -29,6 +29,8 @@ router.get('/:id', requirePermission('hr', 'view'), ctrl.detail);
 router.get('/:id/edit', requirePermission('hr', 'edit'), ctrl.getEdit);
 router.post('/:id', requirePermission('hr', 'edit'), ctrl.postEdit);
 router.post('/:id/toggle-active', requirePermission('hr', 'full'), ctrl.toggleActive);
+router.post('/:id/reset-password', requirePermission('hr', 'full'), ctrl.resetPassword);
+router.post('/:id/delete', requirePermission('hr', 'full'), ctrl.deleteEmployee);
 router.post('/:id/documents', requirePermission('hr', 'edit'), docUpload.single('file'), ctrl.uploadDocument);
 router.post('/:id/documents/:docId/delete', requirePermission('hr', 'edit'), ctrl.deleteDocument);
 
