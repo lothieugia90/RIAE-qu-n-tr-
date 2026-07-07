@@ -5,6 +5,12 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 require('dotenv').config({ path: path.join(__dirname, '../../../.env') });
 
+// Hostinger tự đặt sẵn DATABASE_URL ở mức process (trỏ database khác, không
+// phải Supabase v2 của ta) — dotenv mặc định KHÔNG ghi đè biến đã tồn tại,
+// nên DB_HOST/DB_USER/... trong .env của ta bị biến này che mất và app nối
+// nhầm database. Xóa hẳn để luôn dùng cấu hình rời (có search_path fix) bên dưới.
+delete process.env.DATABASE_URL;
+
 const dbHost = process.env.DB_HOST || 'localhost';
 // SSL theo host thực tế, không theo NODE_ENV — Supabase/managed Postgres luôn
 // yêu cầu SSL kể cả khi chạy NODE_ENV=development để test từ máy local.
