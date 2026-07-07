@@ -31,13 +31,14 @@ const ROLE_INHERIT = {
   accountant:       [],
 };
 
-// Module hiện có (GĐ A-D). Sẽ bổ sung sau: payroll (C.2)
+// Module hiện có (GĐ A-D + Lương C.2)
 const MODULES = [
   { key: 'dashboard',   label: 'Dashboard' },
   { key: 'projects',    label: 'Dự án' },
   { key: 'tasks',       label: 'Công việc' },
   { key: 'hr',          label: 'Nhân sự' },
   { key: 'attendance',  label: 'Chấm công' },
+  { key: 'payroll',     label: 'Cấu hình Lương' },
   { key: 'requests',    label: 'Phê duyệt' },
   { key: 'warehouse',   label: 'Kho vật tư' },
   { key: 'partners',    label: 'Đối tác' },

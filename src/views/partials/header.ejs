@@ -7,12 +7,37 @@
     <span class="header-title"><%= title %></span>
   </div>
   <div class="header-right">
-    <a href="/notifications" class="header-icon-btn" title="Thông báo" aria-label="Thông báo">
-      <i class="fas fa-bell"></i>
-      <% if (locals.unreadNotifications > 0) { %>
-      <span class="header-badge"><%= unreadNotifications > 99 ? '99+' : unreadNotifications %></span>
-      <% } %>
-    </a>
+    <!-- Chuông thông báo: dropdown AJAX (giống bản trước), bấm 1 mục là đánh dấu đã đọc + điều hướng -->
+    <div class="notif-bell-wrap" id="notifWrap">
+      <button class="header-icon-btn" id="notifBtn" title="Thông báo" aria-label="Thông báo" onclick="toggleNotifPanel()">
+        <i class="fas fa-bell"></i>
+        <% if (locals.unreadNotifications > 0) { %>
+        <span class="header-badge" id="notifBadge"><%= unreadNotifications > 99 ? '99+' : unreadNotifications %></span>
+        <% } %>
+      </button>
+
+      <div class="notif-panel" id="notifPanel" style="display:none">
+        <div class="notif-panel-head">
+          <span class="notif-panel-title">Thông báo</span>
+          <button type="button" onclick="markAllNotifRead()" class="notif-markall">Đánh dấu tất cả đã đọc</button>
+        </div>
+        <div class="notif-tabs">
+          <button class="notif-tab active" data-tab="all" onclick="switchNotifTab('all',this)">Tất cả</button>
+          <button class="notif-tab" data-tab="work" onclick="switchNotifTab('work',this)">Công việc</button>
+          <button class="notif-tab" data-tab="approval" onclick="switchNotifTab('approval',this)">Phê duyệt</button>
+          <button class="notif-tab" data-tab="actions" onclick="switchNotifTab('actions',this)">
+            Cần làm <span id="actionBadgeInner" class="notif-action-badge" style="display:none"></span>
+          </button>
+        </div>
+        <div class="notif-list" id="notifList">
+          <div class="notif-loading"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+        <div class="notif-panel-foot">
+          <a href="/notifications">Xem tất cả thông báo <i class="fas fa-arrow-right"></i></a>
+        </div>
+      </div>
+    </div>
+
     <a href="/auth/profile" class="header-user" title="Hồ sơ cá nhân">
       <% if (locals.currentUser && currentUser.avatar_url) { %>
         <img src="<%= currentUser.avatar_url %>" alt="" class="header-avatar">
@@ -47,9 +72,9 @@
 .header-title { font-weight: 600; font-size: 15px; color: var(--text); }
 .header-right { display: flex; align-items: center; gap: 8px; }
 .header-icon-btn {
-  position: relative; width: 38px; height: 38px; border-radius: var(--radius-sm);
+  position: relative; width: 38px; height: 38px; border-radius: var(--radius-sm); border: none;
   display: flex; align-items: center; justify-content: center; color: var(--text-2);
-  text-decoration: none; transition: var(--transition);
+  text-decoration: none; transition: var(--transition); background: transparent; cursor: pointer; font-size: 15px;
 }
 .header-icon-btn:hover { background: var(--bg); color: var(--primary); }
 .header-badge {
@@ -68,8 +93,221 @@
 }
 .header-user-name { font-size: 13px; font-weight: 500; color: var(--text); }
 @media (max-width: 768px) { .header-user-name { display: none; } }
+
+/* ===== Dropdown thông báo ===== */
+.notif-bell-wrap { position: relative; }
+.notif-panel {
+  position: absolute; top: calc(100% + 10px); right: 0;
+  width: 380px; max-width: 92vw;
+  background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg); z-index: 2000; overflow: hidden;
+  animation: notifIn .18s ease;
+}
+@keyframes notifIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.notif-panel-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.notif-panel-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.notif-markall { background: none; border: none; font-size: 12px; color: var(--primary); cursor: pointer; font-weight: 500; font-family: inherit; }
+.notif-tabs { display: flex; padding: 10px 12px 0; gap: 2px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.notif-tab {
+  padding: 6px 11px; font-size: 12.5px; font-weight: 500; border: none; background: none; cursor: pointer;
+  color: var(--text-3); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: var(--transition);
+  font-family: inherit; white-space: nowrap; display: flex; align-items: center; gap: 4px;
+}
+.notif-tab.active, .notif-tab:hover { color: var(--primary); }
+.notif-tab.active { border-bottom-color: var(--primary); font-weight: 600; }
+.notif-action-badge { background: var(--danger); color: #fff; border-radius: 10px; padding: 0 5px; font-size: 10px; font-weight: 700; }
+
+.notif-list { max-height: 380px; overflow-y: auto; }
+.notif-loading { padding: 32px; text-align: center; color: var(--text-3); }
+.notif-item {
+  display: flex; gap: 12px; padding: 12px 16px; cursor: pointer; text-decoration: none;
+  border-bottom: 1px solid var(--border-light); transition: var(--transition);
+}
+.notif-item:hover { background: var(--bg); }
+.notif-item.unread { background: var(--primary-50); }
+.notif-item:last-child { border-bottom: none; }
+.notif-icon-wrap { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+.notif-item-body { flex: 1; min-width: 0; }
+.notif-item-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .04em; color: var(--text-3); margin-bottom: 2px; text-transform: uppercase; }
+.notif-item-title { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; margin-bottom: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.notif-item-text { font-size: 12px; color: var(--text-3); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.notif-item-time { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.notif-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; align-self: center; }
+.notif-panel-foot { padding: 10px 16px; border-top: 1px solid var(--border); text-align: center; }
+.notif-panel-foot a { font-size: 12.5px; color: var(--primary); text-decoration: none; font-weight: 500; }
+.notif-empty { padding: 32px 16px; text-align: center; color: var(--text-3); }
+.notif-empty i { font-size: 26px; margin-bottom: 8px; display: block; opacity: .4; }
 </style>
 <script>
+(function() {
+  const csrf = document.querySelector('meta[name="csrf-token"]').content;
+  let notifOpen = false;
+  let currentTab = 'all';
+
+  window.toggleNotifPanel = function() {
+    const panel = document.getElementById('notifPanel');
+    notifOpen = !notifOpen;
+    panel.style.display = notifOpen ? 'block' : 'none';
+    if (notifOpen) { loadNotifications(currentTab); loadActionBadge(); }
+  };
+
+  document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('notifWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      document.getElementById('notifPanel').style.display = 'none';
+      notifOpen = false;
+    }
+  });
+
+  window.switchNotifTab = function(tab, el) {
+    currentTab = tab;
+    document.querySelectorAll('.notif-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    loadNotifications(tab);
+  };
+
+  async function loadActionBadge() {
+    try {
+      const r = await fetch('/notifications/action-items');
+      const data = await r.json();
+      const badge = document.getElementById('actionBadgeInner');
+      if (data.count > 0) { badge.textContent = data.count; badge.style.display = 'inline'; }
+      else badge.style.display = 'none';
+    } catch (e) { /* silent */ }
+  }
+  document.addEventListener('DOMContentLoaded', loadActionBadge);
+
+  const TYPE_CFG = {
+    task_assigned:     { icon: 'tasks',        bg: '#dbeafe', fg: 'var(--primary)' },
+    task_review:       { icon: 'eye',          bg: '#fef3c7', fg: 'var(--warning)' },
+    task_done:         { icon: 'check-circle', bg: '#dcfce7', fg: 'var(--success)' },
+    request_pending:   { icon: 'stamp',        bg: '#ede9fe', fg: '#7c3aed' },
+    request_approved:  { icon: 'check-double', bg: '#dcfce7', fg: 'var(--success)' },
+    request_rejected:  { icon: 'times-circle', bg: '#fee2e2', fg: 'var(--danger)' },
+    default:           { icon: 'bell',         bg: 'var(--border-light)', fg: 'var(--text-3)' }
+  };
+  const ACTION_CFG = {
+    approval: { icon: 'stamp',                bg: '#ede9fe', fg: '#7c3aed', label: 'Chờ phê duyệt' },
+    overdue:  { icon: 'triangle-exclamation',  bg: '#fee2e2', fg: 'var(--danger)', label: 'Task quá hạn' }
+  };
+
+  function timeAgo(dateStr) {
+    const diff = Date.now() - new Date(dateStr);
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'vừa xong';
+    if (m < 60) return m + ' phút trước';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + ' giờ trước';
+    const d = Math.floor(h / 24);
+    if (d < 7) return d + ' ngày trước';
+    return new Date(dateStr).toLocaleDateString('vi-VN');
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
+  async function loadNotifications(tab) {
+    const list = document.getElementById('notifList');
+    list.innerHTML = '<div class="notif-loading"><i class="fas fa-spinner fa-spin"></i></div>';
+
+    if (tab === 'actions') {
+      try {
+        const r = await fetch('/notifications/action-items');
+        const data = await r.json();
+        const items = data.items || [];
+        if (!items.length) {
+          list.innerHTML = '<div class="notif-empty"><i class="fas fa-circle-check"></i><p>Không có việc cần làm</p></div>';
+          return;
+        }
+        list.innerHTML = items.map(item => {
+          const cfg = ACTION_CFG[item.type] || ACTION_CFG.approval;
+          return '<a class="notif-item" href="' + item.link + '">' +
+            '<div class="notif-icon-wrap" style="background:' + cfg.bg + '"><i class="fas fa-' + cfg.icon + '" style="color:' + cfg.fg + '"></i></div>' +
+            '<div class="notif-item-body">' +
+              '<div class="notif-item-eyebrow">' + cfg.label + '</div>' +
+              '<div class="notif-item-title">' + escapeHtml(item.title) + '</div>' +
+              (item.meta ? '<div class="notif-item-text">' + escapeHtml(item.meta) + '</div>' : '') +
+            '</div></a>';
+        }).join('');
+      } catch (e) {
+        list.innerHTML = '<div class="notif-empty"><i class="fas fa-triangle-exclamation"></i><p>Lỗi tải dữ liệu</p></div>';
+      }
+      return;
+    }
+
+    try {
+      const r = await fetch('/notifications/dropdown?tab=' + tab);
+      const data = await r.json();
+      const items = data.notifications || [];
+      if (!items.length) {
+        list.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash"></i><p>Không có thông báo nào</p></div>';
+        return;
+      }
+      list.innerHTML = items.map(n => {
+        const cfg = TYPE_CFG[n.type] || TYPE_CFG.default;
+        const href = n.link || '/notifications';
+        return '<a class="notif-item' + (n.is_read ? '' : ' unread') + '" href="' + href + '" data-id="' + n.id + '" onclick="readNotif(event,this)">' +
+          '<div class="notif-icon-wrap" style="background:' + cfg.bg + '"><i class="fas fa-' + cfg.icon + '" style="color:' + cfg.fg + '"></i></div>' +
+          '<div class="notif-item-body">' +
+            '<div class="notif-item-title">' + escapeHtml(n.title) + '</div>' +
+            (n.content ? '<div class="notif-item-text">' + escapeHtml(n.content) + '</div>' : '') +
+            '<div class="notif-item-time">' + timeAgo(n.created_at) + '</div>' +
+          '</div>' +
+          (!n.is_read ? '<div class="notif-unread-dot"></div>' : '') +
+        '</a>';
+      }).join('');
+    } catch (e) {
+      list.innerHTML = '<div class="notif-empty"><i class="fas fa-triangle-exclamation"></i><p>Lỗi tải thông báo</p></div>';
+    }
+  }
+
+  window.readNotif = function(e, el) {
+    e.preventDefault();
+    const id = el.dataset.id;
+    const href = el.getAttribute('href');
+    fetch('/notifications/' + id + '/read', { method: 'POST', headers: { 'x-csrf-token': csrf } }).catch(() => {});
+    el.classList.remove('unread');
+    const dot = el.querySelector('.notif-unread-dot');
+    if (dot) dot.remove();
+    decrementBadge();
+    window.location.href = href;
+  };
+
+  window.markAllNotifRead = async function() {
+    try {
+      await fetch('/notifications/read-all', { method: 'POST', headers: { 'x-csrf-token': csrf } });
+      document.querySelectorAll('.notif-item').forEach(el => {
+        el.classList.remove('unread');
+        const dot = el.querySelector('.notif-unread-dot');
+        if (dot) dot.remove();
+      });
+      updateBadge(0);
+    } catch (e) { /* silent */ }
+  };
+
+  function decrementBadge() {
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    const n = Math.max(parseInt(badge.textContent) - 1, 0);
+    updateBadge(n);
+  }
+
+  function updateBadge(count) {
+    let badge = document.getElementById('notifBadge');
+    if (!badge && count > 0) {
+      badge = document.createElement('span');
+      badge.id = 'notifBadge';
+      badge.className = 'header-badge';
+      document.getElementById('notifBtn').appendChild(badge);
+    }
+    if (badge) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.style.display = count > 0 ? '' : 'none';
+    }
+  }
+})();
+
 // Hiện nút quay lại khi có lịch sử điều hướng trong phiên
 (function() {
   var btn = document.getElementById('headerBackBtn');

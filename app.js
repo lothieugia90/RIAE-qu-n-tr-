@@ -107,7 +107,9 @@ app.use(async (req, res, next) => {
         [req.session.userId]
       );
       res.locals.unreadNotifications = r.rows[0].notif || 0;
-      res.locals.myWorkCount = (r.rows[0].due_tasks || 0) + (r.rows[0].approvals || 0);
+      // "Việc của tôi" chỉ đếm task quá hạn/đến hạn — KHÔNG cộng approvals vào đây,
+      // nếu không badge sẽ hiện số dù không có task nào (approvals đã có badge riêng ở "Phê duyệt")
+      res.locals.myWorkCount = r.rows[0].due_tasks || 0;
       res.locals.pendingApprovals = r.rows[0].approvals || 0;
       res.locals.unreadChats = r.rows[0].chats || 0;
     } catch (e) { /* badge không được làm hỏng trang */ }
@@ -123,6 +125,7 @@ app.use('/tasks', require('./src/routes/tasks'));
 app.use('/notifications', require('./src/routes/notifications'));
 app.use('/hr', require('./src/routes/hr'));
 app.use('/attendance', require('./src/routes/attendance'));
+app.use('/payroll-settings', require('./src/routes/payrollSettings'));
 app.use('/requests', require('./src/routes/requests'));
 app.use('/warehouse', require('./src/routes/warehouse'));
 app.use('/partners', require('./src/routes/partners'));

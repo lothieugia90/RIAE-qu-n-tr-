@@ -87,10 +87,37 @@ const logout = (req, res) => {
 
 const getProfile = async (req, res) => {
   try {
-    const result = await query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
-    res.render('auth/profile', { title: 'Hồ sơ cá nhân', profile: result.rows[0] });
+    const userId = req.session.userId;
+    const [user, taskStats, projectCount, attendanceSummary, recentActivity] = await Promise.all([
+      query(
+        `SELECT u.*, e.employee_code, e.date_of_birth, e.hire_date, e.contract_type,
+                e.address, e.bank_account, e.bank_name, e.emergency_contact_name, e.emergency_contact_phone
+         FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = $1`, [userId]),
+      query(`SELECT COUNT(*)::int AS total,
+                    COUNT(*) FILTER (WHERE status='done')::int AS done,
+                    COUNT(*) FILTER (WHERE status='in_progress')::int AS in_progress,
+                    COUNT(*) FILTER (WHERE status != 'done' AND due_date < CURRENT_DATE)::int AS overdue
+             FROM tasks WHERE assignee_id=$1`, [userId]),
+      query('SELECT COUNT(*)::int AS c FROM project_members WHERE user_id=$1', [userId]),
+      query(`SELECT COUNT(*) FILTER (WHERE status IN ('present','late','remote'))::int AS work_days,
+                    COUNT(*) FILTER (WHERE status='late')::int AS late_days,
+                    COALESCE(SUM(overtime_hours),0)::float AS ot_hours
+             FROM attendance_records
+             WHERE user_id=$1 AND date_trunc('month', work_date) = date_trunc('month', CURRENT_DATE)`, [userId]),
+      query(`SELECT action, description, created_at FROM activity_logs
+             WHERE user_id=$1 ORDER BY created_at DESC LIMIT 6`, [userId])
+    ]);
+    if (!user.rows.length) return res.redirect('/dashboard');
+    res.render('auth/profile', {
+      title: 'Hồ sơ cá nhân',
+      profile: user.rows[0],
+      taskStats: taskStats.rows[0],
+      projectCount: projectCount.rows[0].c,
+      attendanceSummary: attendanceSummary.rows[0],
+      recentActivity: recentActivity.rows
+    });
   } catch (err) {
-    console.error(err);
+    console.error('getProfile error:', err.message);
     res.redirect('/dashboard');
   }
 };

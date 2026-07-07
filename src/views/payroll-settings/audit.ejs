@@ -1,0 +1,73 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Nhật ký thay đổi lương</h1>
+    <p>Toàn bộ lịch sử tạo/sửa/xóa tiêu chí lương &amp; phụ cấp</p>
+  </div>
+  <a href="/payroll-settings" class="btn btn-outline"><i class="fas fa-sliders-h"></i> Về Cấu hình Lương</a>
+</div>
+
+<form method="GET" action="/payroll-settings/audit" class="filter-bar">
+  <select name="criteria_id" class="form-control" style="max-width:220px">
+    <option value="">Mọi tiêu chí</option>
+    <% criteriaList.forEach(c => { %>
+    <option value="<%= c.id %>" <%= filters.criteria_id === c.id ? 'selected' : '' %>><%= c.name %></option>
+    <% }) %>
+  </select>
+  <select name="action" class="form-control" style="max-width:150px">
+    <option value="">Mọi hành động</option>
+    <option value="CREATE" <%= filters.action === 'CREATE' ? 'selected' : '' %>>Tạo mới</option>
+    <option value="UPDATE" <%= filters.action === 'UPDATE' ? 'selected' : '' %>>Cập nhật</option>
+    <option value="DELETE" <%= filters.action === 'DELETE' ? 'selected' : '' %>>Xóa</option>
+  </select>
+  <input type="date" name="from" class="form-control" style="max-width:160px" value="<%= filters.from || '' %>" title="Từ ngày">
+  <input type="date" name="to" class="form-control" style="max-width:160px" value="<%= filters.to || '' %>" title="Đến ngày">
+  <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Lọc</button>
+</form>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Tiêu chí</th><th>Hành động</th><th>Thay đổi</th><th>Người thực hiện</th><th>IP</th><th>Thời gian</th></tr></thead>
+      <tbody>
+        <% if (logs.length === 0) { %>
+        <tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-3)">Chưa có nhật ký nào</td></tr>
+        <% } %>
+        <% logs.forEach(l => {
+           const actionMeta = { CREATE: ['badge-success','Tạo mới'], UPDATE: ['badge-info','Cập nhật'], DELETE: ['badge-danger','Xóa'] }[l.action] || ['badge-info', l.action];
+        %>
+        <tr>
+          <td>
+            <div style="font-weight:600;font-size:13px"><%= l.criteria_name || '—' %></div>
+            <% if (l.criteria_key) { %><code style="font-size:10.5px;color:var(--text-3);background:var(--bg);padding:1px 5px;border-radius:3px"><%= l.criteria_key %></code><% } %>
+          </td>
+          <td><span class="badge <%= actionMeta[0] %>"><%= actionMeta[1] %></span></td>
+          <td>
+            <% if (l.field_changed && l.old_value !== null && l.new_value !== null) { %>
+            <div style="font-size:12px"><span style="color:var(--danger);font-weight:600"><%= l.old_value %></span>
+              <i class="fas fa-arrow-right" style="font-size:9px;color:var(--text-3);margin:0 4px"></i>
+              <span style="color:var(--success);font-weight:600"><%= l.new_value %></span></div>
+            <div style="font-size:11px;color:var(--text-3)"><%= l.field_changed %></div>
+            <% } %>
+            <% if (l.note) { %><div style="font-size:11px;color:var(--text-3);margin-top:2px"><i class="fas fa-comment-alt"></i> <%= l.note %></div><% } %>
+          </td>
+          <td><%= l.changer_name || l.changed_by_name || '—' %></td>
+          <td><small style="color:var(--text-3)"><%= l.ip_address || '—' %></small></td>
+          <td style="white-space:nowrap"><%= fmtDateTime(l.changed_at) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<% if (totalPages > 1) { %>
+<div style="margin-top:16px;display:flex;gap:6px;justify-content:center">
+  <% for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) { %>
+  <a href="/payroll-settings/audit?page=<%= p %>" class="btn btn-sm <%= p === page ? 'btn-primary' : 'btn-outline' %>"><%= p %></a>
+  <% } %>
+</div>
+<% } %>
+
+<style>
+.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+</style>
