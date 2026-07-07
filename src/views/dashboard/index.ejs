@@ -1,89 +1,302 @@
+<% const hour = new Date().getHours();
+   const greeting = hour < 12 ? 'Chào buổi sáng' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
+   const todayStr = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' });
+   const TONES = {
+     primary: ['var(--primary-50)', 'var(--primary)'],
+     danger:  ['var(--danger-bg)', 'var(--danger)'],
+     warning: ['var(--warning-bg)', 'var(--warning)'],
+     success: ['var(--success-bg)', 'var(--success)'],
+     info:    ['var(--info-bg)', 'var(--info)'],
+     purple:  ['var(--purple-bg)', 'var(--purple)'],
+   }; %>
+
 <div class="page-header">
   <div class="page-header-title">
-    <h1>Xin chào, <%= currentUser.full_name %></h1>
-    <p>Tổng quan hệ thống quản lý nội bộ RIAE</p>
+    <h1><%= greeting %>, <%= currentUser.full_name %>!</h1>
+    <p style="text-transform:capitalize"><%= todayStr %></p>
+  </div>
+  <div class="db-shortcuts">
+    <% shortcuts.forEach(s => { %>
+    <a href="<%= s.href %>" class="db-chip" title="<%= s.label %>"><i class="fas <%= s.icon %>"></i><span><%= s.label %></span></a>
+    <% }) %>
   </div>
 </div>
 
+<!-- KPI theo vai trò -->
 <div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-icon" style="background:var(--primary-50);color:var(--primary)"><i class="fas fa-folder-open"></i></div>
-    <div class="stat-value"><%= projectStats.active %></div>
-    <div class="stat-label">Dự án đang chạy</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:<%= myTaskStats.overdue > 0 ? 'var(--danger-bg)' : 'var(--warning-bg)' %>;color:<%= myTaskStats.overdue > 0 ? 'var(--danger)' : 'var(--warning)' %>">
-      <i class="fas fa-list-check"></i>
-    </div>
-    <div class="stat-value"><%= myTaskStats.pending %></div>
-    <div class="stat-label">Việc của tôi<% if (myTaskStats.overdue > 0) { %> · <span style="color:var(--danger)"><%= myTaskStats.overdue %> quá hạn</span><% } %></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:var(--success-bg);color:var(--success)"><i class="fas fa-user-check"></i></div>
-    <div class="stat-value"><%= stats.active %></div>
-    <div class="stat-label">Tài khoản hoạt động</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:var(--info-bg);color:var(--info)"><i class="fas fa-circle-dot"></i></div>
-    <div class="stat-value"><%= stats.online %></div>
-    <div class="stat-label">Trực tuyến (10 phút)</div>
-  </div>
+  <% kpis.forEach(k => { const [bg, color] = TONES[k.tone] || TONES.primary; %>
+  <a href="<%= k.href %>" class="stat-card db-kpi">
+    <div class="stat-icon" style="background:<%= bg %>;color:<%= color %>"><i class="fas <%= k.icon %>"></i></div>
+    <div class="stat-value"><%= k.value %></div>
+    <div class="stat-label"><%= k.label %></div>
+    <% if (k.sub) { %><div class="stat-sub" style="color:<%= color %>"><%= k.sub %></div><% } %>
+  </a>
+  <% }) %>
 </div>
 
-<% if (quickActions.length > 0) { %>
-<div class="card" style="margin-top:20px">
-  <div class="card-header"><h3>Thao tác nhanh</h3></div>
-  <div class="card-body">
-    <div class="quick-actions-grid">
-      <% quickActions.forEach(a => { %>
-      <a href="<%= a.href %>" class="quick-action">
-        <span class="qa-icon"><i class="fas <%= a.icon %>"></i></span>
-        <span class="qa-text">
-          <strong><%= a.label %></strong>
-          <small><%= a.desc %></small>
-        </span>
-      </a>
-      <% }) %>
-    </div>
-  </div>
-</div>
-<% } %>
+<div class="db-grid">
+  <div class="db-main">
 
-<% if (recentActivity.length > 0) { %>
-<div class="card" style="margin-top:20px">
-  <div class="card-header"><h3>Hoạt động gần đây</h3></div>
-  <div class="card-body" style="padding:0">
-    <table class="table">
-      <thead>
-        <tr><th>Thời gian</th><th>Người dùng</th><th>Hành động</th><th>Chi tiết</th></tr>
-      </thead>
-      <tbody>
-        <% recentActivity.forEach(log => { %>
-        <tr>
-          <td style="white-space:nowrap"><%= new Date(log.created_at).toLocaleString('vi-VN') %></td>
-          <td><%= log.full_name || '—' %></td>
-          <td><span class="badge badge-info"><%= log.action %></span></td>
-          <td><%= log.description || '' %></td>
-        </tr>
+    <!-- Hôm nay của bạn -->
+    <div class="card">
+      <div class="card-header"><h3><i class="fas fa-sun" style="color:var(--warning)"></i> Hôm nay của bạn</h3></div>
+      <div class="card-body" style="padding:6px 0">
+        <% if (agenda.length === 0) { %>
+        <p class="db-empty"><i class="fas fa-mug-hot"></i> Không có việc nào đang chờ — một ngày nhẹ nhàng!</p>
+        <% } %>
+        <% agenda.forEach(a => { %>
+        <a href="/tasks/<%= a.id %>" class="db-agenda-row">
+          <span class="dba-dot <%= a.bucket %>"></span>
+          <span class="dba-title"><%= a.title %></span>
+          <span class="dba-project"><i class="fas fa-folder"></i> <%= a.project_name %></span>
+          <span class="dba-due <%= a.bucket %>">
+            <% if (a.bucket === 'overdue') { %>Quá hạn <%= fmtDate(a.due_date) %>
+            <% } else if (a.bucket === 'today') { %>Hôm nay
+            <% } else { %><%= a.due_date ? fmtDate(a.due_date) : 'Chưa có hạn' %><% } %>
+          </span>
+          <span class="badge badge-<%= a.status %>"><%= STATUS_LABELS[a.status] %></span>
+        </a>
         <% }) %>
-      </tbody>
-    </table>
+        <% if (taskStats.pending > agenda.length) { %>
+        <a href="/tasks/my-tasks" class="db-more">Xem tất cả <%= taskStats.pending %> việc →</a>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Chờ tôi duyệt -->
+    <% if (approvals.length > 0) { %>
+    <div class="card" style="border-left:3px solid var(--warning)">
+      <div class="card-header"><h3><i class="fas fa-stamp" style="color:var(--warning)"></i> Chờ bạn phê duyệt (<%= approvalsCount %>)</h3></div>
+      <div class="card-body" style="padding:6px 0">
+        <% approvals.forEach(r => { %>
+        <a href="/requests/<%= r.id %>" class="db-agenda-row">
+          <span class="dba-dot today"></span>
+          <span class="dba-title"><%= r.title %></span>
+          <span class="dba-project"><%= r.form_name %> · <%= r.submitter_name %></span>
+          <span class="dba-due"><%= fmtDate(r.created_at) %></span>
+          <span class="btn btn-sm btn-primary">Xem & duyệt</span>
+        </a>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Dự án (lãnh đạo / quản lý) -->
+    <% if (projects.length > 0) { %>
+    <div class="card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <h3><i class="fas fa-folder-open" style="color:var(--primary)"></i> <%= group === 'manager' ? 'Dự án của tôi' : 'Dự án đang chạy' %></h3>
+        <a href="/projects" class="db-more" style="padding:0">Tất cả →</a>
+      </div>
+      <div class="card-body" style="padding:6px 0">
+        <% projects.forEach(p => { %>
+        <a href="/projects/<%= p.id %>" class="db-project-row">
+          <span class="dbp-info">
+            <strong><span class="project-code"><%= p.code %></span> <%= p.name %></strong>
+            <small><%= p.manager_name ? 'PM: ' + p.manager_name : '' %><%= p.end_date ? ' · Hạn: ' + fmtDate(p.end_date) : '' %></small>
+          </span>
+          <span class="dbp-flags">
+            <% if (p.overdue_tasks > 0) { %><span class="badge badge-danger"><%= p.overdue_tasks %> quá hạn</span><% } %>
+            <% if (p.review_tasks > 0) { %><span class="badge badge-warning"><%= p.review_tasks %> chờ kiểm tra</span><% } %>
+          </span>
+          <span class="dbp-progress">
+            <span class="progress-track"><span class="progress-fill" style="width:<%= p.progress_percent || 0 %>%"></span></span>
+            <small><%= p.progress_percent || 0 %>%</small>
+          </span>
+        </a>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Hoạt động gần đây -->
+    <% if (recentActivity.length > 0) { %>
+    <div class="card">
+      <div class="card-header"><h3><i class="fas fa-history" style="color:var(--text-3)"></i> Hoạt động gần đây</h3></div>
+      <div class="card-body" style="padding:0">
+        <table class="table">
+          <tbody>
+            <% recentActivity.forEach(log => { %>
+            <tr>
+              <td style="white-space:nowrap;color:var(--text-3);font-size:12px"><%= fmtDateTime(log.created_at) %></td>
+              <td><%= log.full_name || '—' %></td>
+              <td><span class="badge badge-info"><%= log.action %></span></td>
+              <td style="font-size:12.5px"><%= log.description || '' %></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <% } %>
+  </div>
+
+  <div class="db-side">
+    <!-- Chấm công hôm nay (HR / lãnh đạo) -->
+    <% if (attendanceToday) { const pct = attendanceToday.total > 0 ? Math.round(attendanceToday.checked / attendanceToday.total * 100) : 0; %>
+    <div class="card">
+      <div class="card-header"><h3><i class="fas fa-user-clock" style="color:var(--info)"></i> Chấm công hôm nay</h3></div>
+      <div class="card-body">
+        <div class="dbatt">
+          <strong><%= attendanceToday.checked %></strong>
+          <span>/ <%= attendanceToday.total %> nhân viên</span>
+        </div>
+        <div class="progress-track" style="height:8px;margin:10px 0"><div class="progress-fill" style="width:<%= pct %>%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-3)">
+          <span><%= pct %>% đã chấm</span>
+          <% if (attendanceToday.late > 0) { %><span style="color:var(--warning)"><%= attendanceToday.late %> đi trễ</span><% } %>
+        </div>
+        <a href="/attendance" class="btn btn-outline btn-sm" style="width:100%;margin-top:12px;justify-content:center;display:flex"><i class="fas fa-table"></i> Mở bảng công</a>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Kho tồn thấp -->
+    <% if (lowStock.length > 0) { %>
+    <div class="card" style="border-left:3px solid var(--warning)">
+      <div class="card-header"><h3><i class="fas fa-triangle-exclamation" style="color:var(--warning)"></i> Vật tư tồn thấp</h3></div>
+      <div class="card-body" style="padding:6px 0">
+        <% lowStock.forEach(it => { %>
+        <a href="/warehouse?low=1" class="db-side-row">
+          <span class="dbs-title"><%= it.name %></span>
+          <span class="dbs-value" style="color:var(--danger)"><%= parseFloat(it.quantity) %>/<%= parseFloat(it.min_quantity) %> <%= it.unit %></span>
+        </a>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Báo giá pipeline -->
+    <% if (quotes) { %>
+    <div class="card">
+      <div class="card-header"><h3><i class="fas fa-file-invoice-dollar" style="color:var(--success)"></i> Báo giá</h3></div>
+      <div class="card-body">
+        <div class="dbq-pipeline">
+          <a href="/quotes?status=draft" class="dbq-step"><strong><%= quotes.draft %></strong><small>Nháp</small></a>
+          <i class="fas fa-chevron-right"></i>
+          <a href="/quotes?status=sent" class="dbq-step"><strong><%= quotes.sent %></strong><small>Đã gửi</small></a>
+          <i class="fas fa-chevron-right"></i>
+          <a href="/quotes?status=approved" class="dbq-step"><strong style="color:var(--success)"><%= quotes.approved %></strong><small>Chốt</small></a>
+        </div>
+        <p style="text-align:center;margin-top:10px;font-size:12.5px;color:var(--text-2)">
+          Giá trị đã chốt: <strong style="color:var(--success)"><%= Number(quotes.approved_value).toLocaleString('vi-VN') %> ₫</strong>
+        </p>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Đơn từ của tôi -->
+    <% if (myRequests.length > 0) { %>
+    <div class="card">
+      <div class="card-header"><h3><i class="fas fa-paper-plane" style="color:var(--purple)"></i> Đơn từ của tôi</h3></div>
+      <div class="card-body" style="padding:6px 0">
+        <% myRequests.forEach(r => { %>
+        <a href="/requests/<%= r.id %>" class="db-side-row">
+          <span class="dbs-title"><%= r.title %></span>
+          <span class="badge <%= r.status === 'approved' ? 'badge-success' : r.status === 'rejected' ? 'badge-danger' : 'badge-warning' %>">
+            <%= r.status === 'approved' ? 'Đã duyệt' : r.status === 'rejected' ? 'Từ chối' : 'Chờ' %>
+          </span>
+        </a>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Thông báo mới -->
+    <div class="card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <h3><i class="fas fa-bell" style="color:var(--primary)"></i> Thông báo</h3>
+        <a href="/notifications" class="db-more" style="padding:0">Tất cả →</a>
+      </div>
+      <div class="card-body" style="padding:6px 0">
+        <% if (notifications.length === 0) { %>
+        <p class="db-empty" style="padding:18px"><i class="fas fa-bell-slash"></i> Chưa có thông báo</p>
+        <% } %>
+        <% notifications.forEach(n => { %>
+        <a href="/notifications/<%= n.id %>/open" class="db-side-row <%= n.is_read ? '' : 'unread' %>">
+          <span class="dbs-title"><%= n.title %></span>
+          <small style="color:var(--text-3);white-space:nowrap"><%= fmtDate(n.created_at) %></small>
+        </a>
+        <% }) %>
+      </div>
+    </div>
   </div>
 </div>
-<% } %>
 
 <style>
-.quick-actions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-.quick-action {
-  display: flex; align-items: center; gap: 14px; padding: 16px; border: 1.5px solid var(--border);
-  border-radius: var(--radius); text-decoration: none; transition: var(--transition); background: var(--card);
+.db-shortcuts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 460px; }
+.db-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px;
+  border: 1.5px solid var(--border); border-radius: 18px; font-size: 12px; font-weight: 500;
+  color: var(--text-2); text-decoration: none; transition: var(--transition); background: var(--card);
 }
-.quick-action:hover { border-color: var(--primary); box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.qa-icon {
-  width: 44px; height: 44px; border-radius: 10px; background: var(--primary-50); color: var(--primary);
-  display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
+.db-chip:hover { border-color: var(--primary); color: var(--primary); }
+.db-chip i { font-size: 11px; }
+
+.db-kpi { text-decoration: none; transition: var(--transition); }
+.db-kpi:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+.db-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; margin-top: 20px; }
+@media (max-width: 1100px) { .db-grid { grid-template-columns: 1fr; } }
+.db-main, .db-side { display: flex; flex-direction: column; gap: 20px; }
+
+.db-empty { text-align: center; padding: 28px; color: var(--text-3); font-size: 13.5px; }
+.db-empty i { display: block; font-size: 22px; margin-bottom: 8px; }
+
+.db-agenda-row {
+  display: grid; grid-template-columns: 10px 1fr 170px 110px auto;
+  align-items: center; gap: 12px; padding: 10px 20px; text-decoration: none; transition: background .15s;
 }
-.qa-text { display: flex; flex-direction: column; gap: 2px; }
-.qa-text strong { font-size: 14px; color: var(--text); font-weight: 600; }
-.qa-text small { font-size: 12px; color: var(--text-3); }
+.db-agenda-row:hover { background: var(--bg); }
+.db-agenda-row + .db-agenda-row { border-top: 1px solid var(--border-light); }
+.dba-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+.dba-dot.overdue { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-bg); }
+.dba-dot.today { background: var(--warning); box-shadow: 0 0 0 3px var(--warning-bg); }
+.dba-dot.upcoming { background: var(--primary-light); }
+.dba-title { font-size: 13.5px; font-weight: 500; color: var(--text); }
+.dba-project { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dba-due { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.dba-due.overdue { color: var(--danger); font-weight: 600; }
+.dba-due.today { color: var(--warning); font-weight: 600; }
+@media (max-width: 800px) { .db-agenda-row { grid-template-columns: 10px 1fr auto; } .dba-project, .dba-due { display: none; } }
+
+.db-more { display: block; padding: 10px 20px; font-size: 12.5px; font-weight: 600; color: var(--primary); text-decoration: none; }
+.db-more:hover { text-decoration: underline; }
+
+.db-project-row {
+  display: grid; grid-template-columns: 1fr auto 150px; align-items: center; gap: 14px;
+  padding: 11px 20px; text-decoration: none; transition: background .15s;
+}
+.db-project-row:hover { background: var(--bg); }
+.db-project-row + .db-project-row { border-top: 1px solid var(--border-light); }
+.dbp-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dbp-info strong { font-size: 13.5px; color: var(--text); }
+.dbp-info small { font-size: 11.5px; color: var(--text-3); }
+.dbp-flags { display: flex; gap: 6px; }
+.dbp-progress { display: flex; align-items: center; gap: 8px; }
+.dbp-progress .progress-track { flex: 1; height: 6px; background: var(--border-light); border-radius: 4px; overflow: hidden; display: block; }
+.dbp-progress .progress-fill { height: 100%; background: var(--primary); border-radius: 4px; display: block; }
+.dbp-progress small { font-size: 11.5px; font-weight: 700; color: var(--text-2); min-width: 32px; text-align: right; }
+@media (max-width: 800px) { .db-project-row { grid-template-columns: 1fr; } }
+
+.db-side-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 18px; text-decoration: none; transition: background .15s;
+}
+.db-side-row:hover { background: var(--bg); }
+.db-side-row + .db-side-row { border-top: 1px solid var(--border-light); }
+.db-side-row.unread { background: var(--primary-50); }
+.dbs-title { font-size: 12.5px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dbs-value { font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+.dbatt { display: flex; align-items: baseline; gap: 6px; }
+.dbatt strong { font-size: 30px; font-weight: 800; color: var(--primary); line-height: 1; }
+.dbatt span { font-size: 13px; color: var(--text-3); }
+
+.dbq-pipeline { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.dbq-pipeline > i { color: var(--text-3); font-size: 10px; }
+.dbq-step { flex: 1; text-align: center; text-decoration: none; padding: 8px 4px; border-radius: var(--radius-sm); transition: background .15s; }
+.dbq-step:hover { background: var(--bg); }
+.dbq-step strong { display: block; font-size: 20px; font-weight: 800; color: var(--text); }
+.dbq-step small { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
 </style>
