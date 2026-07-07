@@ -1,5 +1,9 @@
 const { Pool } = require('pg');
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
+const path = require('path');
+// Xem giải thích thứ tự nạp .env trong app.js — file này cũng có thể được
+// require độc lập bởi database/migrate.js, database/seed.js (chạy CLI).
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../../../.env') });
 
 const dbHost = process.env.DB_HOST || 'localhost';
 // SSL theo host thực tế, không theo NODE_ENV — Supabase/managed Postgres luôn

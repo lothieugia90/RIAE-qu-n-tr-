@@ -1,7 +1,11 @@
-// Chỉ định path tuyệt đối cho .env — một số môi trường hosting (vd. LiteSpeed
-// lsnode trên Hostinger) khởi chạy process với cwd khác thư mục chứa app.js,
-// khiến dotenv mặc định (tìm .env theo process.cwd()) không thấy file.
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+// Nạp .env theo thứ tự ưu tiên, không ghi đè biến đã set trước đó:
+//   1) .env cạnh app.js (dev bình thường)
+//   2) ../.env — một cấp NGOÀI thư mục git repo (dùng trên Hostinger),
+//      vì auto-deploy chạy git clean xóa sạch file untracked bên TRONG
+//      repo mỗi lần pull — đặt ngoài repo để cấu hình sống sót qua deploy.
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const expressLayouts = require('express-ejs-layouts');
 const session = require('express-session');
