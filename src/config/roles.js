@@ -33,20 +33,21 @@ const ROLE_INHERIT = {
 
 // Module hiện có (GĐ A-D + Lương C.2)
 const MODULES = [
-  { key: 'dashboard',   label: 'Dashboard' },
-  { key: 'projects',    label: 'Dự án' },
-  { key: 'tasks',       label: 'Công việc' },
-  { key: 'hr',          label: 'Nhân sự' },
-  { key: 'attendance',  label: 'Chấm công' },
-  { key: 'payroll',     label: 'Cấu hình Lương' },
-  { key: 'requests',    label: 'Phê duyệt' },
-  { key: 'warehouse',   label: 'Kho vật tư' },
-  { key: 'partners',    label: 'Đối tác' },
-  { key: 'quotes',      label: 'Báo giá' },
-  { key: 'chat',        label: 'Chat nội bộ' },
-  { key: 'users',       label: 'Người dùng' },
-  { key: 'permissions', label: 'Phân quyền' },
-  { key: 'audit',       label: 'Nhật ký hệ thống' },
+  { key: 'dashboard',     label: 'Dashboard' },
+  { key: 'announcements', label: 'Bảng tin công ty' },
+  { key: 'projects',      label: 'Dự án' },
+  { key: 'tasks',         label: 'Công việc' },
+  { key: 'hr',            label: 'Nhân sự' },
+  { key: 'attendance',    label: 'Chấm công' },
+  { key: 'payroll',       label: 'Cấu hình Lương' },
+  { key: 'requests',      label: 'Phê duyệt' },
+  { key: 'warehouse',     label: 'Kho vật tư' },
+  { key: 'partners',      label: 'Đối tác' },
+  { key: 'quotes',        label: 'Báo giá' },
+  { key: 'chat',          label: 'Chat nội bộ' },
+  { key: 'users',         label: 'Người dùng' },
+  { key: 'permissions',   label: 'Phân quyền' },
+  { key: 'audit',         label: 'Nhật ký hệ thống' },
 ];
 
 // Thứ tự mức quyền để so sánh: none < view < edit < full

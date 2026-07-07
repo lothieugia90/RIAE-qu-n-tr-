@@ -7,6 +7,14 @@
     <span class="header-title"><%= title %></span>
   </div>
   <div class="header-right">
+    <!-- Loa: Bảng tin công ty (thông báo chung/quyết định/quy chế/bổ nhiệm) — tách biệt với thông báo cá nhân -->
+    <a href="/announcements" class="header-icon-btn" title="Bảng tin công ty" aria-label="Bảng tin công ty">
+      <i class="fas fa-bullhorn"></i>
+      <% if (locals.unreadAnnouncements > 0) { %>
+      <span class="header-badge"><%= unreadAnnouncements > 99 ? '99+' : unreadAnnouncements %></span>
+      <% } %>
+    </a>
+
     <!-- Chuông thông báo: dropdown AJAX (giống bản trước), bấm 1 mục là đánh dấu đã đọc + điều hướng -->
     <div class="notif-bell-wrap" id="notifWrap">
       <button class="header-icon-btn" id="notifBtn" title="Thông báo" aria-label="Thông báo" onclick="toggleNotifPanel()">

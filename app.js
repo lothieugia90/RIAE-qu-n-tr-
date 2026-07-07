@@ -103,7 +103,10 @@ app.use(async (req, res, next) => {
             WHERE ra.approver_id=$1 AND ra.status='pending' AND rq.status='pending') AS approvals,
            (SELECT COUNT(*)::int FROM chat_messages cm
             JOIN chat_room_members crm ON crm.room_id=cm.room_id AND crm.user_id=$1
-            WHERE cm.user_id != $1 AND cm.created_at > COALESCE(crm.last_read_at, '1970-01-01')) AS chats`,
+            WHERE cm.user_id != $1 AND cm.created_at > COALESCE(crm.last_read_at, '1970-01-01')) AS chats,
+           (SELECT COUNT(*)::int FROM announcements a
+            WHERE a.is_published=true AND (a.expires_at IS NULL OR a.expires_at > NOW())
+            AND NOT EXISTS (SELECT 1 FROM announcement_reads ar WHERE ar.announcement_id=a.id AND ar.user_id=$1)) AS announcements`,
         [req.session.userId]
       );
       res.locals.unreadNotifications = r.rows[0].notif || 0;
@@ -112,6 +115,7 @@ app.use(async (req, res, next) => {
       res.locals.myWorkCount = r.rows[0].due_tasks || 0;
       res.locals.pendingApprovals = r.rows[0].approvals || 0;
       res.locals.unreadChats = r.rows[0].chats || 0;
+      res.locals.unreadAnnouncements = r.rows[0].announcements || 0;
     } catch (e) { /* badge không được làm hỏng trang */ }
   }
   next();
@@ -120,6 +124,7 @@ app.use(async (req, res, next) => {
 // Routes
 app.use('/auth', require('./src/routes/auth'));
 app.use('/dashboard', require('./src/routes/dashboard'));
+app.use('/announcements', require('./src/routes/announcements'));
 app.use('/projects', require('./src/routes/projects'));
 app.use('/tasks', require('./src/routes/tasks'));
 app.use('/notifications', require('./src/routes/notifications'));

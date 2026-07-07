@@ -1,0 +1,84 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1><%= announcement ? 'Chỉnh sửa thông báo' : 'Đăng thông báo mới' %></h1>
+    <p>Thông báo chung, quyết định, quy chế hoặc bổ nhiệm gửi tới toàn công ty</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    <form action="<%= announcement ? '/announcements/' + announcement.id + '?_csrf=' + csrfToken : '/announcements?_csrf=' + csrfToken %>"
+          method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Loại thông báo *</label>
+          <select name="type" class="form-control" required>
+            <% Object.entries(typeMeta).forEach(([k, m]) => { %>
+            <option value="<%= k %>" <%= announcement && announcement.type === k ? 'selected' : '' %>><%= m.label %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Hết hiệu lực (tùy chọn)</label>
+          <input type="date" name="expires_at" class="form-control"
+                 value="<%= announcement && announcement.expires_at ? new Date(announcement.expires_at).toISOString().split('T')[0] : '' %>">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Tiêu đề *</label>
+        <input type="text" name="title" class="form-control" required maxlength="300" value="<%= announcement ? announcement.title : '' %>">
+      </div>
+
+      <div class="form-group">
+        <label>Nội dung *</label>
+        <textarea name="content" class="form-control" rows="10" required placeholder="Nội dung thông báo..."><%= announcement ? announcement.content : '' %></textarea>
+      </div>
+
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" name="is_pinned" style="width:16px;height:16px" <%= announcement && announcement.is_pinned ? 'checked' : '' %>>
+          Ghim thông báo này lên đầu bảng tin
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label>Đính kèm file (PDF/Word/Excel/ảnh, tối đa 5 file, 15MB/file)</label>
+        <input type="file" name="files" class="form-control" multiple accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx">
+      </div>
+
+      <% if (files && files.length > 0) { %>
+      <div class="ann-existing-files">
+        <label>File đã đính kèm</label>
+        <% files.forEach(f => { %>
+        <div class="ann-existing-file-row">
+          <a href="<%= f.file_path %>" target="_blank"><i class="fas fa-paperclip"></i> <%= f.original_name %></a>
+          <form action="/announcements/<%= announcement.id %>/files/<%= f.id %>/delete" method="POST" data-confirm="Xóa file này?">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="ann-file-del" aria-label="Xóa"><i class="fas fa-times"></i></button>
+          </form>
+        </div>
+        <% }) %>
+      </div>
+      <% } %>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+        <a href="<%= announcement ? '/announcements/' + announcement.id : '/announcements' %>" class="btn btn-outline">Hủy</a>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> <%= announcement ? 'Lưu thay đổi' : 'Đăng thông báo' %></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+.ann-existing-files { margin-top: 8px; padding: 12px 0; border-top: 1px solid var(--border-light); }
+.ann-existing-files label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+.ann-existing-file-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+.ann-existing-file-row a { font-size: 13px; color: var(--primary); text-decoration: none; }
+.ann-file-del { border: none; background: transparent; color: var(--text-3); cursor: pointer; width: 26px; height: 26px; border-radius: 6px; }
+.ann-file-del:hover { background: var(--danger-bg); color: var(--danger); }
+</style>

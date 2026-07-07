@@ -132,6 +132,27 @@
   </div>
 
   <div class="db-side">
+    <!-- Bảng tin công ty: mọi vai trò đều thấy -->
+    <% if (companyAnnouncements.length > 0) { %>
+    <div class="card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <h3><i class="fas fa-bullhorn" style="color:var(--primary)"></i> Bảng tin công ty</h3>
+        <a href="/announcements" class="db-more" style="padding:0">Tất cả →</a>
+      </div>
+      <div class="card-body" style="padding:6px 0">
+        <% companyAnnouncements.forEach(a => { const m = annTypeMeta[a.type] || annTypeMeta.general; %>
+        <a href="/announcements/<%= a.id %>" class="db-side-row">
+          <span class="dbs-title">
+            <% if (a.is_pinned) { %><i class="fas fa-thumbtack" style="color:var(--warning);font-size:10px"></i><% } %>
+            <span style="color:<%= m.color %>"><i class="fas <%= m.icon %>"></i></span> <%= a.title %>
+          </span>
+          <% if (!a.is_read) { %><span class="notif-unread-dot" style="width:7px;height:7px;border-radius:50%;background:var(--primary);flex-shrink:0"></span><% } %>
+        </a>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+
     <!-- Chấm công hôm nay (HR / lãnh đạo) -->
     <% if (attendanceToday) { const pct = attendanceToday.total > 0 ? Math.round(attendanceToday.checked / attendanceToday.total * 100) : 0; %>
     <div class="card">

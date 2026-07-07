@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { getPermLevel } = require('../middleware/auth');
 const { PERM_LEVELS } = require('../config/roles');
+const { TYPE_META: ANN_TYPE_META } = require('./announcementController');
 
 // Nhóm vai trò → quyết định KPI và widget hiển thị.
 // Quy trình RIAE: lãnh đạo nhìn toàn cảnh, PM nhìn dự án của mình,
@@ -15,6 +16,7 @@ const GROUP_BY_ROLE = {
 };
 
 const QUICK_ACTIONS = [
+  { module: 'announcements', href: '/announcements',   icon: 'fa-bullhorn',            label: 'Bảng tin công ty' },
   { module: 'projects',    href: '/projects',          icon: 'fa-folder-open',         label: 'Dự án' },
   { module: 'tasks',       href: '/tasks/my-tasks',    icon: 'fa-list-check',          label: 'Việc của tôi' },
   { module: 'requests',    href: '/requests',          icon: 'fa-stamp',               label: 'Phê duyệt' },
@@ -52,7 +54,7 @@ const index = async (req, res) => {
 
     const [
       myTaskStats, myAgenda, myApprovals, myRequests, myAttendance, myNotifications,
-      companyStats, projectList, attendanceToday, lowStock, quotesPipeline, recentActivity
+      companyStats, projectList, attendanceToday, lowStock, quotesPipeline, recentActivity, companyAnnouncements
     ] = await Promise.all([
       // --- Cá nhân (mọi vai trò) ---
       query(`SELECT COUNT(*) FILTER (WHERE status != 'done')::int AS pending,
@@ -133,7 +135,15 @@ const index = async (req, res) => {
         ? query(`SELECT al.action, al.description, al.created_at, u.full_name
                  FROM activity_logs al LEFT JOIN users u ON u.id = al.user_id
                  ORDER BY al.created_at DESC LIMIT 8`)
-        : Promise.resolve({ rows: [] })
+        : Promise.resolve({ rows: [] }),
+
+      // --- Bảng tin công ty: mọi vai trò đều thấy (thông báo chung/quyết định/quy chế/bổ nhiệm) ---
+      query(
+        `SELECT a.id, a.title, a.type, a.is_pinned, a.published_at,
+                EXISTS(SELECT 1 FROM announcement_reads ar WHERE ar.announcement_id=a.id AND ar.user_id=$1) AS is_read
+         FROM announcements a
+         WHERE a.is_published=true AND (a.expires_at IS NULL OR a.expires_at > NOW())
+         ORDER BY a.is_pinned DESC, a.published_at DESC LIMIT 4`, [userId])
     ]);
 
     const t = myTaskStats.rows[0];
@@ -184,7 +194,9 @@ const index = async (req, res) => {
       attendanceToday: attendanceToday.rows[0],
       lowStock: lowStock.rows,
       quotes: quotesPipeline.rows[0],
-      recentActivity: recentActivity.rows
+      recentActivity: recentActivity.rows,
+      companyAnnouncements: companyAnnouncements.rows,
+      annTypeMeta: ANN_TYPE_META
     });
   } catch (err) {
     console.error('Dashboard error:', err);

@@ -90,6 +90,13 @@
         <span class="nav-icon"><i class="fas fa-th-large"></i></span>
         <span class="nav-text">Dashboard</span>
       </a>
+      <a href="/announcements" class="nav-link <%= path.startsWith('/announcements') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-bullhorn"></i></span>
+        <span class="nav-text">Bảng tin công ty</span>
+        <% if (locals.unreadAnnouncements > 0) { %>
+        <span class="nav-badge"><%= unreadAnnouncements %></span>
+        <% } %>
+      </a>
     </div>
 
     <div class="nav-group">
@@ -127,10 +134,6 @@
       <a href="/hr" class="nav-link <%= path.startsWith('/hr') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-users"></i></span>
         <span class="nav-text">Nhân sự</span>
-      </a>
-      <a href="/payroll-settings" class="nav-link <%= path.startsWith('/payroll-settings') ? 'active' : '' %>">
-        <span class="nav-icon"><i class="fas fa-sliders-h"></i></span>
-        <span class="nav-text">Cấu hình Lương</span>
       </a>
       <% } %>
     </div>
@@ -177,6 +180,12 @@
       <a href="/admin/audit" class="nav-link <%= path.startsWith('/admin/audit') ? 'active' : '' %>">
         <span class="nav-icon"><i class="fas fa-history"></i></span>
         <span class="nav-text">Nhật ký</span>
+      </a>
+      <% } %>
+      <% if (['admin','director','hr','head_hr'].includes(locals.userRole)) { %>
+      <a href="/payroll-settings" class="nav-link <%= path.startsWith('/payroll-settings') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-sliders-h"></i></span>
+        <span class="nav-text">Cấu hình Lương</span>
       </a>
       <% } %>
     </div>
