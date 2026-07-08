@@ -29,6 +29,12 @@ const app = express();
 // Trust reverse proxy (Nginx)
 app.set('trust proxy', 1);
 
+// Cache-busting cho CSS/JS tĩnh: đổi mỗi lần app khởi động lại (deploy) —
+// buộc CDN (hcdn của Hostinger) và trình duyệt luôn lấy bản mới, vì URL có
+// query ?v= khác đi được xem là tài nguyên hoàn toàn mới, bất kể cache cũ.
+const ASSET_VERSION = Date.now();
+app.use((req, res, next) => { res.locals.assetVersion = ASSET_VERSION; next(); });
+
 // Security & Performance
 // CSP tắt vì views dùng CDN (Font Awesome, Google Fonts) + inline script;
 // sẽ siết lại khi chuyển asset về self-host.
