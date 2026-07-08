@@ -13,11 +13,22 @@
       <a href="/chat" class="cw-head-btn" title="Mở trang chat đầy đủ"><i class="fas fa-up-right-and-down-left-from-center"></i></a>
       <button type="button" id="cwMin" class="cw-head-btn" title="Thu gọn" aria-label="Thu gọn"><i class="fas fa-minus"></i></button>
     </div>
+    <div class="cw-tabs" id="cwTabs">
+      <button type="button" class="cw-tab active" data-tab="rooms"><i class="fas fa-comment-dots"></i> Phòng</button>
+      <button type="button" class="cw-tab" data-tab="users"><i class="fas fa-user-group"></i> Nhân viên</button>
+    </div>
     <div class="cw-body">
       <div id="cwRooms" class="cw-rooms"><p class="cw-loading">Đang tải...</p></div>
+      <div id="cwUsers" class="cw-users" hidden><p class="cw-loading">Đang tải...</p></div>
       <div id="cwChat" class="cw-chat" hidden>
         <div id="cwMsgs" class="cw-msgs"></div>
+        <div id="cwFilePending" class="cw-file-pending" hidden>
+          <i class="fas fa-paperclip"></i> <span></span>
+          <button type="button" id="cwFileCancelBtn" aria-label="Bỏ file">&times;</button>
+        </div>
         <form id="cwForm" class="cw-input">
+          <input type="file" id="cwFile" hidden accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar">
+          <button type="button" id="cwAttachBtn" aria-label="Đính kèm file"><i class="fas fa-paperclip"></i></button>
           <input type="text" id="cwText" placeholder="Nhắn tin..." autocomplete="off" maxlength="4000">
           <button type="submit" aria-label="Gửi"><i class="fas fa-paper-plane"></i></button>
         </form>

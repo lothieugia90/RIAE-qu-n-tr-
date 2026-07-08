@@ -1190,11 +1190,50 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 .cw-bubble p { font-size: 12.5px; line-height: 1.4; word-break: break-word; white-space: pre-line; margin: 0; }
 .cw-time { display: block; font-size: 9px; color: var(--text-3); text-align: right; margin-top: 2px; }
 .cw-msg.mine .cw-time { color: rgba(255,255,255,.7); }
-.cw-input { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); }
-.cw-input input { flex: 1; border: 1px solid var(--border); border-radius: 18px; padding: 7px 13px; font-size: 12.5px; outline: none; font-family: inherit; }
-.cw-input input:focus { border-color: var(--primary); }
-.cw-input button { width: 34px; height: 34px; border: none; border-radius: 50%; background: var(--primary); color: #fff; cursor: pointer; font-size: 12px; }
+.cw-input { display: flex; align-items: center; gap: 8px; padding: 10px; border-top: 1px solid var(--border); }
+.cw-input input[type="text"] { flex: 1; border: 1px solid var(--border); border-radius: 18px; padding: 7px 13px; font-size: 12.5px; outline: none; font-family: inherit; }
+.cw-input input[type="text"]:focus { border-color: var(--primary); }
+.cw-input button { width: 34px; height: 34px; border: none; border-radius: 50%; background: var(--primary); color: #fff; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+.cw-input #cwAttachBtn { background: var(--bg); color: var(--text-2); }
+.cw-input #cwAttachBtn:hover { background: var(--primary-50); color: var(--primary); }
 @media (max-width: 600px) { .cw { right: 12px; bottom: 12px; } .cw-panel { height: min(420px, 70vh); } }
+
+/* Tab Phòng / Nhân viên */
+.cw-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.cw-tab {
+  flex: 1; border: none; background: transparent; padding: 9px 6px; font-size: 12px; font-weight: 600;
+  color: var(--text-3); cursor: pointer; border-bottom: 2px solid transparent; transition: var(--transition);
+}
+.cw-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.cw-tab:hover { color: var(--primary); }
+
+/* Danh sách nhân viên trong popup */
+.cw-users { flex: 1; overflow-y: auto; }
+.cw-users-head { padding: 8px 12px; font-size: 11px; color: var(--text-3); }
+.cw-online-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22C55E; margin-right: 3px; }
+.cw-user { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: none; background: transparent; cursor: pointer; text-align: left; transition: background .15s; }
+.cw-user:hover { background: var(--bg); }
+.cw-user:hover .cw-user-send { opacity: 1; }
+.cw-user + .cw-user { border-top: 1px solid var(--border-light); }
+.cw-user-avatar { position: relative; width: 30px; height: 30px; border-radius: 50%; background: var(--primary-50); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.cw-user-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.cw-dot { position: absolute; bottom: -1px; right: -1px; width: 9px; height: 9px; border-radius: 50%; background: #CBD5E1; border: 2px solid var(--card); }
+.cw-dot.on { background: #22C55E; }
+.cw-user-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cw-user-info strong { font-size: 12.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-user-info small { font-size: 10.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-user-send { font-size: 10.5px; color: var(--primary); opacity: 0; transition: opacity .15s; }
+
+/* File đính kèm trong tin nhắn popup */
+.cw-file-img { display: block; max-width: 180px; max-height: 180px; border-radius: 8px; margin-bottom: 4px; object-fit: cover; }
+.cw-file-row { display: flex; align-items: center; gap: 6px; padding: 5px 7px; border-radius: 8px; background: rgba(0,0,0,.05); text-decoration: none; color: inherit; margin-bottom: 4px; }
+.cw-msg.mine .cw-file-row { background: rgba(255,255,255,.15); }
+.cw-file-name { font-size: 11.5px; font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-file-row small { font-size: 9.5px; opacity: .8; white-space: nowrap; }
+.cw-file-pending { display: flex; align-items: center; gap: 8px; padding: 0 10px 8px; font-size: 11.5px; color: var(--text-2); }
+.cw-file-pending span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-file-pending button { border: none; background: transparent; color: var(--text-3); cursor: pointer; font-size: 15px; }
+.cw-file-pending button:hover { color: var(--danger); }
 
 /* Thuộc tính hidden phải thắng mọi display:flex trong widget chat */
 .cw [hidden], .cw-panel[hidden] { display: none !important; }

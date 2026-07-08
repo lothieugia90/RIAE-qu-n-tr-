@@ -60,6 +60,7 @@
       <small><%= members.length %> thành viên: <%= members.map(m => m.full_name).join(', ').slice(0, 80) %></small>
     </div>
     <div class="chat-messages" id="chatMessages">
+      <% const isImg = f => /\.(jpe?g|png|gif|webp)$/i.test(f || ''); %>
       <% messages.forEach(m => { const mine = m.user_id === currentUser.id; %>
       <div class="msg <%= mine ? 'mine' : '' %>">
         <% if (!mine) { %>
@@ -67,16 +68,33 @@
         <% } %>
         <div class="msg-bubble">
           <% if (!mine) { %><small class="msg-author"><%= m.full_name %></small><% } %>
-          <p><%= m.content %></p>
+          <% if (m.file_url) { %>
+            <% if (isImg(m.file_url)) { %>
+            <a href="<%= m.file_url %>" target="_blank"><img src="<%= m.file_url %>" class="msg-file-img" alt="<%= m.file_name %>"></a>
+            <% } else { %>
+            <a href="<%= m.file_url %>" target="_blank" class="msg-file-row">
+              <i class="fas fa-file-arrow-down"></i>
+              <span class="msg-file-name"><%= m.file_name %></span>
+              <small><%= ((m.file_size||0)/1024).toFixed(0) %> KB</small>
+            </a>
+            <% } %>
+          <% } %>
+          <% if (m.content) { %><p><%= m.content %></p><% } %>
           <small class="msg-time"><%= new Date(m.created_at).toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'}) %></small>
         </div>
       </div>
       <% }) %>
     </div>
     <form class="chat-input" id="chatForm">
+      <input type="file" id="chatFile" hidden accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar">
+      <button type="button" id="chatAttachBtn" class="btn btn-outline btn-icon" title="Đính kèm file"><i class="fas fa-paperclip"></i></button>
       <input type="text" id="chatText" class="form-control" placeholder="Nhắn tin tới <%= activeRoom.name %>..." autocomplete="off" maxlength="4000">
       <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i></button>
     </form>
+    <div id="chatFileName" class="chat-file-pending" hidden>
+      <i class="fas fa-paperclip"></i> <span></span>
+      <button type="button" id="chatFileCancelBtn" aria-label="Bỏ file">&times;</button>
+    </div>
     <% } %>
   </div>
 </div>
@@ -133,33 +151,107 @@ function startDirect(uid) {
     refreshOnlineCount();
   });
 
-  socket.on('message:new', (m) => {
-    if (m.room_id !== ROOM_ID || !box) return;
+  function isImgFile(url) { return /\.(jpe?g|png|gif|webp)$/i.test(url || ''); }
+
+  function renderMsg(m) {
     const mine = m.user_id === MY_ID;
     const el = document.createElement('div');
     el.className = 'msg' + (mine ? ' mine' : '');
-    el.innerHTML =
-      (mine ? '' : '<span class="msg-avatar">' + (m.avatar_url ? '<img src="' + m.avatar_url + '">' : (m.full_name || '?').charAt(0).toUpperCase()) + '</span>') +
-      '<div class="msg-bubble">' +
-      (mine ? '' : '<small class="msg-author"></small>') +
-      '<p></p><small class="msg-time">' +
-      new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) +
-      '</small></div>';
-    if (!mine) el.querySelector('.msg-author').textContent = m.full_name;
-    el.querySelector('p').textContent = m.content; // textContent chống XSS
-    box.appendChild(el);
+    if (!mine) {
+      const av = document.createElement('span');
+      av.className = 'msg-avatar';
+      if (m.avatar_url) { const img = document.createElement('img'); img.src = m.avatar_url; av.appendChild(img); }
+      else av.textContent = (m.full_name || '?').charAt(0).toUpperCase();
+      el.appendChild(av);
+    }
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    if (!mine) {
+      const author = document.createElement('small');
+      author.className = 'msg-author'; author.textContent = m.full_name;
+      bubble.appendChild(author);
+    }
+    if (m.file_url) {
+      if (isImgFile(m.file_url)) {
+        const a = document.createElement('a');
+        a.href = m.file_url; a.target = '_blank';
+        const img = document.createElement('img');
+        img.src = m.file_url; img.className = 'msg-file-img'; img.alt = m.file_name || '';
+        a.appendChild(img); bubble.appendChild(a);
+      } else {
+        const a = document.createElement('a');
+        a.href = m.file_url; a.target = '_blank'; a.className = 'msg-file-row';
+        a.innerHTML = '<i class="fas fa-file-arrow-down"></i>';
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'msg-file-name'; nameSpan.textContent = m.file_name || '';
+        const sizeSmall = document.createElement('small');
+        sizeSmall.textContent = ((m.file_size || 0) / 1024).toFixed(0) + ' KB';
+        a.appendChild(nameSpan); a.appendChild(sizeSmall);
+        bubble.appendChild(a);
+      }
+    }
+    if (m.content) {
+      const p = document.createElement('p');
+      p.textContent = m.content; // textContent chống XSS
+      bubble.appendChild(p);
+    }
+    const time = document.createElement('small');
+    time.className = 'msg-time';
+    time.textContent = new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    bubble.appendChild(time);
+    el.appendChild(bubble);
+    return el;
+  }
+
+  socket.on('message:new', (m) => {
+    if (m.room_id !== ROOM_ID || !box) return;
+    box.appendChild(renderMsg(m));
     box.scrollTop = box.scrollHeight;
-    if (!mine) socket.emit('room:read', { roomId: ROOM_ID });
+    if (m.user_id !== MY_ID) socket.emit('room:read', { roomId: ROOM_ID });
   });
 
   const form = document.getElementById('chatForm');
+  const fileInput = document.getElementById('chatFile');
+  const attachBtn = document.getElementById('chatAttachBtn');
+  const filePending = document.getElementById('chatFileName');
+  const fileCancelBtn = document.getElementById('chatFileCancelBtn');
+
+  if (attachBtn) attachBtn.addEventListener('click', () => fileInput.click());
+  if (fileInput) fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) {
+      filePending.querySelector('span').textContent = fileInput.files[0].name;
+      filePending.hidden = false;
+    }
+  });
+  if (fileCancelBtn) fileCancelBtn.addEventListener('click', () => {
+    fileInput.value = '';
+    filePending.hidden = true;
+  });
+
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const input = document.getElementById('chatText');
       const content = input.value.trim();
-      if (!content) return;
-      socket.emit('message:send', { roomId: ROOM_ID, content });
+      const file = fileInput.files[0];
+      if (!content && !file) return;
+      if (file) {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('caption', content);
+        const csrf = document.querySelector('meta[name="csrf-token"]').content;
+        try {
+          const r = await fetch('/chat/rooms/' + ROOM_ID + '/upload', {
+            method: 'POST', headers: { 'x-csrf-token': csrf }, body: fd
+          });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error || 'Lỗi gửi file');
+        } catch (err) { alert(err.message); }
+        fileInput.value = '';
+        filePending.hidden = true;
+      } else {
+        socket.emit('message:send', { roomId: ROOM_ID, content });
+      }
       input.value = '';
       input.focus();
     });
@@ -217,7 +309,19 @@ function startDirect(uid) {
 .msg-bubble p { font-size: 13.5px; line-height: 1.45; word-break: break-word; white-space: pre-line; }
 .msg-time { font-size: 9.5px; color: var(--text-3); display: block; text-align: right; margin-top: 3px; }
 .msg.mine .msg-time { color: rgba(255,255,255,.7); }
-.chat-input { display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--border); }
+.msg-file-img { display: block; max-width: 220px; max-height: 220px; border-radius: 8px; margin-bottom: 4px; object-fit: cover; }
+.msg-file-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,.05); text-decoration: none; color: inherit; margin-bottom: 4px; }
+.msg.mine .msg-file-row { background: rgba(255,255,255,.15); }
+.msg-file-row i { font-size: 14px; }
+.msg-file-name { font-size: 12.5px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+.msg-file-row small { font-size: 10px; opacity: .8; white-space: nowrap; }
+.chat-input { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--border); }
+.chat-input .btn-outline { width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.chat-file-pending { display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; font-size: 12px; color: var(--text-2); }
+.chat-file-pending[hidden] { display: none !important; }
+.chat-file-pending span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-file-pending button { border: none; background: transparent; color: var(--text-3); cursor: pointer; font-size: 16px; }
+.chat-file-pending button:hover { color: var(--danger); }
 .modal { border: none; border-radius: var(--radius-lg); padding: 0; width: 100%; box-shadow: var(--shadow-lg); }
 .modal::backdrop { background: rgba(13,27,62,.5); }
 .modal-form { padding: 26px; }
