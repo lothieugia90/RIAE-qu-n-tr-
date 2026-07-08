@@ -44,17 +44,64 @@ router.get('/', async (req, res) => {
     }
 
     const allUsers = await query(
-      'SELECT id, full_name FROM users WHERE is_active=true AND id != $1 ORDER BY full_name', [userId]);
+      `SELECT id, full_name, avatar_url, department, position
+       FROM users WHERE is_active=true AND id != $1 ORDER BY full_name`, [userId]);
+
+    // Danh sách user đang online (theo kết nối socket thực tế)
+    const onlineIds = Array.from((req.app.get('onlineUsers') || new Map()).keys());
 
     res.render('chat/index', {
       title: 'Chat nội bộ',
       rooms: rooms.rows,
       activeRoom, messages, members,
-      allUsers: allUsers.rows
+      allUsers: allUsers.rows,
+      onlineIds
     });
   } catch (err) {
     console.error('chat:', err);
     res.redirect('/dashboard');
+  }
+});
+
+// ===== API JSON cho popup chat (widget góc phải, chạy trên mọi trang) =====
+
+// Danh sách phòng + số tin chưa đọc
+router.get('/api/rooms', async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const rooms = await query(
+      `SELECT r.id, r.name, r.type,
+        (SELECT COUNT(*)::int FROM chat_messages cm
+         WHERE cm.room_id=r.id AND cm.user_id != $1
+           AND cm.created_at > COALESCE(m.last_read_at, '1970-01-01')) as unread,
+        (SELECT content FROM chat_messages WHERE room_id=r.id ORDER BY created_at DESC LIMIT 1) as last_message
+       FROM chat_rooms r
+       JOIN chat_room_members m ON m.room_id=r.id AND m.user_id=$1
+       ORDER BY r.created_at`, [userId]);
+    res.json({ rooms: rooms.rows });
+  } catch (err) {
+    console.error('chat api rooms:', err.message);
+    res.status(500).json({ error: 'Lỗi tải danh sách phòng' });
+  }
+});
+
+// Tin nhắn của 1 phòng (kiểm tra thành viên) + đánh dấu đã đọc
+router.get('/api/rooms/:id/messages', async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const member = await query(
+      'SELECT 1 FROM chat_room_members WHERE room_id=$1 AND user_id=$2', [req.params.id, userId]);
+    if (!member.rows.length) return res.status(403).json({ error: 'Không phải thành viên phòng này' });
+    const msgs = await query(
+      `SELECT cm.id, cm.room_id, cm.user_id, cm.content, cm.created_at, u.full_name, u.avatar_url
+       FROM chat_messages cm JOIN users u ON u.id=cm.user_id
+       WHERE cm.room_id=$1 ORDER BY cm.created_at DESC LIMIT 50`, [req.params.id]);
+    await query('UPDATE chat_room_members SET last_read_at=NOW() WHERE room_id=$1 AND user_id=$2',
+      [req.params.id, userId]);
+    res.json({ messages: msgs.rows.reverse() });
+  } catch (err) {
+    console.error('chat api messages:', err.message);
+    res.status(500).json({ error: 'Lỗi tải tin nhắn' });
   }
 });
 

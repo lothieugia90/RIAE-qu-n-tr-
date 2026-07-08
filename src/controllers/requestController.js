@@ -2,6 +2,7 @@ const { query } = require('../config/database');
 const { getPermLevel } = require('../middleware/auth');
 const { notify } = require('../utils/notify');
 const { logActivity } = require('../utils/activityLog');
+const { signApproval, verifyApproval } = require('../utils/signature');
 
 const CATEGORY_META = {
   admin:   { label: 'Hành chính', icon: 'fa-user-clock',      bg: '#EFF6FF', color: '#2563EB' },
@@ -208,6 +209,11 @@ const detail = async (req, res) => {
     if (!reqResult.rows.length) return res.redirect('/requests');
     const request = reqResult.rows[0];
     const approvals = approvalsResult.rows;
+    // Kiểm tra tính xác thực chữ ký từng bước đã ký:
+    // true = hợp lệ, false = dữ liệu đã bị sửa/không xác thực được, null = chưa ký
+    approvals.forEach(a => {
+      a.sig_valid = (a.status !== 'pending' && a.signed_at) ? verifyApproval(a) : null;
+    });
     const admin = await isManager(req);
     const canApprove = request.status === 'pending' && (
       approvals.some(a => String(a.approver_id) === String(req.session.userId) && a.status === 'pending') || admin
@@ -241,10 +247,17 @@ const approve = async (req, res) => {
       params.push(req.session.userId);
       sql += ` AND approver_id=$${params.length}`;
     }
-    const updated = await query(sql + ' RETURNING id', params);
+    const updated = await query(sql + ' RETURNING *', params);
     if (!updated.rows.length) {
       req.flash('error', 'Bạn không có bước duyệt nào đang chờ ở yêu cầu này');
       return res.redirect('/requests/' + req.params.id);
+    }
+
+    // Ký HMAC server-side cho từng bước vừa duyệt — bằng chứng chống giả mạo,
+    // không thể tạo lại nếu không có khóa ký trên server
+    for (const row of updated.rows) {
+      await query('UPDATE request_approvals SET signature_hash=$1 WHERE id=$2',
+        [signApproval(row), row.id]);
     }
 
     if (action === 'reject') {
@@ -278,7 +291,7 @@ const approve = async (req, res) => {
 const reopen = async (req, res) => {
   try {
     await query(`UPDATE requests SET status='pending', rejection_reason=NULL, updated_at=NOW() WHERE id=$1`, [req.params.id]);
-    await query(`UPDATE request_approvals SET status='pending', signed_at=NULL, comment=NULL, rejection_reason=NULL WHERE request_id=$1`, [req.params.id]);
+    await query(`UPDATE request_approvals SET status='pending', signed_at=NULL, comment=NULL, rejection_reason=NULL, signature_hash=NULL WHERE request_id=$1`, [req.params.id]);
     logActivity(req.session.userId, 'REQUEST_REOPEN', 'Mở lại yêu cầu',
       { entityType: 'request', entityId: req.params.id, ip: req.ip });
     req.flash('success', 'Đã mở lại yêu cầu để duyệt lại từ đầu');

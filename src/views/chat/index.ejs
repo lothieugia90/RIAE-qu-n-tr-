@@ -19,14 +19,30 @@
       </a>
       <% }) %>
     </div>
-    <div class="chat-direct">
-      <form action="/chat/direct" method="POST" style="display:flex;gap:6px">
+    <!-- Danh sách nhân viên + trạng thái online: click để nhắn riêng -->
+    <div class="chat-users">
+      <div class="chat-users-head">
+        <strong><i class="fas fa-user-group"></i> Nhân viên</strong>
+        <small><span id="onlineCount">0</span> đang online</small>
+      </div>
+      <div class="chat-users-list">
+        <% allUsers.forEach(u => { const on = onlineIds.includes(u.id); %>
+        <button type="button" class="chat-user-row" data-uid="<%= u.id %>" onclick="startDirect('<%= u.id %>')" title="Nhắn riêng với <%= u.full_name %>">
+          <span class="cu-avatar">
+            <% if (u.avatar_url) { %><img src="<%= u.avatar_url %>"><% } else { %><%= u.full_name.charAt(0).toUpperCase() %><% } %>
+            <span class="cu-dot <%= on ? 'on' : '' %>"></span>
+          </span>
+          <span class="cu-info">
+            <strong><%= u.full_name %></strong>
+            <small><%= u.position || u.department || '—' %></small>
+          </span>
+          <i class="fas fa-paper-plane cu-send"></i>
+        </button>
+        <% }) %>
+      </div>
+      <form id="directForm" action="/chat/direct" method="POST" hidden>
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <select name="user_id" class="form-control" required style="font-size:12.5px">
-          <option value="">Nhắn riêng với...</option>
-          <% allUsers.forEach(u => { %><option value="<%= u.id %>"><%= u.full_name %></option><% }) %>
-        </select>
-        <button type="submit" class="btn btn-sm btn-outline"><i class="fas fa-paper-plane"></i></button>
+        <input type="hidden" name="user_id" id="directUserId">
       </form>
     </div>
   </div>
@@ -67,6 +83,7 @@
 
 <!-- Modal tạo phòng -->
 <dialog id="newRoomModal" class="modal" style="max-width:440px">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form action="/chat/rooms" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <h3>Tạo phòng chat</h3>
@@ -90,6 +107,12 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
+// Nhắn riêng: click 1 nhân viên trong danh sách
+function startDirect(uid) {
+  document.getElementById('directUserId').value = uid;
+  document.getElementById('directForm').submit();
+}
+
 (function() {
   const box = document.getElementById('chatMessages');
   if (box) box.scrollTop = box.scrollHeight;
@@ -97,6 +120,18 @@
   const socket = io();
   const ROOM_ID = '<%= activeRoom ? activeRoom.id : '' %>';
   const MY_ID = '<%= currentUser.id %>';
+
+  // Trạng thái online realtime
+  function refreshOnlineCount() {
+    const el = document.getElementById('onlineCount');
+    if (el) el.textContent = document.querySelectorAll('.chat-user-row .cu-dot.on').length;
+  }
+  refreshOnlineCount();
+  socket.on('presence:update', ({ userId, online }) => {
+    const dot = document.querySelector('.chat-user-row[data-uid="' + userId + '"] .cu-dot');
+    if (dot) dot.classList.toggle('on', online);
+    refreshOnlineCount();
+  });
 
   socket.on('message:new', (m) => {
     if (m.room_id !== ROOM_ID || !box) return;
@@ -145,7 +180,26 @@
 .cr-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .cr-info strong { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cr-info small { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-direct { padding: 10px 12px; border-top: 1px solid var(--border); }
+.chat-users { border-top: 1px solid var(--border); display: flex; flex-direction: column; max-height: 42%; }
+.chat-users-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 6px; }
+.chat-users-head strong { font-size: 12px; color: var(--text-2); }
+.chat-users-head strong i { font-size: 10.5px; margin-right: 4px; }
+.chat-users-head small { font-size: 11px; color: var(--success); font-weight: 600; }
+.chat-users-list { overflow-y: auto; padding-bottom: 6px; }
+.chat-user-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 14px;
+  border: none; background: transparent; cursor: pointer; text-align: left; transition: background .15s;
+}
+.chat-user-row:hover { background: var(--bg); }
+.chat-user-row:hover .cu-send { opacity: 1; }
+.cu-avatar { position: relative; width: 30px; height: 30px; border-radius: 50%; background: var(--primary-50); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.cu-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.cu-dot { position: absolute; bottom: -1px; right: -1px; width: 10px; height: 10px; border-radius: 50%; background: #CBD5E1; border: 2px solid var(--card); }
+.cu-dot.on { background: #22C55E; }
+.cu-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cu-info strong { font-size: 12.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cu-info small { font-size: 10.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cu-send { font-size: 11px; color: var(--primary); opacity: 0; transition: opacity .15s; }
 .chat-main { display: flex; flex-direction: column; overflow: hidden; }
 .chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-3); gap: 10px; padding: 60px; }
 .chat-empty i { font-size: 40px; }

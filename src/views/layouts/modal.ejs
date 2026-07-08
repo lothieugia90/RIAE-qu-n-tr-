@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <title><%= title %> - RIAE Management</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* Layout tối giản khi trang được mở bên trong popup modal (?modal=1):
+       không sidebar, không header — chỉ nội dung form */
+    body.modal-body { background: var(--card); }
+    .modal-page-body { padding: 8px 22px 22px; }
+    .modal-page-body .page-header { margin-bottom: 14px; }
+  </style>
+</head>
+<body class="app-body modal-body">
+  <div class="modal-page-body">
+    <%- include('../partials/flash') %>
+    <%- body %>
+  </div>
+  <script src="/js/main.js"></script>
+  <script>
+    // Form trong popup submit thẳng lên cửa sổ chính (_top): POST + redirect
+    // chạy ở top-level nên flash message (vd mật khẩu tạm) hiển thị đúng 1 lần,
+    // không bị iframe "nuốt" mất trước khi framebuster chuyển trang.
+    document.addEventListener('submit', (e) => { if (e.target && e.target.tagName === 'FORM') e.target.target = '_top'; }, true);
+  </script>
+</body>
+</html>

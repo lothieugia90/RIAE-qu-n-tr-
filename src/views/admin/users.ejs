@@ -48,6 +48,7 @@
 
 <!-- Modal tạo tài khoản -->
 <dialog id="createModal" class="modal">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form action="/admin/users" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <h3>Thêm tài khoản mới</h3>
@@ -99,6 +100,7 @@
 
 <!-- Modal sửa tài khoản -->
 <dialog id="editModal" class="modal">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form id="editForm" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <h3>Cập nhật tài khoản</h3>
@@ -144,6 +146,7 @@
 
 <!-- Modal reset mật khẩu -->
 <dialog id="resetModal" class="modal">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form id="resetForm" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <h3>Đặt lại mật khẩu cho <span id="reset_username"></span></h3>

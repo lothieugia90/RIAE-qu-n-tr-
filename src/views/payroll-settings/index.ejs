@@ -172,6 +172,7 @@ const canFull = permLevel === 'full';
 <% if (canEdit) { %>
 <!-- Modal thêm/sửa tiêu chí -->
 <dialog id="editModal" class="modal" style="max-width:580px">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form id="editForm" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="_method" id="editMethod" value="POST">
@@ -242,6 +243,7 @@ const canFull = permLevel === 'full';
 
 <!-- Modal xem trước tác động (mở nhanh từ bảng) -->
 <dialog id="previewModal" class="modal" style="max-width:480px">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <div class="modal-form">
     <h3><i class="fas fa-calculator" style="color:#7C3AED"></i> Xem trước tác động</h3>
     <div id="pmBody"><div style="text-align:center;padding:24px;color:var(--text-3)"><i class="fas fa-circle-notch fa-spin fa-lg"></i></div></div>
@@ -252,6 +254,7 @@ const canFull = permLevel === 'full';
 <% if (canFull) { %>
 <!-- Modal xóa -->
 <dialog id="deleteModal" class="modal" style="max-width:420px">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <div class="modal-form">
     <h3>Xác nhận xóa</h3>
     <p style="font-size:13.5px;color:var(--text-2);margin-bottom:6px">Bạn có chắc muốn xóa tiêu chí:</p>

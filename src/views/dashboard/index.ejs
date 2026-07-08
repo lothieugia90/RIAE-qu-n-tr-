@@ -37,6 +37,14 @@
 <div class="db-grid">
   <div class="db-main">
 
+    <!-- Biểu đồ hoạt động công ty 6 tháng -->
+    <div class="card">
+      <div class="card-header"><h3><i class="fas fa-chart-column" style="color:var(--primary)"></i> Hoạt động công ty 6 tháng gần đây</h3></div>
+      <div class="card-body">
+        <div style="position:relative;height:260px"><canvas id="companyChart"></canvas></div>
+      </div>
+    </div>
+
     <!-- Hôm nay của bạn -->
     <div class="card">
       <div class="card-header"><h3><i class="fas fa-sun" style="color:var(--warning)"></i> Hôm nay của bạn</h3></div>
@@ -243,6 +251,51 @@
     </div>
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const el = document.getElementById('companyChart');
+  if (!el || typeof Chart === 'undefined') return;
+  const rows = <%- JSON.stringify(monthlyChart || []) %>;
+  let chart = null;
+  // Tự đặt kích thước canvas theo container (responsive:false) — tránh lỗi
+  // Chart.js đo container ra 0 khi CSS layout chưa sẵn sàng lúc script chạy
+  function draw() {
+    const w = el.parentElement.clientWidth;
+    if (!w) return;
+    if (chart) chart.destroy();
+    el.width = w; el.height = 260;
+    // Bảng màu đã validate (CVD-safe, đủ tương phản ≥3:1 trên nền trắng)
+    chart = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: rows.map(r => r.label),
+        datasets: [
+          { label: 'Công việc mới',        data: rows.map(r => r.tasks_new),    backgroundColor: '#2a78d6', borderRadius: 4, maxBarThickness: 26 },
+          { label: 'Công việc hoàn thành', data: rows.map(r => r.tasks_done),   backgroundColor: '#199e70', borderRadius: 4, maxBarThickness: 26 },
+          { label: 'Yêu cầu / đơn từ',     data: rows.map(r => r.requests_new), backgroundColor: '#c98500', borderRadius: 4, maxBarThickness: 26 }
+        ]
+      },
+      options: {
+        responsive: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12, font: { size: 12 }, color: '#52514e' } },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#898781', font: { size: 11 } } },
+          y: { beginAtZero: true, ticks: { precision: 0, color: '#898781', font: { size: 11 } }, grid: { color: '#e1e0d9' } }
+        }
+      }
+    });
+  }
+  if (document.readyState === 'complete') draw();
+  else window.addEventListener('load', draw);
+  let rt = null;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 200); });
+})();
+</script>
 
 <style>
 .db-shortcuts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 460px; }

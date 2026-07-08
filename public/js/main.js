@@ -55,6 +55,29 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
   });
 });
 
+// Popup "Thêm mới": link có data-modal mở trang form trong dialog giữa màn hình
+// (trang form render với ?modal=1 → layout tối giản). Sau khi submit thành công,
+// framebuster trong layout chính tự thoát iframe và điều hướng cả trang.
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[data-modal]');
+  if (!link) return;
+  e.preventDefault();
+  const url = link.href + (link.href.includes('?') ? '&' : '?') + 'modal=1';
+  let dlg = document.getElementById('globalFormModal');
+  if (!dlg) {
+    dlg = document.createElement('dialog');
+    dlg.id = 'globalFormModal';
+    dlg.className = 'form-modal';
+    dlg.innerHTML = '<button type="button" class="form-modal-close" aria-label="Đóng">&times;</button>' +
+                    '<iframe class="form-modal-frame" title="Form"></iframe>';
+    document.body.appendChild(dlg);
+    dlg.querySelector('.form-modal-close').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', (ev) => { if (ev.target === dlg) dlg.close(); });
+  }
+  dlg.querySelector('.form-modal-frame').src = url;
+  dlg.showModal();
+});
+
 // Prompt for new password before submitting reset-password forms
 document.querySelectorAll('[data-password-prompt]').forEach(form => {
   form.addEventListener('submit', e => {

@@ -73,6 +73,7 @@
 <% if (['edit','full'].includes(permLevel)) { %>
 <!-- Modal vật tư -->
 <dialog id="itemModal" class="modal" style="max-width:560px">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form action="/warehouse/items" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="id" id="it_id">
@@ -109,6 +110,7 @@
 
 <!-- Modal nhập/xuất -->
 <dialog id="txModal" class="modal" style="max-width:480px">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form action="/warehouse/transactions" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <h3>Phiếu Nhập / Xuất kho</h3>

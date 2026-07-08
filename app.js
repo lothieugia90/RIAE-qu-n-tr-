@@ -76,6 +76,13 @@ app.set('views', path.join(__dirname, 'src/views'));
 app.use(expressLayouts);
 app.set('layout', 'layouts/main');
 
+// ?modal=1 → layout tối giản (không sidebar/header) để trang form
+// hiển thị được bên trong popup modal (iframe) từ các nút "Thêm mới"
+app.use((req, res, next) => {
+  if (req.query.modal === '1') res.locals.layout = 'layouts/modal';
+  next();
+});
+
 app.use(loadUser);
 
 // Helper định dạng dùng chung trong view
@@ -182,7 +189,26 @@ io.use((socket, next) => {
   next(new Error('unauthorized'));
 });
 
+// Presence: đếm số kết nối socket của mỗi user (widget chat chạy trên mọi trang
+// nên user mở app là có socket). 0→1 phát "online", về 0 phát "offline".
+const onlineUsers = new Map(); // userId -> số kết nối đang mở
+app.set('onlineUsers', onlineUsers);
+
 io.on('connection', async (socket) => {
+  const prevCount = onlineUsers.get(socket.userId) || 0;
+  onlineUsers.set(socket.userId, prevCount + 1);
+  if (prevCount === 0) io.emit('presence:update', { userId: socket.userId, online: true });
+
+  socket.on('disconnect', () => {
+    const left = (onlineUsers.get(socket.userId) || 1) - 1;
+    if (left <= 0) {
+      onlineUsers.delete(socket.userId);
+      io.emit('presence:update', { userId: socket.userId, online: false });
+    } else {
+      onlineUsers.set(socket.userId, left);
+    }
+  });
+
   // Chỉ join các phòng user là thành viên (kiểm tra server-side)
   try {
     const rooms = await query('SELECT room_id FROM chat_room_members WHERE user_id=$1', [socket.userId]);

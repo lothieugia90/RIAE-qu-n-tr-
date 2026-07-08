@@ -115,6 +115,7 @@
 
 <!-- Modal tạo task -->
 <dialog id="createTaskModal" class="modal">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form action="/tasks" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="project_id" value="<%= project.id %>">

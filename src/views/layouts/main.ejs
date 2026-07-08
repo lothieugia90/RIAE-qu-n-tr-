@@ -9,6 +9,12 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    // Trang full-layout không bao giờ được hiển thị bên trong iframe của popup
+    // "thêm mới" — khi form trong popup submit xong và redirect tới trang kết quả,
+    // thoát khỏi iframe và điều hướng cả trang tới đó (đóng popup tự nhiên).
+    if (window.self !== window.top) { window.top.location = window.location; }
+  </script>
 </head>
 <body class="app-body">
   <div class="app-wrapper" id="appWrapper">
@@ -21,6 +27,7 @@
       </div>
     </div>
   </div>
+  <%- include('../partials/chatWidget') %>
   <script src="/js/main.js"></script>
 </body>
 </html>

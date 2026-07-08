@@ -1,0 +1,30 @@
+<%# Popup chat góc phải dưới — hiển thị trên mọi trang trừ trang /chat %>
+<% if (currentUser && !(path || '').startsWith('/chat')) { %>
+<div id="chatWidget" class="cw" data-my-id="<%= currentUser.id %>">
+  <button type="button" id="cwToggle" class="cw-toggle" title="Chat nội bộ" aria-label="Mở chat">
+    <i class="fas fa-comments"></i>
+    <span class="cw-badge" id="cwBadge" <%= (unreadChats || 0) > 0 ? '' : 'hidden' %>><%= unreadChats || 0 %></span>
+  </button>
+  <div class="cw-panel" id="cwPanel" hidden>
+    <div class="cw-head">
+      <button type="button" id="cwBack" class="cw-head-btn" hidden aria-label="Quay lại"><i class="fas fa-arrow-left"></i></button>
+      <strong id="cwTitle"><i class="fas fa-comments"></i> Chat</strong>
+      <span style="flex:1"></span>
+      <a href="/chat" class="cw-head-btn" title="Mở trang chat đầy đủ"><i class="fas fa-up-right-and-down-left-from-center"></i></a>
+      <button type="button" id="cwMin" class="cw-head-btn" title="Thu gọn" aria-label="Thu gọn"><i class="fas fa-minus"></i></button>
+    </div>
+    <div class="cw-body">
+      <div id="cwRooms" class="cw-rooms"><p class="cw-loading">Đang tải...</p></div>
+      <div id="cwChat" class="cw-chat" hidden>
+        <div id="cwMsgs" class="cw-msgs"></div>
+        <form id="cwForm" class="cw-input">
+          <input type="text" id="cwText" placeholder="Nhắn tin..." autocomplete="off" maxlength="4000">
+          <button type="submit" aria-label="Gửi"><i class="fas fa-paper-plane"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/chat-widget.js"></script>
+<% } %>

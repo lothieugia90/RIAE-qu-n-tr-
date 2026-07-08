@@ -110,6 +110,15 @@
             <% if (a.status === 'approved' && a.signature_url) { %>
             <img src="<%= a.signature_url %>" alt="Chữ ký <%= a.approver_name %>" class="appr-signature">
             <% } %>
+            <% if (a.sig_valid === true) { %>
+            <small class="appr-verify ok" title="Chữ ký được ký HMAC-SHA256 trên server tại thời điểm duyệt. Mọi thay đổi dữ liệu (người duyệt, trạng thái, thời điểm, ý kiến) đều làm mã xác thực lệch.">
+              <i class="fas fa-shield-halved"></i> Đã xác thực · <code><%= a.signature_hash.slice(0, 12) %></code>
+            </small>
+            <% } else if (a.sig_valid === false) { %>
+            <small class="appr-verify bad" title="Mã xác thực không khớp — dữ liệu bước duyệt này có thể đã bị chỉnh sửa sau khi ký, hoặc được duyệt trước khi bật cơ chế xác thực.">
+              <i class="fas fa-triangle-exclamation"></i> Không xác thực được
+            </small>
+            <% } %>
           </div>
           <span class="badge <%= a.status === 'approved' ? 'badge-success' : a.status === 'rejected' ? 'badge-danger' : 'badge-warning' %>">
             <%= a.status === 'approved' ? 'Đồng ý' : a.status === 'rejected' ? 'Từ chối' : 'Chờ' %>
@@ -132,6 +141,10 @@
   margin-top: 16px; padding: 12px 14px; background: var(--danger-bg); color: var(--danger);
   border-radius: var(--radius-sm); font-size: 13px;
 }
+.appr-verify { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 10px; width: fit-content; cursor: help; }
+.appr-verify.ok { background: var(--success-bg); color: var(--success); }
+.appr-verify.bad { background: var(--danger-bg); color: var(--danger); }
+.appr-verify code { font-size: 10px; letter-spacing: .04em; }
 .appr-step { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; }
 .appr-step + .appr-step { border-top: 1px solid var(--border-light); }
 .appr-icon {

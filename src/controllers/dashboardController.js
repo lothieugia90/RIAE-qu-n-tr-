@@ -54,7 +54,8 @@ const index = async (req, res) => {
 
     const [
       myTaskStats, myAgenda, myApprovals, myRequests, myAttendance, myNotifications,
-      companyStats, projectList, attendanceToday, lowStock, quotesPipeline, recentActivity, companyAnnouncements
+      companyStats, projectList, attendanceToday, lowStock, quotesPipeline, recentActivity, companyAnnouncements,
+      monthlyChart
     ] = await Promise.all([
       // --- Cá nhân (mọi vai trò) ---
       query(`SELECT COUNT(*) FILTER (WHERE status != 'done')::int AS pending,
@@ -143,7 +144,17 @@ const index = async (req, res) => {
                 EXISTS(SELECT 1 FROM announcement_reads ar WHERE ar.announcement_id=a.id AND ar.user_id=$1) AS is_read
          FROM announcements a
          WHERE a.is_published=true AND (a.expires_at IS NULL OR a.expires_at > NOW())
-         ORDER BY a.is_pinned DESC, a.published_at DESC LIMIT 4`, [userId])
+         ORDER BY a.is_pinned DESC, a.published_at DESC LIMIT 4`, [userId]),
+
+      // --- Biểu đồ hoạt động 6 tháng: task mới, task hoàn thành, yêu cầu gửi ---
+      query(
+        `SELECT to_char(d.m, 'MM/YYYY') AS label,
+                (SELECT COUNT(*)::int FROM tasks t WHERE date_trunc('month', t.created_at)=d.m) AS tasks_new,
+                (SELECT COUNT(*)::int FROM tasks t WHERE t.status='done' AND date_trunc('month', t.updated_at)=d.m) AS tasks_done,
+                (SELECT COUNT(*)::int FROM requests r WHERE date_trunc('month', r.created_at)=d.m) AS requests_new
+         FROM generate_series(date_trunc('month', CURRENT_DATE) - INTERVAL '5 months',
+                              date_trunc('month', CURRENT_DATE), INTERVAL '1 month') AS d(m)
+         ORDER BY d.m`)
     ]);
 
     const t = myTaskStats.rows[0];
@@ -196,7 +207,8 @@ const index = async (req, res) => {
       quotes: quotesPipeline.rows[0],
       recentActivity: recentActivity.rows,
       companyAnnouncements: companyAnnouncements.rows,
-      annTypeMeta: ANN_TYPE_META
+      annTypeMeta: ANN_TYPE_META,
+      monthlyChart: monthlyChart.rows
     });
   } catch (err) {
     console.error('Dashboard error:', err);

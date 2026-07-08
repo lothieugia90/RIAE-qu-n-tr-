@@ -14,7 +14,7 @@
   <div class="card-body">
     <div class="req-form-grid">
       <% forms.forEach(f => { const m = categoryMeta[f.category] || categoryMeta.other; %>
-      <a href="/requests/new/<%= f.id %>" class="req-form-card">
+      <a href="/requests/new/<%= f.id %>" data-modal class="req-form-card">
         <span class="rf-icon" style="background:<%= m.bg %>;color:<%= m.color %>"><i class="fas <%= m.icon %>"></i></span>
         <span class="rf-text">
           <strong><%= f.name %></strong>

@@ -48,6 +48,7 @@
 </div>
 
 <dialog id="partnerModal" class="modal" style="max-width:560px">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form action="/partners" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="id" id="pt_id">

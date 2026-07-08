@@ -47,6 +47,7 @@
 
 <!-- Modal tạo/sửa quy trình -->
 <dialog id="formModal" class="modal" style="max-width:640px">
+  <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form id="formBuilderForm" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <h3 id="formModalTitle">Tạo quy trình mới</h3>
