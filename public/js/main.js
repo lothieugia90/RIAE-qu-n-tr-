@@ -58,23 +58,38 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
 // Popup "Thêm mới": link có data-modal mở trang form trong dialog giữa màn hình
 // (trang form render với ?modal=1 → layout tối giản). Sau khi submit thành công,
 // framebuster trong layout chính tự thoát iframe và điều hướng cả trang.
+// Iframe được đo và chỉnh đúng chiều cao nội dung thật (không cuộn riêng bên
+// trong nó) — khung ngoài .form-modal-scroll mới là nơi cuộn, nút X nằm
+// ngoài vùng cuộn nên luôn cố định, không bị trôi mất với form dài.
 document.addEventListener('click', (e) => {
   const link = e.target.closest('a[data-modal]');
   if (!link) return;
   e.preventDefault();
   const url = link.href + (link.href.includes('?') ? '&' : '?') + 'modal=1';
   let dlg = document.getElementById('globalFormModal');
+  let frame;
   if (!dlg) {
     dlg = document.createElement('dialog');
     dlg.id = 'globalFormModal';
     dlg.className = 'form-modal';
     dlg.innerHTML = '<button type="button" class="form-modal-close" aria-label="Đóng">&times;</button>' +
-                    '<iframe class="form-modal-frame" title="Form"></iframe>';
+                    '<div class="form-modal-scroll"><iframe class="form-modal-frame" title="Form"></iframe></div>';
     document.body.appendChild(dlg);
     dlg.querySelector('.form-modal-close').addEventListener('click', () => dlg.close());
     dlg.addEventListener('click', (ev) => { if (ev.target === dlg) dlg.close(); });
+    frame = dlg.querySelector('.form-modal-frame');
+    const fitFrame = () => {
+      try {
+        const h = frame.contentDocument.documentElement.scrollHeight;
+        if (h > 0) frame.style.height = h + 'px';
+      } catch (err) { /* trang khác domain (không xảy ra ở đây) — bỏ qua */ }
+    };
+    frame.addEventListener('load', () => { fitFrame(); setTimeout(fitFrame, 150); });
+  } else {
+    frame = dlg.querySelector('.form-modal-frame');
+    frame.style.height = '200px';
   }
-  dlg.querySelector('.form-modal-frame').src = url;
+  frame.src = url;
   dlg.showModal();
 });
 
