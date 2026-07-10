@@ -180,7 +180,8 @@ const deleteFile = async (req, res) => {
   try {
     const f = await query('SELECT * FROM announcement_files WHERE id=$1 AND announcement_id=$2', [req.params.fileId, req.params.id]);
     if (f.rows.length) {
-      const fullPath = path.join(__dirname, '../../public', f.rows[0].file_path);
+      const { uploadPathFromUrl } = require('../config/uploads');
+      const fullPath = uploadPathFromUrl(f.rows[0].file_path);
       if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
       await query('DELETE FROM announcement_files WHERE id=$1', [req.params.fileId]);
     }

@@ -188,8 +188,8 @@ const saveSignature = async (req, res) => {
     if (buf.length > 500 * 1024) throw new Error('Chữ ký quá lớn');
     const fs = require('fs');
     const path = require('path');
-    const dir = path.join(__dirname, '../../public/uploads/signatures');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const { uploadDir } = require('../config/uploads');
+    const dir = uploadDir('signatures');
     const filename = req.session.userId + '-' + Date.now() + '.png';
     fs.writeFileSync(path.join(dir, filename), buf);
     await query('UPDATE users SET signature_url=$1, updated_at=NOW() WHERE id=$2',

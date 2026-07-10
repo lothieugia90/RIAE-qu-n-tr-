@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const authController = require('../controllers/authController');
 const { requireAuth } = require('../middleware/auth');
+const { uploadDir } = require('../config/uploads');
 
 // Giới hạn brute-force: 10 lần thử đăng nhập / 15 phút / IP
 const loginLimiter = rateLimit({
@@ -20,7 +21,7 @@ const loginLimiter = rateLimit({
 
 const avatarUpload = multer({
   storage: multer.diskStorage({
-    destination: path.join(__dirname, '../../public/uploads/avatars'),
+    destination: uploadDir('avatars'),
     filename: (req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
       cb(null, `${req.session.userId}-${Date.now()}${ext}`);

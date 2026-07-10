@@ -2,15 +2,14 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const { query } = require('../config/database');
 const { requireAuth, requirePermission } = require('../middleware/auth');
+const { uploadDir } = require('../config/uploads');
 
 router.use(requireAuth);
 router.use(requirePermission('chat', 'view'));
 
-const chatDir = path.join(__dirname, '../../public/uploads/chat');
-if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true });
+const chatDir = uploadDir('chat');
 const upload = multer({
   storage: multer.diskStorage({
     destination: chatDir,

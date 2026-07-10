@@ -2,14 +2,13 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const ctrl = require('../controllers/requestController');
 const { requireAuth, requirePermission } = require('../middleware/auth');
+const { uploadDir } = require('../config/uploads');
 
 router.use(requireAuth);
 
-const reqDir = path.join(__dirname, '../../public/uploads/requests');
-if (!fs.existsSync(reqDir)) fs.mkdirSync(reqDir, { recursive: true });
+const reqDir = uploadDir('requests');
 const attachUpload = multer({
   storage: multer.diskStorage({
     destination: reqDir,

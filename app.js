@@ -56,6 +56,11 @@ app.use(methodOverride((req) => {
 }));
 
 // Static files
+// /uploads phục vụ từ UPLOADS_BASE (trên Hostinger là thư mục NGOÀI git repo,
+// sống sót qua git clean của auto-deploy) — phải khai báo TRƯỚC static chung
+// để thắng public/uploads cũ. Xem giải thích trong src/config/uploads.js.
+const { UPLOADS_BASE } = require('./src/config/uploads');
+app.use('/uploads', express.static(UPLOADS_BASE));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Session (PostgreSQL store) — dùng chung cho HTTP và Socket.IO
