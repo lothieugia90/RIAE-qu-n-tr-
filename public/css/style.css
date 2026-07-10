@@ -1286,13 +1286,16 @@ a, button, .btn, [onclick], input[type="submit"] { -webkit-tap-highlight-color: 
 /* Nút tròn chat: nhấn thu rõ hơn vì nó nhỏ và nổi */
 .cw-toggle:active { transform: scale(.88); }
 
-/* ===== Dialog (mọi popup .modal + popup form iframe) ===== */
-dialog[open] { animation: dlgIn .32s var(--ease-spring); }
-dialog[open]::backdrop { animation: backdropIn .32s ease; }
-dialog.dlg-closing { animation: dlgOut .18s var(--ease-out-ios) forwards; pointer-events: none; }
-dialog.dlg-closing::backdrop { animation: backdropOut .18s ease forwards; }
-@keyframes dlgIn { from { opacity: 0; transform: scale(.94) translateY(10px); } to { opacity: 1; transform: none; } }
-@keyframes dlgOut { to { opacity: 0; transform: scale(.96); } }
+/* ===== Dialog (mọi popup .modal + popup form iframe) =====
+   Tâm phóng (transform-origin) được JS đặt tại đúng điểm con trỏ lúc nhấn
+   (main.js patch showModal) → dialog bung ra từ chỗ click và thu về đó khi
+   đóng — cùng cảm giác "liên tục không gian" với popup chat (scale .6). */
+dialog[open] { animation: dlgIn .36s var(--ease-spring); }
+dialog[open]::backdrop { animation: backdropIn .36s ease; }
+dialog.dlg-closing { animation: dlgOut .2s var(--ease-out-ios) forwards; pointer-events: none; }
+dialog.dlg-closing::backdrop { animation: backdropOut .2s ease forwards; }
+@keyframes dlgIn { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes dlgOut { to { opacity: 0; transform: scale(.6); } }
 @keyframes backdropIn { from { opacity: 0; } }
 @keyframes backdropOut { to { opacity: 0; } }
 

@@ -55,22 +55,55 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
   });
 });
 
-// Hiệu ứng đóng dialog kiểu iOS: mọi dialog.close() (kể cả từ onclick inline
-// trong view) chạy animation thu nhỏ + mờ dần .18s rồi mới đóng thật.
-// Mở dialog đã có animation thuần CSS qua dialog[open].
+// Hiệu ứng mở/đóng dialog kiểu iOS với "liên tục không gian": dialog bung ra
+// từ ĐÚNG vị trí con trỏ lúc nhấn (transform-origin đặt tại điểm click, có thể
+// nằm ngoài khung dialog — cho cảm giác bay ra từ nút bấm) và thu về đúng điểm
+// đó khi đóng. Mọi lối đóng (nút X, Hủy, click nền tối) đều chạy animation.
 (function () {
   if (!window.HTMLDialogElement) return;
+  const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Điểm nhấn gần nhất — cập nhật ở capture phase nên luôn có TRƯỚC khi
+  // handler mở dialog chạy. Bắt cả pointerdown lẫn click (một số môi trường/
+  // thao tác bàn phím không có pointerdown; click bàn phím có toạ độ 0,0 thì bỏ qua)
+  let lastPointer = null;
+  const trackPointer = (e) => {
+    if (e.clientX === 0 && e.clientY === 0) return;
+    lastPointer = { x: e.clientX, y: e.clientY };
+  };
+  document.addEventListener('pointerdown', trackPointer, true);
+  document.addEventListener('click', trackPointer, true);
+
+  // Tính tâm phóng từ điểm mở đã lưu. Dùng offsetWidth/offsetHeight (không bị
+  // transform của animation đang chạy làm sai lệch như getBoundingClientRect)
+  // + dialog luôn được UA căn giữa viewport → suy ra toạ độ khung thật.
+  window.__setDialogOrigin = function (dlg) {
+    const p = dlg._openPoint;
+    if (!p) { dlg.style.transformOrigin = ''; return; }
+    const left = (window.innerWidth - dlg.offsetWidth) / 2;
+    const top = (window.innerHeight - dlg.offsetHeight) / 2;
+    dlg.style.transformOrigin = (p.x - left) + 'px ' + (p.y - top) + 'px';
+  };
+
+  const origShowModal = HTMLDialogElement.prototype.showModal;
+  HTMLDialogElement.prototype.showModal = function (...args) {
+    origShowModal.apply(this, args);
+    if (reduced()) return;
+    // Lưu điểm mở (dùng lại khi dialog đổi kích thước và khi đóng)
+    this._openPoint = lastPointer;
+    window.__setDialogOrigin(this);
+  };
+
   const origClose = HTMLDialogElement.prototype.close;
   HTMLDialogElement.prototype.close = function (...args) {
-    if (!this.open || this.classList.contains('dlg-closing') ||
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!this.open || this.classList.contains('dlg-closing') || reduced()) {
       return origClose.apply(this, args);
     }
     this.classList.add('dlg-closing');
     setTimeout(() => {
       this.classList.remove('dlg-closing');
       origClose.apply(this, args);
-    }, 180);
+    }, 200);
   };
 })();
 
@@ -101,6 +134,9 @@ document.addEventListener('click', (e) => {
       try {
         const h = frame.contentDocument.documentElement.scrollHeight;
         if (h > 0) frame.style.height = h + 'px';
+        // Dialog vừa đổi chiều cao (vẫn căn giữa) → tính lại tâm phóng
+        // để lúc đóng vẫn thu về đúng điểm đã mở
+        if (window.__setDialogOrigin) window.__setDialogOrigin(dlg);
       } catch (err) { /* trang khác domain (không xảy ra ở đây) — bỏ qua */ }
     };
     frame.addEventListener('load', () => { fitFrame(); setTimeout(fitFrame, 150); });
