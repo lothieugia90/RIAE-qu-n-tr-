@@ -1237,3 +1237,82 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 
 /* Thuộc tính hidden phải thắng mọi display:flex trong widget chat */
 .cw [hidden], .cw-panel[hidden] { display: none !important; }
+
+/* ══════════════════════════════════════════════
+   HIỆU ỨNG THU PHÓNG MƯỢT KIỂU iOS
+   - Nhấn = thu nhẹ (scale .96), nhả = bung về với đường cong spring
+   - Dialog/popup mở = phóng từ .94 + mờ dần; đóng = thu nhanh hơn mở (~60%)
+   - Chỉ animate transform/opacity (không gây reflow), tôn trọng reduced-motion
+══════════════════════════════════════════════ */
+:root {
+  --ease-spring: cubic-bezier(.32, .72, 0, 1);   /* đường cong sheet của Apple */
+  --ease-out-ios: cubic-bezier(.25, .1, .25, 1);
+}
+
+/* Bỏ vệt xám khi chạm trên mobile + giảm trễ tap 300ms */
+a, button, .btn, [onclick], input[type="submit"] { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+/* Phản hồi nhấn: các nút & phần tử tương tác thu nhẹ khi giữ chuột/chạm */
+.btn:active:not(:disabled),
+.db-chip:active,
+.modal-x:active,
+.form-modal-close:active,
+.flash-close:active,
+.cw-head-btn:active,
+.cw-tab:active,
+.doc-del:active { transform: scale(.95); }
+
+/* Prefix .app-body để thắng các <style> cục bộ trong từng trang (nạp sau) */
+.app-body .btn, .app-body .db-chip, .app-body .modal-x, .app-body .form-modal-close,
+.app-body .cw-head-btn, .app-body .cw-tab, .app-body .doc-del {
+  transition: transform .18s var(--ease-spring), background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+/* Thẻ/hàng lớn: thu ít hơn để không cảm giác giật */
+.stat-card:active, .db-kpi:active, .req-form-card:active { transform: scale(.98); }
+.chat-room-item:active, .chat-user-row:active, .cw-room:active, .cw-user:active,
+.db-agenda-row:active, .db-project-row:active, .db-side-row:active, .nav-link:active { transform: scale(.98); }
+.app-body .chat-room-item, .app-body .chat-user-row, .app-body .cw-room, .app-body .cw-user,
+.app-body .db-agenda-row, .app-body .db-project-row, .app-body .db-side-row, .app-body .nav-link {
+  transition: transform .18s var(--ease-spring), background .15s ease;
+}
+.app-body .stat-card, .app-body .db-kpi, .app-body .req-form-card {
+  transition: transform .18s var(--ease-spring), box-shadow .2s ease, border-color .2s ease;
+}
+/* Giữ hiệu ứng nhấc lên khi hover của KPI, kết hợp được với scale khi nhấn */
+.app-body .db-kpi:hover { transform: translateY(-2px); }
+.app-body .db-kpi:active { transform: translateY(0) scale(.98); }
+
+/* Nút tròn chat: nhấn thu rõ hơn vì nó nhỏ và nổi */
+.cw-toggle:active { transform: scale(.88); }
+
+/* ===== Dialog (mọi popup .modal + popup form iframe) ===== */
+dialog[open] { animation: dlgIn .32s var(--ease-spring); }
+dialog[open]::backdrop { animation: backdropIn .32s ease; }
+dialog.dlg-closing { animation: dlgOut .18s var(--ease-out-ios) forwards; pointer-events: none; }
+dialog.dlg-closing::backdrop { animation: backdropOut .18s ease forwards; }
+@keyframes dlgIn { from { opacity: 0; transform: scale(.94) translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes dlgOut { to { opacity: 0; transform: scale(.96); } }
+@keyframes backdropIn { from { opacity: 0; } }
+@keyframes backdropOut { to { opacity: 0; } }
+
+/* ===== Panel popup chat: bung từ góc phải dưới (đúng vị trí nút mở) ===== */
+.cw-panel { transform-origin: calc(100% - 27px) calc(100% + 30px); }
+.cw-panel:not([hidden]) { animation: cwPop .32s var(--ease-spring); }
+.cw-panel.cw-closing { animation: cwShrink .18s var(--ease-out-ios) forwards; pointer-events: none; }
+@keyframes cwPop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes cwShrink { to { opacity: 0; transform: scale(.6); } }
+
+/* Dropdown thông báo (nếu có class .notif-dropdown) cũng bung mượt */
+.notif-dropdown { transform-origin: top right; }
+.notif-dropdown:not([hidden]) { animation: dropIn .24s var(--ease-spring); }
+@keyframes dropIn { from { opacity: 0; transform: scale(.95) translateY(-6px); } }
+
+/* Người dùng bật "giảm chuyển động" → tắt toàn bộ hiệu ứng */
+@media (prefers-reduced-motion: reduce) {
+  dialog[open], dialog.dlg-closing, dialog[open]::backdrop, dialog.dlg-closing::backdrop,
+  .cw-panel:not([hidden]), .cw-panel.cw-closing, .notif-dropdown:not([hidden]) { animation: none; }
+  .btn, .db-chip, .modal-x, .form-modal-close, .cw-head-btn, .cw-tab, .doc-del,
+  .chat-room-item, .chat-user-row, .cw-room, .cw-user,
+  .db-agenda-row, .db-project-row, .db-side-row, .nav-link { transition: none; }
+}

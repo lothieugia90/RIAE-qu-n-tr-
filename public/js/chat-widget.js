@@ -180,13 +180,31 @@
     switchTab(activeTab);
   }
 
+  // Đóng panel với hiệu ứng thu về nút tròn (kiểu iOS); mở đã có animation CSS
+  function closePanel() {
+    if (panel.hidden || panel.classList.contains('cw-closing')) return;
+    toggle.classList.remove('open');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      panel.hidden = true;
+      return;
+    }
+    panel.classList.add('cw-closing');
+    setTimeout(() => {
+      panel.classList.remove('cw-closing');
+      panel.hidden = true;
+    }, 180);
+  }
+
   toggle.addEventListener('click', () => {
-    const opening = panel.hidden;
-    panel.hidden = !opening;
-    toggle.classList.toggle('open', opening);
-    if (opening && !activeRoom) switchTab(activeTab);
+    if (panel.hidden) {
+      panel.hidden = false;
+      toggle.classList.add('open');
+      if (!activeRoom) switchTab(activeTab);
+    } else {
+      closePanel();
+    }
   });
-  minBtn.addEventListener('click', () => { panel.hidden = true; toggle.classList.remove('open'); });
+  minBtn.addEventListener('click', closePanel);
   backBtn.addEventListener('click', backToList);
 
   // ===== Đính kèm file =====

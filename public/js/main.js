@@ -55,6 +55,25 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
   });
 });
 
+// Hiệu ứng đóng dialog kiểu iOS: mọi dialog.close() (kể cả từ onclick inline
+// trong view) chạy animation thu nhỏ + mờ dần .18s rồi mới đóng thật.
+// Mở dialog đã có animation thuần CSS qua dialog[open].
+(function () {
+  if (!window.HTMLDialogElement) return;
+  const origClose = HTMLDialogElement.prototype.close;
+  HTMLDialogElement.prototype.close = function (...args) {
+    if (!this.open || this.classList.contains('dlg-closing') ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return origClose.apply(this, args);
+    }
+    this.classList.add('dlg-closing');
+    setTimeout(() => {
+      this.classList.remove('dlg-closing');
+      origClose.apply(this, args);
+    }, 180);
+  };
+})();
+
 // Popup "Thêm mới": link có data-modal mở trang form trong dialog giữa màn hình
 // (trang form render với ?modal=1 → layout tối giản). Sau khi submit thành công,
 // framebuster trong layout chính tự thoát iframe và điều hướng cả trang.
