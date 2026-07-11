@@ -6,6 +6,8 @@ const { requireAuth, requirePermission } = require('../middleware/auth');
 router.use(requireAuth);
 
 router.get('/my-tasks', ctrl.myTasks);
+// Việc cá nhân: mọi user tự tạo cho mình (không cần quyền tasks:edit)
+router.post('/personal', ctrl.createPersonalTask);
 
 router.post('/', requirePermission('tasks', 'edit'), ctrl.createTask);
 router.get('/:id', ctrl.detail);

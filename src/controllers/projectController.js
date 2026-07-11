@@ -38,7 +38,7 @@ const index = async (req, res) => {
         (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id=p.id) as task_count,
         (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id=p.id AND t.status='done') as done_count,
         (SELECT COUNT(*)::int FROM project_members pm WHERE pm.project_id=p.id) as member_count
-      FROM projects p LEFT JOIN users u ON u.id=p.manager_id WHERE 1=1`;
+      FROM projects p LEFT JOIN users u ON u.id=p.manager_id WHERE p.is_personal=false`;
     const params = [];
     if (!seeAll) {
       params.push(req.session.userId);
@@ -56,7 +56,7 @@ const index = async (req, res) => {
              COUNT(*) FILTER (WHERE status='planning')::int as planning,
              COUNT(*) FILTER (WHERE status='completed')::int as completed,
              COUNT(*) FILTER (WHERE status='on_hold')::int as on_hold
-             FROM projects`),
+             FROM projects WHERE is_personal=false`),
       query('SELECT id, full_name FROM users WHERE is_active=true ORDER BY full_name')
     ]);
 

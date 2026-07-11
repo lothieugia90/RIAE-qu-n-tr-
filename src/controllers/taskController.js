@@ -38,6 +38,50 @@ function refreshProjectProgress(projectId) {
   ).catch(() => {});
 }
 
+// Lấy (hoặc tạo lần đầu) "dự án cá nhân" ẩn của user để chứa việc tự tạo.
+async function getPersonalProjectId(userId) {
+  const existing = await query(
+    'SELECT id FROM projects WHERE is_personal=true AND manager_id=$1 LIMIT 1', [userId]);
+  if (existing.rows.length) return existing.rows[0].id;
+  const u = await query('SELECT full_name FROM users WHERE id=$1', [userId]);
+  const name = 'Cá nhân — ' + (u.rows[0]?.full_name || 'Người dùng');
+  const code = 'CN-' + userId.slice(0, 8).toUpperCase();
+  const r = await query(
+    `INSERT INTO projects (code, name, status, is_personal, manager_id, created_by)
+     VALUES ($1, $2, 'active', true, $3, $3) RETURNING id`,
+    [code, name, userId]);
+  await query(
+    `INSERT INTO project_members (project_id, user_id, role) VALUES ($1, $2, 'manager')
+     ON CONFLICT DO NOTHING`, [r.rows[0].id, userId]);
+  return r.rows[0].id;
+}
+
+// Tạo việc cá nhân từ "Việc của tôi" — mọi user tự tạo việc cho chính mình,
+// không cần quyền tasks:edit vì gắn vào dự án cá nhân và tự giao cho mình.
+const createPersonalTask = async (req, res) => {
+  const { title, description, priority, due_date } = req.body;
+  if (!title?.trim()) {
+    req.flash('error', 'Vui lòng nhập tên công việc');
+    return res.redirect('/tasks/my-tasks');
+  }
+  try {
+    const userId = req.session.userId;
+    const projectId = await getPersonalProjectId(userId);
+    const taskPriority = VALID_PRIORITIES.includes(priority) ? priority : 'medium';
+    const r = await query(
+      `INSERT INTO tasks (project_id, title, description, assignee_id, priority, status, due_date, created_by)
+       VALUES ($1, $2, $3, $4, $5, 'todo', $6, $4) RETURNING id`,
+      [projectId, title.trim(), description || null, userId, taskPriority, due_date || null]);
+    logActivity(userId, 'TASK_CREATE', `Tạo việc cá nhân: ${title.trim()}`,
+      { entityType: 'task', entityId: r.rows[0].id, ip: req.ip });
+    req.flash('success', 'Đã thêm công việc');
+  } catch (err) {
+    console.error('createPersonalTask:', err.message);
+    req.flash('error', 'Lỗi tạo công việc');
+  }
+  res.redirect('/tasks/my-tasks');
+};
+
 const createTask = async (req, res) => {
   const { project_id, title, description, assignee_id, priority, due_date, estimated_hours, status, redirect_to } = req.body;
   // Chỉ cho redirect về trang nội bộ của projects/tasks (chống open-redirect)
@@ -331,6 +375,6 @@ const myTasks = async (req, res) => {
 };
 
 module.exports = {
-  createTask, detail, updateTask, updateStatus, deleteTask, addComment,
+  createTask, createPersonalTask, detail, updateTask, updateStatus, deleteTask, addComment,
   logTime, addChecklist, toggleChecklist, deleteChecklist, myTasks
 };

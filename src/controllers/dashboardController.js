@@ -89,7 +89,7 @@ const index = async (req, res) => {
       // --- Toàn công ty (lãnh đạo) ---
       group === 'leadership'
         ? query(`SELECT
-            (SELECT COUNT(*)::int FROM projects WHERE status='active') AS active_projects,
+            (SELECT COUNT(*)::int FROM projects WHERE status='active' AND is_personal=false) AS active_projects,
             (SELECT COUNT(*)::int FROM tasks WHERE status!='done' AND due_date < CURRENT_DATE) AS company_overdue,
             (SELECT COUNT(*)::int FROM users WHERE is_active=true) AS active_users,
             (SELECT COUNT(*)::int FROM users WHERE last_seen_at > NOW() - INTERVAL '10 minutes') AS online_users`)
@@ -102,7 +102,7 @@ const index = async (req, res) => {
                    (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id=p.id AND t.status!='done' AND t.due_date < CURRENT_DATE) AS overdue_tasks,
                    (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id=p.id AND t.status='review') AS review_tasks
                  FROM projects p LEFT JOIN users u ON u.id=p.manager_id
-                 WHERE p.status IN ('active','planning')
+                 WHERE p.status IN ('active','planning') AND p.is_personal=false
                  ${group === 'manager' ? `AND (p.manager_id=$1 OR p.id IN (SELECT project_id FROM project_members WHERE user_id=$1))` : ''}
                  ORDER BY p.updated_at DESC LIMIT 6`, group === 'manager' ? [userId] : [])
         : Promise.resolve({ rows: [] }),
