@@ -9,7 +9,7 @@
 </div>
 
 <!-- Modal thêm việc cá nhân -->
-<dialog id="personalTaskModal" class="modal" style="max-width:480px">
+<dialog id="personalTaskModal" class="modal ptm">
   <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
   <form action="/tasks/personal" method="POST" class="modal-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -132,4 +132,16 @@ function taskRow(t, showDone) { %>
   .mt-row { grid-template-columns: 80px 1fr 90px; }
   .mt-project, .mt-due { display: none; }
 }
+
+/* Modal thêm việc cá nhân — bố cục cân đối */
+.ptm { border: none; padding: 0; border-radius: var(--radius-lg); width: min(460px, 94vw); box-shadow: var(--shadow-lg); }
+.ptm::backdrop { background: rgba(13,27,62,.5); }
+.ptm .modal-form { padding: 26px 26px 22px; }
+.ptm h3 { font-size: 18px; font-weight: 700; color: var(--text); margin: 0 0 20px; padding-right: 34px; }
+.ptm .form-group { margin-bottom: 16px; }
+.ptm .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
+.ptm .form-control { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 9px; font-size: 14px; font-family: inherit; color: var(--text); background: #fff; }
+.ptm .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(21,101,192,.12); }
+.ptm textarea.form-control { resize: vertical; min-height: 70px; }
+.ptm .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
 </style>

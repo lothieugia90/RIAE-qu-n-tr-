@@ -111,13 +111,13 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
 
 // Popup "Thêm mới" (dự án, yêu cầu, nhân viên, báo giá...): link có data-modal
 // mở trang form (?modal=1, layout tối giản) trong iframe giữa màn hình.
-// Để phóng MỘT lần từ vị trí con trỏ ra đúng khung cuối (không "hộp nhỏ rồi
-// giãn to"): ĐO chiều cao form trong 1 iframe ẩn ngoài màn hình TRƯỚC, đặt
-// đúng chiều cao cho dialog, rồi mới showModal — dùng lại animation dlgIn
-// generic (patch showModal đặt transform-origin tại con trỏ) đã chạy tốt ở
-// các modal khác.
+// Mở TỨC THÌ khi click (bung từ con trỏ, không chờ tải) — chiều cao lấy từ
+// cache (lần mở sau khớp ngay) hoặc ước lượng 68vh cho lần đầu, rồi khi form
+// tải xong tự đệm về đúng chiều cao bằng transition mượt. Không còn tải form
+// 2 lần (bỏ iframe đo ẩn) nên hết cảm giác khựng 2 giây.
 (function () {
-  var dlg, frame, measurer;
+  var dlg, frame;
+  var heightCache = {}; // url -> chiều cao form (px), nhớ giữa các lần mở
 
   function ensureDlg() {
     if (dlg) return;
@@ -132,45 +132,42 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
     dlg.addEventListener('click', function (ev) { if (ev.target === dlg) dlg.close(); });
   }
 
-  // Đo chiều cao form trong iframe ẩn ngoài màn hình (cùng bề rộng với dialog)
-  function measureHeight(url, cb) {
-    if (!measurer) {
-      measurer = document.createElement('iframe');
-      measurer.setAttribute('aria-hidden', 'true');
-      measurer.style.cssText = 'position:fixed;left:-9999px;top:0;width:892px;height:10px;border:0;visibility:hidden';
-      document.body.appendChild(measurer);
-    }
-    var done = false;
-    measurer.onload = function () {
-      var href = '';
-      try { href = measurer.contentWindow.location.href; } catch (e) {}
-      if (!href || href === 'about:blank' || done) return;
-      done = true;
-      var read = function () { try { return measurer.contentDocument.documentElement.scrollHeight; } catch (e) { return 500; } };
-      // đo lại sau khi webfont trong iframe settle để không thiếu chiều cao
-      setTimeout(function () { cb(Math.max(read(), 200)); }, 140);
-    };
-    measurer.src = url;
-  }
-
   document.addEventListener('click', function (e) {
     var link = e.target.closest('a[data-modal]');
     if (!link) return;
     e.preventDefault();
     var url = link.href + (link.href.includes('?') ? '&' : '?') + 'modal=1';
     ensureDlg();
-    measureHeight(url, function (h) {
-      frame.style.height = h + 'px';        // dialog cao đúng nội dung (bị .form-modal cap 86vh + cuộn nếu quá cao)
-      var shown = false;
-      frame.onload = function () {
-        var href = '';
-        try { href = frame.contentWindow.location.href; } catch (e2) {}
-        if (!href || href === 'about:blank' || shown) return;
-        shown = true;
-        if (!dlg.open) dlg.showModal();     // nội dung đã sẵn + đúng cỡ → dlgIn phóng từ con trỏ một lần
+
+    // Chiều cao khởi tạo: cache (chính xác) hoặc ước lượng cho lần đầu
+    var startH = heightCache[url] || Math.round(window.innerHeight * 0.68);
+    frame.style.transition = 'none';          // đặt cỡ ban đầu không animate
+    frame.style.height = startH + 'px';
+    dlg.showModal();                          // MỞ NGAY: dlgIn bung từ con trỏ (patch showModal)
+
+    var fitted = false;
+    frame.onload = function () {
+      var href = '';
+      try { href = frame.contentWindow.location.href; } catch (e2) {}
+      if (!href || href === 'about:blank') return;
+      var fit = function () {
+        if (fitted && !frame.contentDocument) return;
+        var h;
+        try { h = frame.contentDocument.documentElement.scrollHeight; } catch (e3) { return; }
+        if (!h) return;
+        heightCache[url] = h;
+        // Đệm về đúng chiều cao bằng transition mượt (chỉ khi lệch đáng kể)
+        if (Math.abs(h - parseInt(frame.style.height, 10)) > 4) {
+          frame.style.transition = 'height .28s cubic-bezier(.32,.72,0,1)';
+          frame.style.height = h + 'px';
+          if (window.__setDialogOrigin) window.__setDialogOrigin(dlg);
+        }
+        fitted = true;
       };
-      frame.src = url;
-    });
+      fit();
+      setTimeout(fit, 180); // đo lại sau khi webfont trong iframe settle
+    };
+    frame.src = url;
   });
 })();
 
