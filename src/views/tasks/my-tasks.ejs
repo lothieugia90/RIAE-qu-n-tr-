@@ -69,19 +69,25 @@
 
 <%
 function taskRow(t, showDone) { %>
-  <a href="/tasks/<%= t.id %>" class="mt-row">
-    <span class="badge badge-<%= t.priority %>"><%= PRIORITY_LABELS[t.priority] %></span>
-    <span class="mt-title"><%= t.title %></span>
-    <span class="mt-project"><i class="fas fa-folder"></i> <%= t.project_name %></span>
-    <% if (showDone) { %>
-      <span class="mt-due" style="color:var(--success)"><i class="fas fa-check"></i> <%= fmtDate(t.completed_at) %></span>
-    <% } else if (t.due_date) { %>
-      <span class="mt-due <%= new Date(t.due_date) < new Date(new Date().toDateString()) ? 'overdue' : '' %>">
-        <i class="fas fa-calendar"></i> <%= fmtDate(t.due_date) %>
-      </span>
-    <% } else { %><span class="mt-due">—</span><% } %>
-    <span class="badge badge-<%= t.status %>"><%= STATUS_LABELS[t.status] %></span>
-  </a>
+  <div class="mt-item">
+    <a href="/tasks/<%= t.id %>" class="mt-row">
+      <span class="badge badge-<%= t.priority %>"><%= PRIORITY_LABELS[t.priority] %></span>
+      <span class="mt-title"><%= t.title %></span>
+      <span class="mt-project"><i class="fas fa-folder"></i> <%= t.project_name %></span>
+      <% if (showDone) { %>
+        <span class="mt-due" style="color:var(--success)"><i class="fas fa-check"></i> <%= fmtDate(t.completed_at) %></span>
+      <% } else if (t.due_date) { %>
+        <span class="mt-due <%= new Date(t.due_date) < new Date(new Date().toDateString()) ? 'overdue' : '' %>">
+          <i class="fas fa-calendar"></i> <%= fmtDate(t.due_date) %>
+        </span>
+      <% } else { %><span class="mt-due">—</span><% } %>
+      <span class="badge badge-<%= t.status %>"><%= STATUS_LABELS[t.status] %></span>
+    </a>
+    <form action="/tasks/<%= t.id %>/delete" method="POST" class="mt-del-form" data-confirm="Gỡ công việc &quot;<%= t.title.replace(/"/g,'') %>&quot;?">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="mt-del" aria-label="Gỡ công việc" title="Gỡ"><i class="fas fa-trash-alt"></i></button>
+    </form>
+  </div>
 <% } %>
 
 <% if (overdueTasks.length > 0) { %>
@@ -117,13 +123,21 @@ function taskRow(t, showDone) { %>
 <style>
 .mt-section { margin-top: 20px; }
 .mt-list { padding: 6px 0 !important; }
+.mt-item { display: flex; align-items: center; }
+.mt-item + .mt-item { border-top: 1px solid var(--border-light); }
+.mt-item:hover { background: var(--bg); }
 .mt-row {
+  flex: 1; min-width: 0;
   display: grid; grid-template-columns: 90px 1fr 180px 110px 100px;
   align-items: center; gap: 12px; padding: 11px 20px; text-decoration: none;
-  transition: background .15s;
 }
-.mt-row:hover { background: var(--bg); }
-.mt-row + .mt-row { border-top: 1px solid var(--border-light); }
+.mt-del-form { padding-right: 12px; display: flex; }
+.mt-del {
+  border: none; background: transparent; color: var(--text-3); cursor: pointer;
+  width: 30px; height: 30px; border-radius: 8px; font-size: 13px; flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.mt-del:hover { background: var(--danger-bg); color: var(--danger); }
 .mt-title { font-size: 13.5px; font-weight: 500; color: var(--text); }
 .mt-project { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mt-due { font-size: 12px; color: var(--text-2); white-space: nowrap; }

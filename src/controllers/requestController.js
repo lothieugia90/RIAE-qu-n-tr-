@@ -299,6 +299,29 @@ const reopen = async (req, res) => {
   res.redirect('/requests/' + req.params.id);
 };
 
+// Xóa yêu cầu: người gửi tự xóa yêu cầu của mình, hoặc quản lý (requests:full).
+const deleteRequest = async (req, res) => {
+  try {
+    const r = await query('SELECT submitted_by, title FROM requests WHERE id=$1', [req.params.id]);
+    if (!r.rows.length) {
+      req.flash('error', 'Không tìm thấy yêu cầu');
+      return res.redirect('/requests');
+    }
+    const admin = await isManager(req);
+    if (!admin && r.rows[0].submitted_by !== req.session.userId) {
+      req.flash('error', 'Bạn chỉ có thể gỡ yêu cầu do mình gửi');
+      return res.redirect('/requests/' + req.params.id);
+    }
+    await query('DELETE FROM requests WHERE id=$1', [req.params.id]); // cascade request_approvals
+    logActivity(req.session.userId, 'REQUEST_DELETE', `Gỡ yêu cầu: ${r.rows[0].title}`, { ip: req.ip });
+    req.flash('success', 'Đã gỡ yêu cầu');
+  } catch (err) {
+    console.error('requests delete:', err.message);
+    req.flash('error', 'Lỗi gỡ yêu cầu');
+  }
+  res.redirect('/requests');
+};
+
 // ===== Quản lý quy trình (form) =====
 
 function parseFormBody(body) {
@@ -387,4 +410,4 @@ const toggleForm = async (req, res) => {
   res.redirect('/requests/forms');
 };
 
-module.exports = { index, getNew, submit, detail, approve, reopen, listForms, createForm, editForm, toggleForm };
+module.exports = { index, getNew, submit, detail, approve, reopen, deleteRequest, listForms, createForm, editForm, toggleForm };

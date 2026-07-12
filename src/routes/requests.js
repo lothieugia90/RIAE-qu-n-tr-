@@ -35,5 +35,7 @@ router.post('/submit', requirePermission('requests', 'edit'), attachUpload.array
 router.get('/:id', requirePermission('requests', 'view'), ctrl.detail);
 router.post('/:id/approve', requirePermission('requests', 'edit'), ctrl.approve);
 router.post('/:id/reopen', requirePermission('requests', 'full'), ctrl.reopen);
+// Gỡ yêu cầu: chỉ cần đăng nhập — controller tự kiểm tra là người gửi hoặc admin
+router.post('/:id/delete', ctrl.deleteRequest);
 
 module.exports = router;

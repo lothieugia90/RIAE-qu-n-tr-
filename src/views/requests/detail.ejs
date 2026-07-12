@@ -15,12 +15,20 @@
       · <%= fmtDateTime(request.created_at) %>
     </p>
   </div>
-  <% if (isAdmin && request.status === 'rejected') { %>
-  <form action="/requests/<%= request.id %>/reopen" method="POST" data-confirm="Mở lại yêu cầu này để duyệt lại từ đầu?">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <button type="submit" class="btn btn-outline"><i class="fas fa-redo"></i> Mở lại</button>
-  </form>
-  <% } %>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <% if (isAdmin && request.status === 'rejected') { %>
+    <form action="/requests/<%= request.id %>/reopen" method="POST" data-confirm="Mở lại yêu cầu này để duyệt lại từ đầu?">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-outline"><i class="fas fa-redo"></i> Mở lại</button>
+    </form>
+    <% } %>
+    <% if (isAdmin || String(request.submitted_by) === String(currentUser.id)) { %>
+    <form action="/requests/<%= request.id %>/delete" method="POST" data-confirm="Gỡ VĨNH VIỄN yêu cầu này? Không thể khôi phục.">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-outline" style="color:var(--danger)"><i class="fas fa-trash-alt"></i> Gỡ</button>
+    </form>
+    <% } %>
+  </div>
 </div>
 
 <div class="detail-grid">

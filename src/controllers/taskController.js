@@ -249,20 +249,35 @@ async function notifyManager(projectId, taskTitle, status, taskId, actorId) {
 }
 
 const deleteTask = async (req, res) => {
+  // Hỗ trợ cả gọi AJAX (trả JSON) lẫn form POST từ "Việc của tôi" (redirect)
+  const json = wantsJson(req);
+  const fail = (code, msg, backTo) => {
+    if (json) return res.status(code).json({ error: msg });
+    req.flash('error', msg);
+    return res.redirect(backTo || '/tasks/my-tasks');
+  };
   try {
     const level = await getPermLevel(req.session.userRole, 'tasks');
-    const taskRes = await query('SELECT title, created_by, project_id FROM tasks WHERE id=$1', [req.params.id]);
-    if (!taskRes.rows.length) return res.status(404).json({ error: 'Không tìm thấy task' });
+    const taskRes = await query('SELECT title, created_by, assignee_id, project_id FROM tasks WHERE id=$1', [req.params.id]);
+    if (!taskRes.rows.length) return fail(404, 'Không tìm thấy task');
     const t = taskRes.rows[0];
-    if (level !== 'full' && t.created_by !== req.session.userId) {
-      return res.status(403).json({ error: 'Bạn không có quyền xóa task này' });
+    const uid = req.session.userId;
+    // admin (tasks:full), người tạo, hoặc người được giao đều gỡ được
+    if (level !== 'full' && t.created_by !== uid && t.assignee_id !== uid) {
+      return fail(403, 'Bạn không có quyền xóa task này', '/tasks/' + req.params.id);
     }
     await query('DELETE FROM tasks WHERE id=$1', [req.params.id]);
-    logActivity(req.session.userId, 'TASK_DELETE', `Xóa task: ${t.title}`,
+    logActivity(uid, 'TASK_DELETE', `Xóa task: ${t.title}`,
       { entityType: 'task', entityId: req.params.id, ip: req.ip });
     refreshProjectProgress(t.project_id);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    if (json) return res.json({ success: true });
+    req.flash('success', 'Đã gỡ công việc');
+    res.redirect('/tasks/my-tasks');
+  } catch (err) {
+    if (json) return res.status(500).json({ error: err.message });
+    req.flash('error', 'Lỗi gỡ công việc');
+    res.redirect('/tasks/my-tasks');
+  }
 };
 
 const addComment = async (req, res) => {
