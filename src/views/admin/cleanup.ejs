@@ -1,0 +1,63 @@
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Dọn dữ liệu hệ thống</h1>
+    <p>Xóa sạch từng nhóm dữ liệu đã thêm vào — dùng để dọn dữ liệu thử nghiệm</p>
+  </div>
+  <a href="/admin/users" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Về Người dùng</a>
+</div>
+
+<div class="cleanup-warning">
+  <i class="fas fa-triangle-exclamation"></i>
+  <div>
+    <strong>Cảnh báo:</strong> Thao tác xóa là <u>vĩnh viễn, không thể khôi phục</u>.
+    Cấu hình hệ thống (người dùng, phân quyền, phòng ban, biểu mẫu, danh mục) được giữ nguyên.
+  </div>
+</div>
+
+<div class="cleanup-grid">
+  <% cats.forEach(c => { %>
+  <div class="cleanup-card">
+    <div class="cc-head">
+      <span class="cc-icon"><i class="fas <%= c.icon %>"></i></span>
+      <div class="cc-info">
+        <strong><%= c.label %></strong>
+        <small><%= c.count %> bản ghi<% if (c.note) { %> · <%= c.note %><% } %></small>
+      </div>
+    </div>
+    <form action="/admin/cleanup/<%= c.key %>" method="POST"
+          data-confirm="Xóa VĨNH VIỄN toàn bộ &quot;<%= c.label %>&quot; (<%= c.count %> bản ghi)? Không thể khôi phục.">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-sm cc-del" <%= c.count === 0 ? 'disabled' : '' %>>
+        <i class="fas fa-trash"></i> Xóa tất cả
+      </button>
+    </form>
+  </div>
+  <% }) %>
+</div>
+
+<style>
+.cleanup-warning {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 22px;
+  padding: 14px 18px; background: var(--danger-bg); border: 1px solid var(--danger);
+  border-radius: var(--radius); color: var(--danger); font-size: 13.5px; line-height: 1.6;
+}
+.cleanup-warning i { font-size: 20px; margin-top: 2px; flex-shrink: 0; }
+.cleanup-warning strong { font-weight: 700; }
+.cleanup-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.cleanup-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 18px; display: flex; flex-direction: column; gap: 14px;
+}
+.cc-head { display: flex; align-items: center; gap: 13px; }
+.cc-icon {
+  width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0;
+  background: var(--primary-50); color: var(--primary);
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+.cc-info { min-width: 0; }
+.cc-info strong { display: block; font-size: 14.5px; color: var(--text); }
+.cc-info small { font-size: 12px; color: var(--text-3); }
+.cc-del { background: var(--danger-bg); color: var(--danger); align-self: flex-start; border: 1px solid transparent; }
+.cc-del:hover:not(:disabled) { background: var(--danger); color: #fff; }
+.cc-del:disabled { opacity: .45; cursor: not-allowed; }
+</style>

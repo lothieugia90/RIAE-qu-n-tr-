@@ -188,6 +188,12 @@
         <span class="nav-text">Cấu hình Lương</span>
       </a>
       <% } %>
+      <% if (locals.userRole === 'admin') { %>
+      <a href="/admin/cleanup" class="nav-link <%= path.startsWith('/admin/cleanup') ? 'active' : '' %>">
+        <span class="nav-icon"><i class="fas fa-broom"></i></span>
+        <span class="nav-text">Dọn dữ liệu</span>
+      </a>
+      <% } %>
     </div>
     <% } %>
   </nav>

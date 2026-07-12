@@ -103,6 +103,12 @@ const detail = async (req, res) => {
       'INSERT INTO announcement_reads (announcement_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
       [req.params.id, req.session.userId]
     );
+    // Đánh dấu file không còn trên đĩa (vd file cũ đã mất) để view không nhúng
+    // iframe trỏ tới URL 404 — tránh hiển thị trang lỗi 404 bên trong bảng tin
+    const { uploadPathFromUrl } = require('../config/uploads');
+    for (const f of files.rows) {
+      f.missing = !fs.existsSync(uploadPathFromUrl(f.file_path));
+    }
     const permLevel = await getPermLevel(req.session.userRole, 'announcements');
     res.render('announcements/detail', {
       title: ann.rows[0].title,

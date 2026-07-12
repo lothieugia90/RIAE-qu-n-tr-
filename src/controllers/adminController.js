@@ -193,4 +193,70 @@ const getAuditLog = async (req, res) => {
   }
 };
 
-module.exports = { listUsers, createUser, updateUser, resetPassword, getPermissions, savePermissions, getAuditLog };
+// ===== Dọn dữ liệu hệ thống (chỉ quản trị viên) =====
+// Mỗi mục = 1 nhóm dữ liệu "thêm vào" có thể xóa sạch. Bảng con tự xóa theo
+// FK ON DELETE CASCADE. KHÔNG đụng tới cấu hình hệ thống (người dùng, phân
+// quyền, phòng ban, biểu mẫu, danh mục kho, tiêu chí lương).
+const CLEANUP_CATEGORIES = {
+  announcements: { label: 'Bảng tin công ty', icon: 'fa-bullhorn', tables: ['announcements'],
+    count: 'SELECT COUNT(*)::int c FROM announcements' },
+  projects: { label: 'Dự án & Công việc', icon: 'fa-folder-open', tables: ['projects'],
+    count: 'SELECT COUNT(*)::int c FROM projects', note: 'Gồm mọi task, bình luận, chấm việc, việc cá nhân' },
+  requests: { label: 'Yêu cầu & Phê duyệt', icon: 'fa-stamp', tables: ['requests'],
+    count: 'SELECT COUNT(*)::int c FROM requests', note: 'Giữ lại biểu mẫu quy trình' },
+  chat: { label: 'Tin nhắn Chat', icon: 'fa-comments', tables: ['chat_messages'],
+    count: 'SELECT COUNT(*)::int c FROM chat_messages', note: 'Giữ lại phòng chat' },
+  warehouse: { label: 'Kho vật tư', icon: 'fa-boxes', tables: ['warehouse_items'],
+    count: 'SELECT COUNT(*)::int c FROM warehouse_items', note: 'Gồm giao dịch nhập/xuất; giữ danh mục' },
+  partners: { label: 'Đối tác', icon: 'fa-handshake', tables: ['partners'],
+    count: 'SELECT COUNT(*)::int c FROM partners' },
+  quotes: { label: 'Báo giá', icon: 'fa-file-invoice-dollar', tables: ['quotes'],
+    count: 'SELECT COUNT(*)::int c FROM quotes' },
+  attendance: { label: 'Chấm công', icon: 'fa-calendar-check', tables: ['attendance_records'],
+    count: 'SELECT COUNT(*)::int c FROM attendance_records' },
+  documents: { label: 'Tài liệu nhân sự', icon: 'fa-file-lines', tables: ['employee_documents'],
+    count: 'SELECT COUNT(*)::int c FROM employee_documents' },
+  notifications: { label: 'Thông báo', icon: 'fa-bell', tables: ['notifications'],
+    count: 'SELECT COUNT(*)::int c FROM notifications' },
+  audit: { label: 'Nhật ký hoạt động', icon: 'fa-history', tables: ['activity_logs', 'payroll_audit_logs'],
+    count: 'SELECT COUNT(*)::int c FROM activity_logs' },
+};
+
+const getCleanup = async (req, res) => {
+  try {
+    const cats = [];
+    for (const [key, meta] of Object.entries(CLEANUP_CATEGORIES)) {
+      const r = await query(meta.count);
+      cats.push({ key, ...meta, count: r.rows[0].c });
+    }
+    res.render('admin/cleanup', { title: 'Dọn dữ liệu hệ thống', cats });
+  } catch (err) {
+    console.error('getCleanup:', err);
+    req.flash('error', 'Lỗi tải trang dọn dữ liệu');
+    res.redirect('/admin/users');
+  }
+};
+
+const doCleanup = async (req, res) => {
+  const meta = CLEANUP_CATEGORIES[req.params.category];
+  if (!meta) {
+    req.flash('error', 'Nhóm dữ liệu không hợp lệ');
+    return res.redirect('/admin/cleanup');
+  }
+  try {
+    let total = 0;
+    for (const t of meta.tables) {
+      // Tên bảng lấy từ hằng số nội bộ (không phải input người dùng) — an toàn
+      const r = await query(`DELETE FROM ${t}`);
+      total += r.rowCount || 0;
+    }
+    logActivity(req.session.userId, 'DATA_CLEANUP', `Xóa sạch: ${meta.label} (${total} bản ghi)`, { ip: req.ip });
+    req.flash('success', `Đã xóa sạch "${meta.label}" — ${total} bản ghi`);
+  } catch (err) {
+    console.error('doCleanup:', err.message);
+    req.flash('error', 'Lỗi xóa dữ liệu: ' + err.message);
+  }
+  res.redirect('/admin/cleanup');
+};
+
+module.exports = { listUsers, createUser, updateUser, resetPassword, getPermissions, savePermissions, getAuditLog, getCleanup, doCleanup };
