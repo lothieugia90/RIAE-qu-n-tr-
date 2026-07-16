@@ -5,6 +5,7 @@
       <span class="badge <%= quote.status === 'approved' ? 'badge-success' : quote.status === 'rejected' ? 'badge-danger' : quote.status === 'sent' ? 'badge-info' : 'badge-warning' %>"><%= statusLabels[quote.status] %></span>
       <% if (quote.client_name) { %> · KH: <%= quote.client_name %><% } %>
       <% if (quote.project_name) { %> · Dự án: <a href="/projects/<%= quote.project_id %>"><%= quote.project_code %></a><% } %>
+      <% if (quote.location) { %> · <i class="fas fa-location-dot"></i> <%= quote.location %><% } %>
       · Lập bởi <%= quote.creator_name %> · <%= fmtDate(quote.created_at) %>
     </p>
   </div>
@@ -59,10 +60,28 @@
   </div>
 </div>
 
-<% if (quote.notes || quote.valid_until) { %>
+<% if (quote.quote_file_url) { %>
+<div class="card" style="margin-top:16px">
+  <div class="card-body">
+    <a href="<%= quote.quote_file_url %>" target="_blank" class="q-file-link">
+      <i class="fas fa-file-excel"></i>
+      <span><strong>File báo giá Excel</strong><br><small><%= quote.quote_file_name || 'Tải xuống' %></small></span>
+      <i class="fas fa-download" style="margin-left:auto;color:var(--text-3)"></i>
+    </a>
+  </div>
+</div>
+<style>
+.q-file-link { display:flex; align-items:center; gap:12px; text-decoration:none; color:var(--text); }
+.q-file-link > i:first-child { font-size:26px; color:var(--success); }
+.q-file-link small { color:var(--text-3); }
+</style>
+<% } %>
+
+<% if (quote.scope || quote.notes || quote.valid_until) { %>
 <div class="card" style="margin-top:16px">
   <div class="card-body" style="font-size:13.5px;color:var(--text-2)">
-    <% if (quote.valid_until) { %><p><strong>Hiệu lực đến:</strong> <%= fmtDate(quote.valid_until) %></p><% } %>
+    <% if (quote.scope) { %><p style="white-space:pre-line"><strong>Hạng mục:</strong> <%= quote.scope %></p><% } %>
+    <% if (quote.valid_until) { %><p style="margin-top:6px"><strong>Hiệu lực đến:</strong> <%= fmtDate(quote.valid_until) %></p><% } %>
     <% if (quote.notes) { %><p style="white-space:pre-line;margin-top:6px"><strong>Ghi chú:</strong> <%= quote.notes %></p><% } %>
   </div>
 </div>

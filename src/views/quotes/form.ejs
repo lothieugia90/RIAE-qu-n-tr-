@@ -5,7 +5,7 @@
   </div>
 </div>
 
-<form action="/quotes" method="POST">
+<form action="/quotes?_csrf=<%= csrfToken %>" method="POST" enctype="multipart/form-data">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <% if (quote) { %><input type="hidden" name="id" value="<%= quote.id %>"><% } %>
 
@@ -26,22 +26,36 @@
       <div class="form-group"><label>Tiêu đề *</label>
         <input type="text" name="title" class="form-control" required value="<%= quote ? quote.title : '' %>"></div>
       <div class="form-row">
-        <div class="form-group"><label>Khách hàng</label>
-          <input type="text" name="client_name" class="form-control" value="<%= quote ? (quote.client_name || '') : '' %>"></div>
-        <div class="form-group"><label>Liên hệ</label>
-          <input type="text" name="client_contact" class="form-control" value="<%= quote ? (quote.client_contact || '') : '' %>"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Dự án liên quan</label>
+        <div class="form-group"><label>Dự án</label>
           <select name="project_id" class="form-control">
             <option value="">— Không —</option>
             <% projects.forEach(p => { %>
             <option value="<%= p.id %>" <%= quote && quote.project_id === p.id ? 'selected' : '' %>><%= p.code %> — <%= p.name %></option>
             <% }) %>
           </select></div>
+        <div class="form-group"><label>Địa điểm</label>
+          <input type="text" name="location" class="form-control" placeholder="vd: Toà nhà A, KCN X"
+                 value="<%= quote ? (quote.location || '') : '' %>"></div>
+      </div>
+      <div class="form-group"><label>Hạng mục</label>
+        <textarea name="scope" class="form-control" rows="2" placeholder="vd: Hệ thống camera giám sát + hạ tầng mạng"><%= quote ? (quote.scope || '') : '' %></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Khách hàng</label>
+          <input type="text" name="client_name" class="form-control" value="<%= quote ? (quote.client_name || '') : '' %>"></div>
         <div class="form-group"><label>Hiệu lực đến</label>
           <input type="date" name="valid_until" class="form-control"
                  value="<%= quote && quote.valid_until ? new Date(quote.valid_until).toISOString().split('T')[0] : '' %>"></div>
+      </div>
+      <div class="form-group">
+        <label>File báo giá (Excel)</label>
+        <input type="file" name="quote_file" class="form-control" accept=".xlsx,.xls,.xlsm,.csv">
+        <% if (quote && quote.quote_file_url) { %>
+        <small style="display:block;margin-top:6px;color:var(--text-2)">
+          <i class="fas fa-file-excel" style="color:var(--success)"></i>
+          <a href="<%= quote.quote_file_url %>" target="_blank"><%= quote.quote_file_name || 'File hiện tại' %></a>
+          — chọn file mới để thay
+        </small>
+        <% } %>
       </div>
       <div class="form-group"><label>Ghi chú</label>
         <textarea name="notes" class="form-control" rows="2"><%= quote ? (quote.notes || '') : '' %></textarea></div>
@@ -50,7 +64,7 @@
 
   <div class="card" style="margin-top:20px">
     <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-      <h3>Hạng mục báo giá</h3>
+      <h3>Bảng chi tiết hạng mục <small style="font-weight:400;color:var(--text-3)">(tùy chọn — có thể dùng file Excel ở trên)</small></h3>
       <button type="button" class="btn btn-sm btn-outline" onclick="addItemRow()"><i class="fas fa-plus"></i> Thêm dòng</button>
     </div>
     <div class="card-body" style="overflow-x:auto">
@@ -80,7 +94,7 @@ function rowHtml(it) {
   it = it || { qty: 1, price: 0, disc: 0 };
   return `<tr>
     <td class="q-idx"></td>
-    <td><input type="text" name="item_desc" class="form-control" value="${(it.desc || '').replace(/"/g, '&quot;')}" required></td>
+    <td><input type="text" name="item_desc" class="form-control" value="${(it.desc || '').replace(/"/g, '&quot;')}"></td>
     <td><input type="text" name="item_unit" class="form-control" value="${it.unit || ''}"></td>
     <td><input type="number" name="item_qty" class="form-control q-num" value="${it.qty}" min="0" step="any" oninput="recalc()"></td>
     <td><input type="number" name="item_price" class="form-control q-num" value="${it.price}" min="0" step="1000" oninput="recalc()"></td>

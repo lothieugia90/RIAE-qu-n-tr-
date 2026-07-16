@@ -54,7 +54,7 @@ const getForm = async (req, res) => {
 
 // Lưu báo giá + toàn bộ dòng hàng trong 1 transaction
 const save = async (req, res) => {
-  const { id, code, title, project_id, client_name, client_contact, valid_until, notes, status } = req.body;
+  const { id, code, title, project_id, location, scope, client_name, client_contact, valid_until, notes, status } = req.body;
   const arr = v => v === undefined ? [] : (Array.isArray(v) ? v : [v]);
   const descs = arr(req.body.item_desc), units = arr(req.body.item_unit),
         qtys = arr(req.body.item_qty), prices = arr(req.body.item_price), discs = arr(req.body.item_disc);
@@ -62,22 +62,29 @@ const save = async (req, res) => {
     req.flash('error', 'Mã và tiêu đề báo giá là bắt buộc');
     return res.redirect(id ? `/quotes/${id}/edit` : '/quotes/create');
   }
+  // File Excel báo giá (nếu có tải lên mới); giữ file cũ khi sửa mà không thay
+  const fileUrl = req.file ? '/uploads/quotes/' + req.file.filename : undefined;
+  const fileName = req.file ? req.file.originalname : undefined;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     let quoteId = id;
-    const vals = [code.trim().toUpperCase(), title.trim(), project_id || null, client_name || null,
+    const vals = [code.trim().toUpperCase(), title.trim(), project_id || null,
+                  location || null, scope || null, client_name || null,
                   client_contact || null, valid_until || null, notes || null,
                   ['draft', 'sent', 'approved', 'rejected'].includes(status) ? status : 'draft'];
     if (id) {
       await client.query(
-        `UPDATE quotes SET code=$1,title=$2,project_id=$3,client_name=$4,client_contact=$5,
-         valid_until=$6,notes=$7,status=$8,updated_at=NOW() WHERE id=$9`, [...vals, id]);
+        `UPDATE quotes SET code=$1,title=$2,project_id=$3,location=$4,scope=$5,client_name=$6,client_contact=$7,
+         valid_until=$8,notes=$9,status=$10,updated_at=NOW()
+         ${fileUrl ? ', quote_file_url=$12, quote_file_name=$13' : ''} WHERE id=$11`,
+        fileUrl ? [...vals, id, fileUrl, fileName] : [...vals, id]);
       await client.query('DELETE FROM quote_items WHERE quote_id=$1', [id]);
     } else {
       const r = await client.query(
-        `INSERT INTO quotes (code,title,project_id,client_name,client_contact,valid_until,notes,status,created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, [...vals, req.session.userId]);
+        `INSERT INTO quotes (code,title,project_id,location,scope,client_name,client_contact,valid_until,notes,status,quote_file_url,quote_file_name,created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+        [...vals, fileUrl || null, fileName || null, req.session.userId]);
       quoteId = r.rows[0].id;
     }
     for (let i = 0; i < descs.length; i++) {

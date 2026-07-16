@@ -21,22 +21,25 @@
 <div class="card">
   <div class="card-body" style="padding:0">
     <table class="table">
-      <thead><tr><th>Đối tác</th><th>Loại</th><th>Người liên hệ</th><th>Điện thoại</th><th>Email</th><th>MST</th><th style="width:80px"></th></tr></thead>
+      <thead><tr><th>Tên đội</th><th>Loại</th><th>SĐT liên hệ</th><th>Người liên hệ</th><th>File báo giá</th><th style="width:80px"></th></tr></thead>
       <tbody>
         <% if (partners.length === 0) { %>
-        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-3)">Chưa có đối tác nào</td></tr>
+        <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-3)">Chưa có đối tác nào</td></tr>
         <% } %>
         <% partners.forEach(p => { %>
         <tr>
           <td><strong><%= p.name %></strong><% if (p.address) { %><br><small style="color:var(--text-3)"><%= p.address %></small><% } %></td>
           <td><span class="badge badge-info"><%= typeLabels[p.type] %></span></td>
-          <td><%= p.contact_person || '—' %></td>
           <td><%= p.phone || '—' %></td>
-          <td><%= p.email || '—' %></td>
-          <td><%= p.tax_code || '—' %></td>
+          <td><%= p.contact_person || '—' %></td>
+          <td>
+            <% if (p.quote_file_url) { %>
+            <a href="<%= p.quote_file_url %>" target="_blank" title="<%= p.quote_file_name %>"><i class="fas fa-file-excel" style="color:var(--success)"></i> Tải file</a>
+            <% } else { %><span style="color:var(--text-3)">—</span><% } %>
+          </td>
           <td>
             <button class="btn btn-sm btn-outline" title="Sửa"
-              onclick='openPartnerModal(<%- JSON.stringify({id:p.id, type:p.type, name:p.name, phone:p.phone, email:p.email, address:p.address, tax_code:p.tax_code, contact_person:p.contact_person, notes:p.notes}) %>)'>
+              onclick='openPartnerModal(<%- JSON.stringify({id:p.id, type:p.type, name:p.name, phone:p.phone, email:p.email, address:p.address, tax_code:p.tax_code, contact_person:p.contact_person, notes:p.notes, quote_file_url:p.quote_file_url, quote_file_name:p.quote_file_name}) %>)'>
               <i class="fas fa-pen"></i>
             </button>
           </td>
@@ -49,12 +52,12 @@
 
 <dialog id="partnerModal" class="modal" style="max-width:560px">
   <button type="button" class="modal-x" onclick="this.closest('dialog').close()" aria-label="Đóng">&times;</button>
-  <form action="/partners" method="POST" class="modal-form">
+  <form action="/partners?_csrf=<%= csrfToken %>" method="POST" class="modal-form" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="id" id="pt_id">
     <h3 id="partnerModalTitle">Thêm đối tác</h3>
     <div class="form-row">
-      <div class="form-group"><label>Tên đối tác *</label><input type="text" name="name" id="pt_name" class="form-control" required></div>
+      <div class="form-group"><label>Tên đội *</label><input type="text" name="name" id="pt_name" class="form-control" required placeholder="vd: Đội thi công An Phát"></div>
       <div class="form-group">
         <label>Loại *</label>
         <select name="type" id="pt_type" class="form-control" required>
@@ -63,8 +66,13 @@
       </div>
     </div>
     <div class="form-row">
+      <div class="form-group"><label>SĐT liên hệ</label><input type="tel" name="phone" id="pt_phone" class="form-control"></div>
       <div class="form-group"><label>Người liên hệ</label><input type="text" name="contact_person" id="pt_contact_person" class="form-control"></div>
-      <div class="form-group"><label>Điện thoại</label><input type="tel" name="phone" id="pt_phone" class="form-control"></div>
+    </div>
+    <div class="form-group">
+      <label>File báo giá (Excel)</label>
+      <input type="file" name="quote_file" class="form-control" accept=".xlsx,.xls,.xlsm,.csv">
+      <small id="pt_file_current" style="display:none;margin-top:6px;color:var(--text-2)"></small>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Email</label><input type="email" name="email" id="pt_email" class="form-control"></div>
@@ -87,6 +95,12 @@ function openPartnerModal(p) {
   ['name','phone','email','address','tax_code','contact_person','notes'].forEach(k => {
     document.getElementById('pt_' + k).value = p ? (p[k] || '') : '';
   });
+  const cur = document.getElementById('pt_file_current');
+  if (p && p.quote_file_url) {
+    cur.style.display = 'block';
+    cur.innerHTML = '<i class="fas fa-file-excel" style="color:var(--success)"></i> ' +
+      '<a href="' + p.quote_file_url + '" target="_blank">' + (p.quote_file_name || 'File hiện tại') + '</a> — chọn file mới để thay';
+  } else { cur.style.display = 'none'; }
   document.getElementById('partnerModal').showModal();
 }
 </script>
