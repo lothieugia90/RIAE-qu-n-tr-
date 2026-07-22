@@ -13,6 +13,8 @@ router.post('/', requirePermission('tasks', 'edit'), ctrl.createTask);
 router.get('/:id', ctrl.detail);
 router.post('/:id', requirePermission('tasks', 'edit'), ctrl.updateTask);
 router.post('/:id/status', requirePermission('tasks', 'edit'), ctrl.updateStatus);
+// Đánh dấu Hoàn thành/Thất bại: người được giao/tạo/quản lý/admin (controller tự kiểm tra)
+router.post('/:id/mark', ctrl.markTask);
 // Xóa task: chỉ cần đăng nhập — controller tự kiểm tra là người tạo/được giao/admin
 router.post('/:id/delete', ctrl.deleteTask);
 router.post('/:id/comments', requirePermission('tasks', 'edit'), ctrl.addComment);

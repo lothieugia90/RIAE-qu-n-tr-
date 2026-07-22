@@ -4,7 +4,7 @@ const { logActivity } = require('../utils/activityLog');
 const { notify } = require('../utils/notify');
 const { PERM_LEVELS } = require('../config/roles');
 
-const VALID_STATUSES = ['todo', 'in_progress', 'review', 'done'];
+const VALID_STATUSES = ['todo', 'in_progress', 'review', 'done', 'failed'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 // Quyền sửa task: quyền tasks=full, hoặc là assignee/người tạo/quản lý dự án
@@ -241,9 +241,10 @@ async function notifyManager(projectId, taskTitle, status, taskId, actorId) {
     const proj = await query('SELECT manager_id FROM projects WHERE id=$1', [projectId]);
     const managerId = proj.rows[0]?.manager_id;
     if (managerId && managerId !== actorId) {
-      notify(managerId, status === 'review' ? 'task_review' : 'task_done',
-        status === 'review' ? `Task "${taskTitle}" đang chờ kiểm tra` : `Task "${taskTitle}" đã hoàn thành`,
-        null, `/tasks/${taskId}`);
+      const msg = status === 'review' ? `Task "${taskTitle}" đang chờ kiểm tra`
+                : status === 'failed' ? `Task "${taskTitle}" bị đánh dấu THẤT BẠI`
+                : `Task "${taskTitle}" đã hoàn thành`;
+      notify(managerId, status === 'review' ? 'task_review' : 'task_done', msg, null, `/tasks/${taskId}`);
     }
   } catch (e) { /* silent */ }
 }
@@ -354,25 +355,26 @@ const myTasks = async (req, res) => {
     const userId = req.session.userId;
     const [overdueTasks, todayTasks, upcomingTasks, doneTasks, stats] = await Promise.all([
       query(`SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id
-             WHERE t.assignee_id=$1 AND t.status != 'done' AND t.due_date < CURRENT_DATE
+             WHERE t.assignee_id=$1 AND t.status NOT IN ('done','failed') AND t.due_date < CURRENT_DATE
              ORDER BY t.due_date ASC`, [userId]),
       query(`SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id
-             WHERE t.assignee_id=$1 AND t.status != 'done' AND t.due_date = CURRENT_DATE
+             WHERE t.assignee_id=$1 AND t.status NOT IN ('done','failed') AND t.due_date = CURRENT_DATE
              ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END`, [userId]),
       query(`SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id
-             WHERE t.assignee_id=$1 AND t.status != 'done'
+             WHERE t.assignee_id=$1 AND t.status NOT IN ('done','failed')
                AND (t.due_date > CURRENT_DATE OR t.due_date IS NULL)
              ORDER BY t.due_date ASC NULLS LAST,
                CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END
              LIMIT 30`, [userId]),
       query(`SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id
-             WHERE t.assignee_id=$1 AND t.status='done'
+             WHERE t.assignee_id=$1 AND t.status IN ('done','failed')
              ORDER BY t.completed_at DESC NULLS LAST LIMIT 10`, [userId]),
       query(`SELECT COUNT(*)::int as total,
              COUNT(*) FILTER (WHERE status='done')::int as done,
-             COUNT(*) FILTER (WHERE status != 'done' AND due_date < CURRENT_DATE)::int as overdue,
-             COUNT(*) FILTER (WHERE status != 'done' AND due_date = CURRENT_DATE)::int as today,
-             COUNT(*) FILTER (WHERE status != 'done')::int as pending
+             COUNT(*) FILTER (WHERE status='failed')::int as failed,
+             COUNT(*) FILTER (WHERE status NOT IN ('done','failed') AND due_date < CURRENT_DATE)::int as overdue,
+             COUNT(*) FILTER (WHERE status NOT IN ('done','failed') AND due_date = CURRENT_DATE)::int as today,
+             COUNT(*) FILTER (WHERE status NOT IN ('done','failed'))::int as pending
              FROM tasks WHERE assignee_id=$1`, [userId])
     ]);
     res.render('tasks/my-tasks', {
@@ -389,7 +391,37 @@ const myTasks = async (req, res) => {
   }
 };
 
+// Nhân viên được giao (hoặc người tạo/quản lý/admin) đánh dấu nhanh
+// task Hoàn thành ('done') hoặc Thất bại ('failed') qua nút bấm, redirect lại.
+const markTask = async (req, res) => {
+  const result = req.body.result;
+  const backTo = /^\/(projects|tasks)(\/[\w\-\/]*)?$/.test(req.body.back || '') ? req.body.back : `/tasks/${req.params.id}`;
+  if (!['done', 'failed'].includes(result)) return res.redirect(backTo);
+  const edit = await canEditTask(req, req.params.id);
+  if (!edit.ok) {
+    req.flash('error', edit.notFound ? 'Không tìm thấy task' : 'Bạn không có quyền cập nhật task này');
+    return res.redirect(backTo);
+  }
+  try {
+    const old = await query('SELECT title, status, project_id FROM tasks WHERE id=$1', [req.params.id]);
+    const prev = old.rows[0];
+    await query(
+      `UPDATE tasks SET status=$1::varchar, completed_at=NOW(), updated_at=NOW() WHERE id=$2`,
+      [result, req.params.id]);
+    logActivity(req.session.userId, 'TASK_STATUS', `"${prev.title}": ${prev.status} → ${result}`,
+      { entityType: 'task', entityId: req.params.id, ip: req.ip });
+    // Báo quản lý dự án biết kết quả
+    if (prev.status !== result) notifyManager(prev.project_id, prev.title, result, req.params.id, req.session.userId);
+    refreshProjectProgress(prev.project_id);
+    req.flash('success', result === 'done' ? 'Đã đánh dấu HOÀN THÀNH' : 'Đã đánh dấu THẤT BẠI');
+  } catch (err) {
+    console.error('markTask:', err.message);
+    req.flash('error', 'Lỗi cập nhật trạng thái');
+  }
+  res.redirect(backTo);
+};
+
 module.exports = {
-  createTask, createPersonalTask, detail, updateTask, updateStatus, deleteTask, addComment,
+  createTask, createPersonalTask, detail, updateTask, updateStatus, deleteTask, markTask, addComment,
   logTime, addChecklist, toggleChecklist, deleteChecklist, myTasks
 };

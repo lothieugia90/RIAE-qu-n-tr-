@@ -7,7 +7,25 @@
       <span class="badge badge-<%= task.priority %>"><%= PRIORITY_LABELS[task.priority] %></span>
     </p>
   </div>
-  <a href="/projects/<%= task.project_id %>/kanban" class="btn btn-outline"><i class="fas fa-columns"></i> Về Kanban</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <% if (canEdit && !['done','failed'].includes(task.status)) { %>
+    <form action="/tasks/<%= task.id %>/mark" method="POST" style="display:inline"
+          data-confirm="Đánh dấu công việc này HOÀN THÀNH?">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="result" value="done">
+      <input type="hidden" name="back" value="/tasks/<%= task.id %>">
+      <button type="submit" class="btn" style="background:var(--success);color:#fff"><i class="fas fa-circle-check"></i> Hoàn thành</button>
+    </form>
+    <form action="/tasks/<%= task.id %>/mark" method="POST" style="display:inline"
+          data-confirm="Đánh dấu công việc này THẤT BẠI?">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="result" value="failed">
+      <input type="hidden" name="back" value="/tasks/<%= task.id %>">
+      <button type="submit" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger)"><i class="fas fa-circle-xmark"></i> Thất bại</button>
+    </form>
+    <% } %>
+    <a href="/projects/<%= task.project_id %>/kanban" class="btn btn-outline"><i class="fas fa-columns"></i> Về Kanban</a>
+  </div>
 </div>
 
 <div class="detail-grid">

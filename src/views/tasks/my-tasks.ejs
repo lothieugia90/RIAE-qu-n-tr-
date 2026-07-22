@@ -83,10 +83,24 @@ function taskRow(t, showDone) { %>
       <% } else { %><span class="mt-due">—</span><% } %>
       <span class="badge badge-<%= t.status %>"><%= STATUS_LABELS[t.status] %></span>
     </a>
-    <form action="/tasks/<%= t.id %>/delete" method="POST" class="mt-del-form" data-confirm="Gỡ công việc &quot;<%= t.title.replace(/"/g,'') %>&quot;?">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <button type="submit" class="mt-del" aria-label="Gỡ công việc" title="Gỡ"><i class="fas fa-trash-alt"></i></button>
-    </form>
+    <div class="mt-actions">
+      <% if (!showDone) { %>
+      <form action="/tasks/<%= t.id %>/mark" method="POST" data-confirm="Đánh dấu HOÀN THÀNH: &quot;<%= t.title.replace(/"/g,'') %>&quot;?">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="result" value="done"><input type="hidden" name="back" value="/tasks/my-tasks">
+        <button type="submit" class="mt-act mt-ok" aria-label="Hoàn thành" title="Hoàn thành"><i class="fas fa-circle-check"></i></button>
+      </form>
+      <form action="/tasks/<%= t.id %>/mark" method="POST" data-confirm="Đánh dấu THẤT BẠI: &quot;<%= t.title.replace(/"/g,'') %>&quot;?">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="result" value="failed"><input type="hidden" name="back" value="/tasks/my-tasks">
+        <button type="submit" class="mt-act mt-fail" aria-label="Thất bại" title="Thất bại"><i class="fas fa-circle-xmark"></i></button>
+      </form>
+      <% } %>
+      <form action="/tasks/<%= t.id %>/delete" method="POST" data-confirm="Gỡ công việc &quot;<%= t.title.replace(/"/g,'') %>&quot;?">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="mt-act mt-del" aria-label="Gỡ công việc" title="Gỡ"><i class="fas fa-trash-alt"></i></button>
+      </form>
+    </div>
   </div>
 <% } %>
 
@@ -115,7 +129,7 @@ function taskRow(t, showDone) { %>
 
 <% if (doneTasks.length > 0) { %>
 <div class="card mt-section">
-  <div class="card-header"><h3><i class="fas fa-check-circle"></i> Hoàn thành gần đây</h3></div>
+  <div class="card-header"><h3><i class="fas fa-flag-checkered"></i> Đã kết thúc gần đây</h3></div>
   <div class="card-body mt-list"><% doneTasks.forEach(t => taskRow(t, true)) %></div>
 </div>
 <% } %>
@@ -131,13 +145,16 @@ function taskRow(t, showDone) { %>
   display: grid; grid-template-columns: 90px 1fr 180px 110px 100px;
   align-items: center; gap: 12px; padding: 11px 20px; text-decoration: none;
 }
-.mt-del-form { padding-right: 12px; display: flex; }
-.mt-del {
+.mt-actions { display: flex; align-items: center; gap: 2px; padding-right: 10px; }
+.mt-act {
   border: none; background: transparent; color: var(--text-3); cursor: pointer;
-  width: 30px; height: 30px; border-radius: 8px; font-size: 13px; flex-shrink: 0;
-  transition: background .15s, color .15s;
+  width: 30px; height: 30px; border-radius: 8px; font-size: 14px; flex-shrink: 0;
+  transition: background .15s, color .15s; display: flex; align-items: center; justify-content: center;
 }
+.mt-ok:hover { background: var(--success-bg); color: var(--success); }
+.mt-fail:hover { background: var(--danger-bg); color: var(--danger); }
 .mt-del:hover { background: var(--danger-bg); color: var(--danger); }
+@media (max-width: 800px) { .mt-act { width: 34px; height: 34px; } }
 .mt-title { font-size: 13.5px; font-weight: 500; color: var(--text); }
 .mt-project { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mt-due { font-size: 12px; color: var(--text-2); white-space: nowrap; }

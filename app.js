@@ -97,7 +97,7 @@ app.use((req, res, next) => {
 app.use(loadUser);
 
 // Helper định dạng dùng chung trong view
-const STATUS_LABELS = { todo: 'Cần làm', in_progress: 'Đang làm', review: 'Kiểm tra', done: 'Hoàn thành' };
+const STATUS_LABELS = { todo: 'Cần làm', in_progress: 'Đang làm', review: 'Kiểm tra', done: 'Hoàn thành', failed: 'Thất bại' };
 const PRIORITY_LABELS = { low: 'Thấp', medium: 'Trung bình', high: 'Cao', urgent: 'Khẩn cấp' };
 const PROJECT_STATUS_LABELS = { planning: 'Chuẩn bị', active: 'Đang chạy', on_hold: 'Tạm dừng', completed: 'Hoàn thành', cancelled: 'Đã hủy' };
 app.use((req, res, next) => {

@@ -525,6 +525,7 @@ tbody tr:hover { background: #FAFCFF; }
 .badge-in_progress { background: var(--info-bg); color: var(--info); }
 .badge-review { background: var(--warning-bg); color: var(--warning); }
 .badge-done { background: var(--success-bg); color: var(--success); }
+.badge-failed { background: var(--danger-bg); color: var(--danger); }
 
 .badge-low { background: #F1F5F9; color: #64748B; }
 .badge-medium { background: var(--info-bg); color: var(--info); }

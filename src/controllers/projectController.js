@@ -143,7 +143,7 @@ const detail = async (req, res) => {
              COUNT(*) FILTER (WHERE status='in_progress')::int as in_progress,
              COUNT(*) FILTER (WHERE status='todo')::int as todo,
              COUNT(*) FILTER (WHERE status='review')::int as review,
-             COUNT(*) FILTER (WHERE due_date < CURRENT_DATE AND status != 'done')::int as overdue
+             COUNT(*) FILTER (WHERE due_date < CURRENT_DATE AND status NOT IN ('done','failed'))::int as overdue
              FROM tasks WHERE project_id=$1`, [req.params.id])
     ]);
     if (!project.rows.length) {

@@ -58,15 +58,15 @@ const index = async (req, res) => {
       monthlyChart
     ] = await Promise.all([
       // --- Cá nhân (mọi vai trò) ---
-      query(`SELECT COUNT(*) FILTER (WHERE status != 'done')::int AS pending,
-                    COUNT(*) FILTER (WHERE status != 'done' AND due_date < CURRENT_DATE)::int AS overdue,
-                    COUNT(*) FILTER (WHERE status != 'done' AND due_date = CURRENT_DATE)::int AS today
+      query(`SELECT COUNT(*) FILTER (WHERE status NOT IN ('done','failed'))::int AS pending,
+                    COUNT(*) FILTER (WHERE status NOT IN ('done','failed') AND due_date < CURRENT_DATE)::int AS overdue,
+                    COUNT(*) FILTER (WHERE status NOT IN ('done','failed') AND due_date = CURRENT_DATE)::int AS today
              FROM tasks WHERE assignee_id=$1`, [userId]),
       query(`SELECT t.id, t.title, t.due_date, t.priority, t.status, p.name AS project_name,
                CASE WHEN t.due_date < CURRENT_DATE THEN 'overdue'
                     WHEN t.due_date = CURRENT_DATE THEN 'today' ELSE 'upcoming' END AS bucket
              FROM tasks t JOIN projects p ON p.id=t.project_id
-             WHERE t.assignee_id=$1 AND t.status != 'done'
+             WHERE t.assignee_id=$1 AND t.status NOT IN ('done','failed')
              ORDER BY CASE WHEN t.due_date < CURRENT_DATE THEN 0
                            WHEN t.due_date = CURRENT_DATE THEN 1 ELSE 2 END,
                t.due_date ASC NULLS LAST LIMIT 6`, [userId]),
@@ -90,7 +90,7 @@ const index = async (req, res) => {
       group === 'leadership'
         ? query(`SELECT
             (SELECT COUNT(*)::int FROM projects WHERE status='active' AND is_personal=false) AS active_projects,
-            (SELECT COUNT(*)::int FROM tasks WHERE status!='done' AND due_date < CURRENT_DATE) AS company_overdue,
+            (SELECT COUNT(*)::int FROM tasks WHERE status NOT IN ('done','failed') AND due_date < CURRENT_DATE) AS company_overdue,
             (SELECT COUNT(*)::int FROM users WHERE is_active=true) AS active_users,
             (SELECT COUNT(*)::int FROM users WHERE last_seen_at > NOW() - INTERVAL '10 minutes') AS online_users`)
         : Promise.resolve({ rows: [{}] }),
@@ -99,7 +99,7 @@ const index = async (req, res) => {
       showProjects
         ? query(`SELECT p.id, p.code, p.name, p.status, p.progress_percent, p.end_date,
                    u.full_name AS manager_name,
-                   (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id=p.id AND t.status!='done' AND t.due_date < CURRENT_DATE) AS overdue_tasks,
+                   (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id=p.id AND t.status NOT IN ('done','failed') AND t.due_date < CURRENT_DATE) AS overdue_tasks,
                    (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id=p.id AND t.status='review') AS review_tasks
                  FROM projects p LEFT JOIN users u ON u.id=p.manager_id
                  WHERE p.status IN ('active','planning') AND p.is_personal=false
